@@ -87,6 +87,15 @@ except OSError:
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.middleware("http")
+async def vercel_path_normalizer(request, call_next):
+    path = request.scope.get("path", "")
+    if path == "/api/index" or path == "/api/index.py":
+        request.scope["path"] = "/"
+    elif path.startswith("/api/index/"):
+        request.scope["path"] = path[len("/api/index"):]
+    return await call_next(request)
+
+@app.middleware("http")
 async def add_no_cache_headers(request, call_next):
     response = await call_next(request)
     if request.url.path.startswith("/static/") or request.url.path == "/":
@@ -278,6 +287,9 @@ class CustomJDTailorRequest(BaseModel):
     skills: Optional[List[str]] = None
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
+@app.get("/api/index", response_class=HTMLResponse)
+@app.get("/api/index.py", response_class=HTMLResponse)
 def index():
     index_file = os.path.join(static_dir, "index.html")
     if os.path.exists(index_file):
