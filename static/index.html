@@ -262,6 +262,9 @@
               placeholder="Search by title, company, skill (e.g. SQL, Power BI, Swiggy, Internshala, Remotive)...">
             <button type="button" id="search-clear-btn" class="search-clear-btn" onclick="clearSearchInput()" style="display: none;" title="Clear search" aria-label="Clear search">✕</button>
           </div>
+          <button type="button" class="btn btn-primary search-scrape-btn" onclick="openScraperModal()" title="Live Job Scraping: Fetch latest fresher vacancies across 72 platforms">
+            ⚡ <span class="search-scrape-btn-text">Scrape Jobs</span>
+          </button>
         </div>
 
         <div class="filter-grid">
@@ -460,6 +463,12 @@
           </div>
 
           <div class="toolbar-controls-right">
+            <!-- Scrape Jobs Action Button on Main Listing Page -->
+            <button type="button" class="btn btn-primary btn-sm toolbar-scrape-btn" onclick="openScraperModal()"
+              title="Trigger live scraper to fetch new fresher job postings">
+              ⚡ <span class="toolbar-scrape-btn-text">Scrape Jobs</span>
+            </button>
+
             <!-- Sort Selector in Toolbar -->
             <div class="sort-selector-container">
               <span class="toolbar-label">Sort By:</span>
