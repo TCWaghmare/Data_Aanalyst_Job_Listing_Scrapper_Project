@@ -352,7 +352,11 @@ class LinkedInRecruiterFeedAdapter(BaseAdapter):
     """
     def __init__(self):
         super().__init__(platform_id="linkedin_feed", platform_name="LinkedIn HR & Recruiter Posts")
-        self.settings_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "linkedin_feed_settings.json")
+        is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+        if is_serverless:
+            self.settings_file = "/tmp/data/linkedin_feed_settings.json"
+        else:
+            self.settings_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "linkedin_feed_settings.json")
 
     def load_user_settings(self) -> Dict[str, Any]:
         """Loads user's LinkedIn feed sync settings and cookies."""

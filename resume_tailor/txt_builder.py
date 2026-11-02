@@ -6,12 +6,21 @@ Generates clean, readable, ATS-scannable plain text (.txt) resumes.
 import os
 from typing import Dict, Any
 
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "resumes")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+OUTPUT_DIR = "/tmp/data/resumes" if is_serverless else os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "resumes")
+try:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+except OSError:
+    pass
 
 class TxtBuilder:
     def __init__(self, output_dir: str = OUTPUT_DIR):
         self.output_dir = output_dir
+        try:
+            if self.output_dir:
+                os.makedirs(self.output_dir, exist_ok=True)
+        except OSError:
+            pass
 
     def build_txt(self, data: Dict[str, Any], job_id: str) -> str:
         clean_id = "".join([c if c.isalnum() else "_" for c in job_id])

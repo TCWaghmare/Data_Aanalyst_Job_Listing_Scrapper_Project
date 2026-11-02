@@ -15,7 +15,23 @@ from zoneinfo import ZoneInfo
 
 from scraper.models import Job, Platform, ScrapeRun
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "jobs.db")
+def get_default_db_path() -> str:
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+    if is_serverless:
+        tmp_dir = "/tmp/data"
+        tmp_db = os.path.join(tmp_dir, "jobs.db")
+        bundled_db = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "jobs.db")
+        try:
+            os.makedirs(tmp_dir, exist_ok=True)
+            if not os.path.exists(tmp_db) and os.path.exists(bundled_db):
+                import shutil
+                shutil.copy2(bundled_db, tmp_db)
+        except Exception:
+            pass
+        return tmp_db
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "jobs.db")
+
+DB_PATH = get_default_db_path()
 
 def compute_dedup_hash(title: str, company: str, location: str, source_url: str = "") -> str:
     def clean(s: str) -> str:
@@ -35,16 +51,30 @@ def compute_dedup_hash(title: str, company: str, location: str, source_url: str 
     return hashlib.sha256(base.encode("utf-8")).hexdigest()
 
 class Database:
-    def __init__(self, db_path: str = DB_PATH):
-        self.db_path = db_path
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+    def __init__(self, db_path: Optional[str] = None):
+        if db_path is None:
+            self.db_path = get_default_db_path()
+        else:
+            self.db_path = db_path
+        db_dir = os.path.dirname(self.db_path)
+        if db_dir:
+            try:
+                os.makedirs(db_dir, exist_ok=True)
+            except OSError:
+                pass
         self.init_db()
 
     def get_connection(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA foreign_keys = ON")
+        try:
+            conn.execute("PRAGMA journal_mode = WAL")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("PRAGMA foreign_keys = ON")
+        except sqlite3.OperationalError:
+            pass
         return conn
 
     def init_db(self):

@@ -17,8 +17,12 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import parse_xml
 
 EDGE_PATH = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "resumes")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+OUTPUT_DIR = "/tmp/data/resumes" if is_serverless else os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "resumes")
+try:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+except OSError:
+    pass
 
 # Monochrome Overleaf / LaTeX Styling (Jake's Resume / Overleaf Theme)
 FONT_SERIF = "Times New Roman"
@@ -29,6 +33,11 @@ COLOR_MUTED = RGBColor(60, 60, 60)
 class CoverLetterBuilder:
     def __init__(self, output_dir: str = OUTPUT_DIR):
         self.output_dir = output_dir
+        try:
+            if self.output_dir:
+                os.makedirs(self.output_dir, exist_ok=True)
+        except OSError:
+            pass
 
     def generate(
         self,

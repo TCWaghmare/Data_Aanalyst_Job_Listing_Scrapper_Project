@@ -40,11 +40,30 @@ from resume_tailor.parser import (
     TECH_SKILLS_TAXONOMY
 )
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-DOCUMENTS_DIR = os.path.join(DATA_DIR, "documents")
-KB_FILE = os.path.join(DATA_DIR, "knowledge_base.json")
-
-os.makedirs(DOCUMENTS_DIR, exist_ok=True)
+is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+if is_serverless:
+    DATA_DIR = "/tmp/data"
+    DOCUMENTS_DIR = os.path.join(DATA_DIR, "documents")
+    KB_FILE = os.path.join(DATA_DIR, "knowledge_base.json")
+    try:
+        os.makedirs(DOCUMENTS_DIR, exist_ok=True)
+    except OSError:
+        pass
+    bundled_kb = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "knowledge_base.json")
+    if os.path.exists(bundled_kb) and not os.path.exists(KB_FILE):
+        try:
+            import shutil
+            shutil.copy2(bundled_kb, KB_FILE)
+        except Exception:
+            pass
+else:
+    DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    DOCUMENTS_DIR = os.path.join(DATA_DIR, "documents")
+    KB_FILE = os.path.join(DATA_DIR, "knowledge_base.json")
+    try:
+        os.makedirs(DOCUMENTS_DIR, exist_ok=True)
+    except OSError:
+        pass
 
 DOCUMENT_CATEGORIES = [
     ("resume", "Resume / CV"),
@@ -74,6 +93,14 @@ class CareerKnowledgeBase:
     def __init__(self, kb_file: str = KB_FILE, docs_dir: str = DOCUMENTS_DIR):
         self.kb_file = kb_file
         self.docs_dir = docs_dir
+        try:
+            if self.docs_dir:
+                os.makedirs(self.docs_dir, exist_ok=True)
+            kb_dir = os.path.dirname(self.kb_file)
+            if kb_dir:
+                os.makedirs(kb_dir, exist_ok=True)
+        except OSError:
+            pass
         self.documents: List[Dict[str, Any]] = []
         self.unified_profile: Dict[str, Any] = {}
         self._load_or_initialize()

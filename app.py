@@ -80,7 +80,10 @@ linkedin_adapter = LinkedInRecruiterFeedAdapter()
 
 # Mount static files
 static_dir = os.path.join(os.path.dirname(__file__), "static")
-os.makedirs(static_dir, exist_ok=True)
+try:
+    os.makedirs(static_dir, exist_ok=True)
+except OSError:
+    pass
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.middleware("http")
@@ -203,8 +206,15 @@ class LinkedInSettingsRequest(BaseModel):
 
 @app.on_event("startup")
 def on_app_startup():
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+    if is_serverless:
+        logger.info("Running in serverless environment (Vercel/Lambda) - skipping background scheduler and startup scrape.")
+        return
     logger.info("Initializing ScraperScheduler background worker on application startup...")
-    scraper_scheduler.start()
+    try:
+        scraper_scheduler.start()
+    except Exception as e:
+        logger.warning(f"Could not start scraper_scheduler: {e}")
     try:
         _, count = db.get_jobs(source_id="linkedin_feed", limit=5)
         if count < 5:
@@ -217,8 +227,13 @@ def on_app_startup():
 
 @app.on_event("shutdown")
 def on_app_shutdown():
-    logger.info("Stopping ScraperScheduler background worker...")
-    scraper_scheduler.stop()
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+    if not is_serverless:
+        logger.info("Stopping ScraperScheduler background worker...")
+        try:
+            scraper_scheduler.stop()
+        except Exception:
+            pass
 
 class AnalyzeUrlRequest(BaseModel):
     url: str
