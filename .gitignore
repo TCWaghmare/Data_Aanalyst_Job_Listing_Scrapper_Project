@@ -1,0 +1,28 @@
+# Environments & secrets
+.env
+.env.*
+*.env
+!.env.example
+
+# Python virtual environment & caches
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Test databases & SQLite temporary journals
+data/jobs.db-journal
+data/jobs.db-wal
+data/jobs.db-shm
+data/test_temp.db
+
+# Dynamic test resumes & cover letters (preserves folder structure)
+data/resumes/*
+!data/resumes/.gitkeep
+
+# Operating system & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

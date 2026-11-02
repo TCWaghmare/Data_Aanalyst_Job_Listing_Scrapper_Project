@@ -1,0 +1,2820 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Data Analyst Fresher Job Finder (0-1 Year Exp) | Modern Pastel AI Career Platform</title>
+
+  <!-- Modern Clean Typography (Notion/Linear aesthetic) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('job_finder_theme');
+        var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = saved ? saved : (systemDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark-theme');
+        }
+      } catch (e) { }
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/css/styles.css?v=3.0.0-responsive">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2226%22>📈</text></svg>">
+</head>
+
+<body>
+
+  <!-- Top Navigation Bar (Background: #FFFFFF, Bottom Border: #FFDDDD) -->
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="brand">
+        <div class="brand-icon">🎓</div>
+        <div class="brand-text-wrap">
+          <div class="brand-title">
+            <span class="brand-title-text">Data Analyst Job Finder</span>
+            <span class="fresher-badge-header">0–1 Year Exp</span>
+          </div>
+          <div class="brand-subtitle">Curated Indian & Global Remote Platforms Open to India (Recent 1 Month)</div>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <!-- Dedicated AI Resume & Cover Letter Tailor Feature -->
+        <button class="btn btn-primary btn-sm header-btn-tailor" onclick="openAITailorWorkspace()"
+          title="AI Resume & Cover Letter Tailoring Studio: Paste URL or JD"
+          style="background: linear-gradient(135deg, #D97F95 0%, #B85F75 100%); color: #FFFFFF; border: none; font-weight: 700; box-shadow: 0 2px 6px rgba(217,127,149,0.35); padding: 0.45rem 0.85rem;">
+          ⚡ <span class="btn-text-full">AI Resume & Cover Letter Tailor</span><span class="btn-text-short">Tailor</span>
+        </button>
+        <!-- Master Resume Profile Badge -->
+        <button class="btn btn-outline btn-sm master-resume-badge header-btn-desktop-only" id="master-resume-badge-btn"
+          onclick="openMasterResumeModal()" title="View or upload verified Master Resume">
+          📄 Master Resume: <span id="header-resume-name" style="color: #D97F95; font-weight: 700;">Loading...</span>
+        </button>
+        <!-- Notification Bell Dropdown -->
+        <div style="position: relative; display: inline-block;">
+          <button class="btn btn-outline btn-sm" id="notif-bell-btn" onclick="toggleNotificationDrawer()"
+            title="Job Scraping Notifications & System Alerts">
+            🔔 <span id="header-notif-label" class="header-notif-text">Alerts</span>
+            <span class="notif-badge" id="header-notif-badge"
+              style="display: none; background: #dc2626; color: white; border-radius: 9999px; padding: 2px 7px; font-size: 0.72rem; font-weight: 800; margin-left: 4px;">0</span>
+          </button>
+          <div id="notif-dropdown" class="notif-dropdown" style="display: none;">
+            <div class="notif-header">
+              <div>
+                <span style="font-weight: 700; font-size: 0.9rem; color: #1e293b; display: block;">Scraping Alerts & Updates</span>
+                <span class="notif-tz-badge">🇮🇳 Indian Standard Time (IST • UTC+5:30)</span>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="btn-text-xs" onclick="markAllNotificationsRead()">Mark all read</button>
+                <button class="btn-text-xs" onclick="openNotificationSettingsModal()">⚙️ Settings</button>
+              </div>
+            </div>
+            <div id="notif-items-list" class="notif-items-list">
+              <div style="padding: 1.5rem; text-align: center; color: #64748b; font-size: 0.85rem;">No recent
+                notifications</div>
+            </div>
+            <div class="notif-footer">
+              <span>Alerts Timezone: <strong>IST (Asia/Kolkata)</strong></span>
+              <button class="btn-text-xs" onclick="fetchNotifications()" style="cursor: pointer;">🔄 Refresh</button>
+            </div>
+          </div>
+        </div>
+        <!-- Settings Button -->
+        <button class="btn btn-outline btn-sm header-btn-desktop-only" onclick="openSettingsModal()"
+          title="Customize ATS strictness, work modes, and export preferences">
+          ⚙️ Settings
+        </button>
+        <!-- Theme Change Button -->
+        <button class="btn btn-outline btn-sm theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()"
+          title="Switch to Dark Theme" aria-label="Toggle Theme">
+          <span class="theme-toggle-icon" id="theme-toggle-icon">🌙</span>
+          <span class="theme-toggle-text" id="theme-toggle-text">Dark</span>
+        </button>
+        <!-- Export Actions -->
+        <button class="btn btn-outline btn-sm header-btn-desktop-only" onclick="window.location.href='/api/export/csv'"
+          title="Export all recent listings to CSV">
+          📥 CSV
+        </button>
+        <button class="btn btn-outline btn-sm header-btn-desktop-only" onclick="window.location.href='/api/export/json'"
+          title="Export all recent listings to JSON">
+          📥 JSON
+        </button>
+        <!-- Primary Action Button: #FFCED8 -->
+        <button class="btn btn-primary header-btn-desktop-only" onclick="switchTab('scheduler-center')">
+          ⚡ Automated Job Scraping
+        </button>
+
+        <!-- Mobile/Tablet Menu Button (Visible on screens <= 1024px) -->
+        <button type="button" class="btn btn-outline btn-sm mobile-menu-toggle-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()"
+          title="Toggle Navigation Menu" aria-label="Toggle Navigation Menu" aria-expanded="false">
+          <span class="mobile-menu-icon" id="mobile-menu-icon">☰</span>
+          <span class="mobile-menu-label">Menu</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Actions Slide-down Drawer (Tablet & Mobile) -->
+    <div id="mobile-actions-drawer" class="mobile-actions-drawer" style="display: none;">
+      <div class="mobile-drawer-content">
+        <div class="mobile-drawer-primary">
+          <button class="btn btn-primary btn-block mobile-drawer-btn" onclick="openAITailorWorkspace(); closeMobileMenu();"
+            style="background: linear-gradient(135deg, #D97F95 0%, #B85F75 100%); color: #FFFFFF; border: none; font-weight: 700;">
+            ⚡ AI Resume & Cover Letter Tailor
+          </button>
+          <button class="btn btn-outline btn-block mobile-drawer-btn" onclick="openMasterResumeModal(); closeMobileMenu();">
+            📄 Master Resume: <span id="mobile-drawer-resume-name" style="color: #D97F95; font-weight: 700;">Loading...</span>
+          </button>
+          <button class="btn btn-primary btn-block mobile-drawer-btn" onclick="switchTab('scheduler-center'); closeMobileMenu();">
+            ⚡ Automated Job Scraping & Scheduler
+          </button>
+        </div>
+        <div class="mobile-drawer-grid-2">
+          <button class="btn btn-outline mobile-drawer-btn" onclick="openSettingsModal(); closeMobileMenu();">
+            ⚙️ Settings
+          </button>
+          <button class="btn btn-outline mobile-drawer-btn" onclick="window.location.href='/api/export/csv'; closeMobileMenu();">
+            📥 CSV Export
+          </button>
+          <button class="btn btn-outline mobile-drawer-btn" onclick="window.location.href='/api/export/json'; closeMobileMenu();">
+            📥 JSON Export
+          </button>
+          <button class="btn btn-outline mobile-drawer-btn" onclick="toggleTheme(); closeMobileMenu();">
+            🌓 Switch Theme
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Dashboard Live Stats Banner (White Cards, 16px Radius, Soft Shadow, #FFCED8 Top Border) -->
+  <section class="stats-banner">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-value" id="stat-total-jobs">-</span>
+        <span class="stat-label">Total Recent Jobs</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="stat-fresh-today" style="color: #EF4444;">0</span>
+        <span class="stat-label">Fresh Today 🔥</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="stat-applied-jobs" style="color: #6BBF73;">0</span>
+        <span class="stat-label">Applied Jobs ✅</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="stat-fresher-jobs" style="color: #6BBF73;">-</span>
+        <span class="stat-label">0-1 Yr Fresher Openings 🎓</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="stat-india-jobs" style="color: #D97F95;">-</span>
+        <span class="stat-label">India Openings 🇮🇳</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="stat-remote-jobs" style="color: #F7B955;">-</span>
+        <span class="stat-label">Remote (Open to India) 🌐</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="stat-platforms-count">72</span>
+        <span class="stat-label">Curated Platforms</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Navigation Tabs Wrapper with Scroll Cues -->
+  <div class="nav-tabs-wrapper">
+    <nav class="nav-tabs" id="main-nav-tabs">
+      <button class="tab-btn active" data-tab="jobs">
+        💼 <span class="tab-btn-text">Jobs Explorer</span> <span class="tab-badge" id="badge-jobs-count">0</span>
+      </button>
+      <button class="tab-btn" data-tab="tailor-studio" id="tab-btn-tailor-studio">
+        🎯 <span class="tab-btn-text">Tailor Studio</span> <span class="tab-badge" style="background: linear-gradient(135deg, #D97F95, #B85F75); color: #fff;">Studio</span>
+      </button>
+      <button class="tab-btn" data-tab="linkedin-feed" id="tab-btn-linkedin-feed">
+        👔 <span class="tab-btn-text">LinkedIn Feed</span> <span class="tab-badge" id="badge-linkedin-feed-count" style="background: #0a66c2; color: white;">0</span>
+      </button>
+      <button class="tab-btn" data-tab="scheduler-center" id="tab-btn-scheduler-center">
+        ⚡ <span class="tab-btn-text">Scraping Scheduler</span> <span class="tab-badge" id="badge-scheduler-status"
+          style="background: #10b981; color: white;">Active</span>
+      </button>
+      <button class="tab-btn" data-tab="kb">
+        📚 <span class="tab-btn-text">Knowledge Base</span> <span class="tab-badge" id="badge-kb-docs">1</span>
+      </button>
+      <button class="tab-btn" data-tab="directory">
+        🌐 <span class="tab-btn-text">72 Platforms</span> <span class="tab-badge">72</span>
+      </button>
+      <button class="tab-btn" data-tab="analytics">
+        📊 <span class="tab-btn-text">Analytics</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+
+    <!-- Tab 1: Fresher Jobs Explorer -->
+    <div class="tab-pane" id="tab-jobs">
+      <!-- Search & Filters Dashboard Card -->
+      <div class="filter-card">
+        <!-- Quick Scrape Freshness Filter Bar -->
+        <div class="freshness-quick-bar">
+          <span class="freshness-quick-title">⚡ SCRAPE FRESHNESS:</span>
+          <button type="button" class="freshness-pill active" id="quick-pill-all" onclick="setScrapeFreshness('')">All
+            Opportunities</button>
+          <button type="button" class="freshness-pill pill-today" id="quick-pill-today"
+            onclick="setScrapeFreshness('today')">🔥 New Today <span class="fresh-count-pill"
+              id="quick-count-today">0</span></button>
+          <button type="button" class="freshness-pill pill-24h" id="quick-pill-24h"
+            onclick="setScrapeFreshness('24h')">⚡ Last 24 Hours</button>
+          <button type="button" class="freshness-pill pill-week" id="quick-pill-7d"
+            onclick="setScrapeFreshness('7d')">📅 This Week</button>
+          <button type="button" class="freshness-pill pill-month" id="quick-pill-30d"
+            onclick="setScrapeFreshness('30d')">🗓️ This Month</button>
+          <button type="button" class="freshness-pill pill-older" id="quick-pill-older_30d"
+            onclick="setScrapeFreshness('older_30d')">🕒 Old Listings</button>
+        </div>
+
+        <div class="search-row">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" class="search-input"
+              placeholder="Search by title, company, skill (e.g. SQL, Power BI, Swiggy, Internshala, Remotive)...">
+          </div>
+        </div>
+
+        <div class="filter-grid">
+
+          <!-- SCRAPE FRESHNESS FILTER -->
+          <div class="filter-group">
+            <label class="filter-label">
+              <span>Scrape Freshness</span>
+              <span class="badge-tag badge-green">First Scraped</span>
+            </label>
+            <select id="scrape-freshness-filter" class="filter-select" data-filter="scrape_freshness">
+              <option value="" selected>All Jobs</option>
+              <option value="today">🔥 Freshly Scraped Today</option>
+              <option value="24h">⚡ Last 24 Hours</option>
+              <option value="3d">📅 Last 3 Days</option>
+              <option value="7d">📅 Last 7 Days (This Week)</option>
+              <option value="30d">🗓️ Last 30 Days (This Month)</option>
+              <option value="older_30d">🕒 Older Listings (&gt; 30 Days)</option>
+            </select>
+          </div>
+
+          <!-- MULTI-SELECT ANALYTICAL ROLE FILTER -->
+          <div class="filter-group multi-select-container">
+            <label class="filter-label">
+              <span>Analytical Roles</span>
+              <span class="badge-tag">Multi-Select</span>
+            </label>
+            <button type="button" id="multi-role-btn" class="multi-select-btn" aria-haspopup="true" aria-expanded="false">
+              <span id="multi-role-btn-text">All 25 Roles (Multi-select)</span>
+              <span>▾</span>
+            </button>
+
+            <!-- Custom Dropdown Panel with Checkboxes -->
+            <div id="multi-role-dropdown" class="multi-select-dropdown">
+              <div class="dropdown-search-wrapper">
+                <input type="text" id="role-search-input" class="dropdown-search-input"
+                  placeholder="Search analytical roles...">
+              </div>
+              <div class="dropdown-actions-row">
+                <button type="button" class="dropdown-quick-btn" onclick="selectAllCoreRoles()">All Core (13)</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectAllRelatedRoles()">All Related (12)</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectAllRoles()">All (25)</button>
+                <button type="button" class="dropdown-quick-btn" style="color: #E57373;"
+                  onclick="clearRoleSelection()">Clear</button>
+              </div>
+              <div id="role-checkboxes-list" class="dropdown-list">
+                <!-- Checkboxes populated via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- MULTI-SELECT CITY / LOCATION FILTER -->
+          <div class="filter-group multi-select-container">
+            <label class="filter-label">
+              <span>City / Location</span>
+              <span class="badge-tag badge-blue">Multi-Select</span>
+            </label>
+            <button type="button" id="multi-city-btn" class="multi-select-btn" aria-haspopup="true" aria-expanded="false">
+              <span id="multi-city-btn-text">All Cities (Multi-select)</span>
+              <span>▾</span>
+            </button>
+
+            <!-- Custom Dropdown Panel with Checkboxes for Cities -->
+            <div id="multi-city-dropdown" class="multi-select-dropdown">
+              <div class="dropdown-search-wrapper">
+                <input type="text" id="city-search-input" class="dropdown-search-input"
+                  placeholder="Search cities (e.g. Bengaluru, Mumbai, Pune, Delhi NCR, Remote)...">
+              </div>
+              <div class="dropdown-actions-row">
+                <button type="button" class="dropdown-quick-btn" style="color: #FF5722; font-weight: 800;" onclick="selectPuneNearbyOnly()">📍 Pune (Priority #1)</button>
+                <button type="button" class="dropdown-quick-btn" style="color: #0284C7; font-weight: 700;" onclick="selectPriorityCitiesCascade()">🎯 Priority Cities (5)</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectTopTechHubs()">Top Hubs</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectAllCities()">All</button>
+                <button type="button" class="dropdown-quick-btn" style="color: #E57373;"
+                  onclick="clearCitySelection()">Clear</button>
+              </div>
+              <div id="city-checkboxes-list" class="dropdown-list">
+                <!-- Checkboxes populated via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- MULTI-SELECT JOB PLATFORM FILTER -->
+          <div class="filter-group multi-select-container">
+            <label class="filter-label">
+              <span>Job Platforms</span>
+              <span class="badge-tag">Multi-Select</span>
+            </label>
+            <button type="button" id="multi-platform-btn" class="multi-select-btn" aria-haspopup="true" aria-expanded="false">
+              <span id="multi-platform-btn-text">All Platforms (Multi-select)</span>
+              <span>▾</span>
+            </button>
+
+            <!-- Custom Dropdown Panel with Checkboxes for Platforms -->
+            <div id="multi-platform-dropdown" class="multi-select-dropdown">
+              <div class="dropdown-search-wrapper">
+                <input type="text" id="platform-search-input" class="dropdown-search-input"
+                  placeholder="Search platforms (e.g. Internshala, Remote OK, Naukri)...">
+              </div>
+              <div class="dropdown-actions-row">
+                <button type="button" class="dropdown-quick-btn" style="color: #0A66C2; font-weight: 800;" onclick="filterByPlatform('linkedin_india')">⚡ Apify Live</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectPlatformsWithJobs()">With Jobs</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectIndiaPlatforms()">India</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectRemotePlatforms()">Remote</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectCompanyPlatforms()">Company</button>
+                <button type="button" class="dropdown-quick-btn" onclick="selectAllPlatforms()">All</button>
+                <button type="button" class="dropdown-quick-btn" style="color: #E57373;"
+                  onclick="clearPlatformSelection()">Clear</button>
+              </div>
+              <div id="platform-checkboxes-list" class="dropdown-list">
+                <!-- Checkboxes populated via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Work Mode Filter -->
+          <div class="filter-group">
+            <label class="filter-label">
+              <span>Work Mode</span>
+            </label>
+            <select id="workmode-filter" class="filter-select" data-filter="work_mode">
+              <option value="onsite_hybrid" selected>🏢 On-Site & Hybrid Only (No Remote)</option>
+              <option value="">All Work Modes</option>
+              <option value="On-Site">On-Site Only</option>
+              <option value="Hybrid">Hybrid Only</option>
+              <option value="Remote">Remote Only</option>
+            </select>
+          </div>
+
+          <!-- Fresher Experience Filter -->
+          <div class="filter-group">
+            <label class="filter-label">
+              <span>Fresher Experience</span>
+            </label>
+            <select id="exp-filter" class="filter-select" data-filter="experience_level">
+              <option value="">All (0–1 Year Exp)</option>
+              <option value="Fresher (0 Years)">Fresher (0 Years / Campus)</option>
+              <option value="0 - 1 Year (Junior / Entry-Level)">0 - 1 Year (Junior / Entry-Level)</option>
+              <option value="Internship / Trainee">Internship / Trainee</option>
+            </select>
+          </div>
+
+          <!-- Application Status Filter -->
+          <div class="filter-group">
+            <label class="filter-label">
+              <span>Application Status</span>
+            </label>
+            <select id="applied-filter" class="filter-select" data-filter="applied">
+              <option value="">All Statuses</option>
+              <option value="applied">✅ Applied Only</option>
+              <option value="not_applied">⏳ Not Applied</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- Selected Roles, Cities, & Platforms Chips Bars -->
+        <div id="selected-roles-chips" class="selected-roles-chips"></div>
+        <div id="selected-cities-chips" class="selected-roles-chips"></div>
+        <div id="selected-platforms-chips" class="selected-roles-chips"></div>
+
+        <!-- Quick Skills & Location Filter Pills -->
+        <div class="skills-pills" style="align-items: center; flex-wrap: wrap;">
+          <button class="skill-pill priority-pune-pill" onclick="filterPuneNearbyOnsiteHybrid()" title="Priority #1: Pune & Nearby Region (On-Site & Hybrid Only, No Remote)">
+            <span class="apify-pulse-dot" style="background: #FF5722; box-shadow: 0 0 10px #FF5722;"></span>
+            <span>📍 Pune & Nearby (On-Site/Hybrid)</span>
+          </button>
+          <button class="skill-pill apify-quick-pill" onclick="filterByPlatform('linkedin_india')" title="Filter to live genuine LinkedIn postings scraped via Apify Cloud">
+            <span class="apify-pulse-dot" style="background: #38EF7D;"></span>
+            <span>⚡ LinkedIn (Apify)</span>
+          </button>
+          <button class="skill-pill apify-quick-pill" style="background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%) !important;" onclick="filterByPlatform('indeed_india')" title="Filter to live genuine Indeed postings scraped via Apify Cloud">
+            <span class="apify-pulse-dot" style="background: #38EF7D;"></span>
+            <span>⚡ Indeed (Apify)</span>
+          </button>
+          <button class="skill-pill apify-quick-pill" style="background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;" onclick="filterByPlatform('naukri')" title="Filter to live genuine Naukri postings scraped via Apify Cloud">
+            <span class="apify-pulse-dot" style="background: #38EF7D;"></span>
+            <span>⚡ Naukri (Apify)</span>
+          </button>
+          <span style="font-size: 0.75rem; color: #666666; font-weight: 700; margin-right: 0.25rem;">KEY SKILLS:</span>
+          <button class="skill-pill" onclick="filterBySkill('SQL')">SQL</button>
+          <button class="skill-pill" onclick="filterBySkill('Python')">Python</button>
+          <button class="skill-pill" onclick="filterBySkill('Power BI')">Power BI</button>
+          <button class="skill-pill" onclick="filterBySkill('Tableau')">Tableau</button>
+          <button class="skill-pill" onclick="filterBySkill('Excel')">Advanced Excel</button>
+          <button class="skill-pill" onclick="filterBySkill('Snowflake')">Snowflake</button>
+          <button class="skill-pill" onclick="filterBySkill('dbt')">dbt</button>
+          <button class="skill-pill" onclick="filterBySkill('Statistics')">Statistics</button>
+          <button class="skill-pill" onclick="filterBySkill('BigQuery')">BigQuery</button>
+        </div>
+
+        <!-- Results Toolbar with Filter Summary, Sort Selector, and Layout Switcher (Default: List) -->
+        <div class="results-toolbar">
+          <div class="filter-summary" id="filter-summary">
+            <span>Loading listings...</span>
+          </div>
+
+          <div class="toolbar-controls-right">
+            <!-- Sort Selector in Toolbar -->
+            <div class="sort-selector-container">
+              <span class="toolbar-label">Sort By:</span>
+              <select id="toolbar-sort-select" class="sort-select" data-filter="sort_by" title="Sort job listings">
+                <option value="pune_first" selected>📍 Pune First → Priority Cities (On-Site/Hybrid)</option>
+                <option value="date_desc">⚡ Date: Most Recent</option>
+                <option value="first_scraped_desc">⬇ Newest Scraped First</option>
+                <option value="first_scraped_asc">⬆ Oldest Scraped First</option>
+                <option value="date_asc">⏳ Date: Oldest First</option>
+                <option value="platform_asc">🌐 Platform (A → Z)</option>
+                <option value="platform_desc">🌐 Platform (Z → A)</option>
+                <option value="company_asc">🏢 Company (A → Z)</option>
+                <option value="company_desc">🏢 Company (Z → A)</option>
+                <option value="title_asc">💼 Job Title (A → Z)</option>
+                <option value="title_desc">💼 Job Title (Z → A)</option>
+              </select>
+            </div>
+
+            <div class="layout-switcher-container">
+              <span class="layout-label">Layout:</span>
+              <div class="layout-toggle-group" role="group" aria-label="Job listing layout switcher">
+                <button type="button" class="layout-toggle-btn active" id="layout-btn-list" onclick="setLayout('list')"
+                  title="List Layout (Default)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                  </svg>
+                  <span>List</span>
+                </button>
+                <button type="button" class="layout-toggle-btn" id="layout-btn-card" onclick="setLayout('card')"
+                  title="Card Layout">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                  <span>Card</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jobs Container (Default List View) -->
+      <div class="jobs-display layout-list" id="jobs-grid">
+        <!-- Rendered by JavaScript -->
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination" id="pagination-container">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- Tab: Dedicated AI Tailor Resume & Cover Letter Studio -->
+    <!-- ========================================================================= -->
+    <div class="tab-pane" id="tab-tailor-studio" style="display: none;">
+      
+      <!-- Studio Hero Header -->
+      <div class="studio-hero-card">
+        <div class="studio-hero-content">
+          <div class="studio-hero-title-row">
+            <span class="studio-hero-icon">🎯</span>
+            <div>
+              <h2 class="studio-hero-heading">AI Resume & Cover Letter Tailor Studio</h2>
+              <p class="studio-hero-sub">
+                Target any job by pasting a <strong>live job posting URL</strong> (LinkedIn, Naukri, Internshala, Indeed, Foundit, company careers) or by <strong>pasting the Job Description directly</strong>. The AI cross-references your verified Career Knowledge Base to build a strict 1-page ATS resume, personalized cover letter, and match gap report.
+              </p>
+            </div>
+          </div>
+          <div class="studio-hero-badges">
+            <div class="studio-kb-badge">
+              <span class="pulse-dot"></span>
+              <span>Grounding: <strong>Verified Career Knowledge Base</strong></span>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="openMasterResumeModal()" title="View Master Resume">
+              📄 Master Resume Profile
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode Toggle Switcher -->
+      <div class="ts-mode-switch-bar">
+        <button type="button" class="ts-mode-btn active" id="ts-mode-btn-url" onclick="switchTailorStudioMode('url')">
+          <span class="ts-mode-icon">🌐</span>
+          <span class="ts-mode-text">
+            <strong>Mode A: Scrape from Job Posting URL</strong>
+            <small>LinkedIn, Naukri, Internshala, Indeed, WWR, Company Career URLs</small>
+          </span>
+        </button>
+        <button type="button" class="ts-mode-btn" id="ts-mode-btn-manual" onclick="switchTailorStudioMode('manual')">
+          <span class="ts-mode-icon">📋</span>
+          <span class="ts-mode-text">
+            <strong>Mode B: Manually Paste Job Description</strong>
+            <small>Paste any role title, company & custom JD requirements</small>
+          </span>
+        </button>
+
+      </div>
+
+      <!-- Main Input Workspace -->
+      <div class="ts-input-workspace">
+
+        <!-- ==================== MODE A: URL SCRAPING ==================== -->
+        <div id="ts-section-url" class="ts-section-pane">
+          <div class="ts-card">
+            <div class="ts-card-header">
+              <h3 class="ts-card-title">🌐 Scrape & Extract Complete Job Details from Live URL</h3>
+              <span class="badge-tag badge-pink">Deep Extraction Engine</span>
+            </div>
+            <p class="ts-card-desc">
+              Paste the job posting link below. Our resilient engine fetches the complete posting, handles guest APIs, bypasses authwalls, and extracts title, company, location, skills, and full description.
+            </p>
+
+            <div class="ts-url-input-box">
+              <div class="ts-url-field-wrap">
+                <span class="ts-url-icon">🔗</span>
+                <input type="url" id="ts-input-url" class="ts-url-input"
+                  placeholder="https://www.linkedin.com/jobs/view/... or https://internshala.com/job/detail/... or careers.swiggy.com/..."
+                  onkeydown="if(event.key === 'Enter') scrapeStudioUrl()">
+              </div>
+              <button type="button" class="btn btn-primary" id="ts-btn-scrape" onclick="scrapeStudioUrl()">
+                🔍 Fetch & Scrape Job
+              </button>
+            </div>
+
+            <!-- Quick sample test links -->
+            <div class="ts-sample-links-row">
+              <span class="ts-sample-links-label">Quick Test URLs:</span>
+              <button type="button" class="ts-sample-chip" onclick="fillStudioUrl('linkedin')">
+                💼 LinkedIn: Senior Data Analyst
+              </button>
+              <button type="button" class="ts-sample-chip" onclick="fillStudioUrl('internshala')">
+                🎓 Internshala: Civil/Data Engineer
+              </button>
+              <button type="button" class="ts-sample-chip" onclick="fillStudioUrl('wwr')">
+                🌍 WeWorkRemotely: Analytics Partner
+              </button>
+            </div>
+
+            <!-- Scraping Feedback / Loading Banner -->
+            <div id="ts-scrape-feedback" class="ts-feedback-box" style="display: none;"></div>
+
+            <!-- Scraped Details Preview & Edit Card -->
+            <div id="ts-scraped-preview-card" class="ts-scraped-preview" style="display: none;">
+              <div class="ts-preview-header">
+                <div class="ts-preview-header-left">
+                  <span class="ts-preview-success-icon">✅</span>
+                  <div>
+                    <h4 class="ts-preview-heading">Successfully Extracted Job Posting</h4>
+                    <span id="ts-preview-source-badge" class="badge-tag badge-green">Live Scraped</span>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" onclick="clearStudioScrapedData()">
+                  🔄 Clear & Re-scrape
+                </button>
+              </div>
+
+              <div class="ts-form-grid">
+                <div class="ts-form-group">
+                  <label for="ts-scraped-title">Job Title</label>
+                  <input type="text" id="ts-scraped-title" class="ts-input" placeholder="Job Title">
+                </div>
+                <div class="ts-form-group">
+                  <label for="ts-scraped-company">Company Name</label>
+                  <input type="text" id="ts-scraped-company" class="ts-input" placeholder="Company Name">
+                </div>
+                <div class="ts-form-group">
+                  <label for="ts-scraped-location">Location</label>
+                  <input type="text" id="ts-scraped-location" class="ts-input" placeholder="e.g. Bengaluru, India or Remote">
+                </div>
+                <div class="ts-form-group">
+                  <label for="ts-scraped-workmode">Work Mode</label>
+                  <select id="ts-scraped-workmode" class="ts-select">
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="On-site">On-site</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Detected Skills Tags -->
+              <div class="ts-detected-skills-wrap">
+                <label class="ts-label-sub">Detected Key Skills:</label>
+                <div id="ts-scraped-skills-container" class="ts-skills-container"></div>
+              </div>
+
+              <!-- Full Extracted Job Description -->
+              <div class="ts-form-group" style="margin-top: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                  <label for="ts-scraped-desc" style="font-weight: 700;">Full Extracted Job Description & Requirements:</label>
+                  <span id="ts-scraped-desc-count" style="font-size: 0.75rem; color: var(--text-muted);">0 characters</span>
+                </div>
+                <textarea id="ts-scraped-desc" class="ts-textarea" rows="7" placeholder="Full job description..."></textarea>
+              </div>
+
+              <!-- Primary Generation Trigger -->
+              <div class="ts-generate-cta-row">
+                <button type="button" class="btn btn-primary btn-lg ts-generate-btn" id="ts-btn-generate-url" onclick="generateTailoredDocsFromScraped()">
+                  ✨ Generate Tailored Resume & Cover Letter
+                </button>
+                <span class="ts-cta-hint">Builds 1-page PDF, DOCX, TXT, LaTeX & personalized cover letter.</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ==================== MODE B: MANUAL JD PASTE ==================== -->
+        <div id="ts-section-manual" class="ts-section-pane" style="display: none;">
+          <div class="ts-card">
+            <div class="ts-card-header">
+              <h3 class="ts-card-title">📋 Manually Paste Any Job Description (JD)</h3>
+              <span class="badge-tag badge-cyan">Custom Role Mode</span>
+            </div>
+            <p class="ts-card-desc">
+              Have a JD from an email, PDF, internal job board, or WhatsApp recruiter? Paste the details here to tailor your 1-page resume and cover letter against your Career Knowledge Base.
+            </p>
+
+            <!-- Sample Presets -->
+            <div class="ts-sample-links-row">
+              <span class="ts-sample-links-label">Quick Sample JDs:</span>
+              <button type="button" class="ts-sample-chip" onclick="fillStudioSampleJD('power_bi')">
+                📊 Power BI Developer
+              </button>
+              <button type="button" class="ts-sample-chip" onclick="fillStudioSampleJD('data_analyst')">
+                📈 Junior Data Analyst
+              </button>
+              <button type="button" class="ts-sample-chip" onclick="fillStudioSampleJD('sql_analyst')">
+                💻 SQL & BI Analyst
+              </button>
+            </div>
+
+            <div class="ts-form-grid">
+              <div class="ts-form-group">
+                <label for="ts-manual-title">Target Job Title <span style="color: #ef4444;">*</span></label>
+                <input type="text" id="ts-manual-title" class="ts-input" placeholder="e.g. Junior Data Analyst, Power BI Developer">
+              </div>
+              <div class="ts-form-group">
+                <label for="ts-manual-company">Company / Employer Name</label>
+                <input type="text" id="ts-manual-company" class="ts-input" placeholder="e.g. Swiggy, Google, Target Employer">
+              </div>
+              <div class="ts-form-group">
+                <label for="ts-manual-location">Location</label>
+                <input type="text" id="ts-manual-location" class="ts-input" placeholder="e.g. Bengaluru, India or Remote">
+              </div>
+              <div class="ts-form-group">
+                <label for="ts-manual-workmode">Work Mode</label>
+                <select id="ts-manual-workmode" class="ts-select">
+                  <option value="Remote">Remote</option>
+                  <option value="Hybrid" selected>Hybrid</option>
+                  <option value="On-site">On-site</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="ts-form-group">
+              <label for="ts-manual-skills">Target Skills (comma separated, optional)</label>
+              <input type="text" id="ts-manual-skills" class="ts-input" placeholder="e.g. SQL, Power BI, Python, Excel, DAX, Data Modeling">
+            </div>
+
+            <div class="ts-form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <label for="ts-manual-desc" style="font-weight: 700;">Job Description, Responsibilities & Requirements <span style="color: #ef4444;">*</span></label>
+                <span id="ts-manual-char-count" style="font-size: 0.75rem; color: var(--text-muted);">0 characters</span>
+              </div>
+              <textarea id="ts-manual-desc" class="ts-textarea" rows="8"
+                placeholder="Paste the complete job description, key responsibilities, requirements, technical skills, and educational qualifications here..."
+                oninput="updateManualCharCount()"></textarea>
+            </div>
+
+            <!-- Primary Generation Trigger -->
+            <div class="ts-generate-cta-row">
+              <button type="button" class="btn btn-primary btn-lg ts-generate-btn" id="ts-btn-generate-manual" onclick="generateTailoredDocsFromManual()">
+                ✨ Generate Tailored Resume & Cover Letter
+              </button>
+              <span class="ts-cta-hint">Builds 1-page PDF, DOCX, TXT, LaTeX & personalized cover letter.</span>
+            </div>
+
+          </div>
+        </div>
+</div>
+
+      <!-- Loading / Progress Overlay -->
+      <div id="ts-generating-overlay" class="ts-progress-card" style="display: none;">
+        <div class="ts-spinner-wrap">
+          <div class="ts-spinner"></div>
+          <div class="ts-progress-text-wrap">
+            <h4 id="ts-progress-title">Tailoring Documents Grounded in Knowledge Base...</h4>
+            <p id="ts-progress-subtitle">Extracting requirements • Aligning STAR achievements • Building strict 1-page PDF & Word files...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== RESULTS SECTION ==================== -->
+      <div id="ts-results-container" class="ts-results-wrapper" style="display: none;">
+<!-- ATS Score & Compatibility Banner -->
+        <div class="ts-score-banner">
+          <div class="ts-score-gauge-wrap">
+            <div class="ts-score-circle" id="ts-score-circle">
+              <span class="ts-score-num" id="ts-score-val">0%</span>
+              <span class="ts-score-lbl">ATS MATCH</span>
+            </div>
+            <div class="ts-score-meta">
+              <h3 id="ts-result-job-heading" class="ts-result-heading">Tailored for Position</h3>
+              <p id="ts-result-job-sub" class="ts-result-sub">Optimized for employer criteria</p>
+              <div class="ts-score-badges" id="ts-score-breakdown"></div>
+            </div>
+          </div>
+          <div class="ts-evidence-grounding-box">
+            <div class="ts-grounding-title">📁 Career Knowledge Base Grounding:</div>
+            <div id="ts-grounding-evidence-list" class="ts-evidence-list"></div>
+          </div>
+        </div>
+
+        <!-- Keyword Match Breakdown Strip -->
+        <div class="ts-keywords-strip">
+          <div class="ts-kw-col">
+            <span class="ts-kw-title">✅ Matched Keywords & Competencies:</span>
+            <div id="ts-matched-keywords-chips" class="ts-kw-chips"></div>
+          </div>
+          <div class="ts-kw-col">
+            <span class="ts-kw-title">💡 Recommended Keyword Additions:</span>
+            <div id="ts-missing-keywords-chips" class="ts-kw-chips"></div>
+          </div>
+        </div>
+
+        <!-- Result Views Tabs Navigation -->
+        <div class="ts-result-tabs-bar">
+          <button type="button" class="ts-res-tab active" id="ts-res-tab-resume" onclick="switchStudioResultTab('resume')">
+            📄 Tailored 1-Page Resume
+          </button>
+          <button type="button" class="ts-res-tab" id="ts-res-tab-coverletter" onclick="switchStudioResultTab('coverletter')">
+            ✉️ Tailored Cover Letter
+          </button>
+          <button type="button" class="ts-res-tab" id="ts-res-tab-latex" onclick="switchStudioResultTab('latex')">
+            📜 LaTeX Source & Bullets
+          </button>
+          <button type="button" class="ts-res-tab" id="ts-res-tab-screening" onclick="switchStudioResultTab('screening')">
+            ❓ Screening & Interview Q&A
+          </button>
+        </div>
+
+        <!-- RESULT VIEW 1: RESUME -->
+        <div id="ts-view-resume" class="ts-result-pane">
+          <div class="ts-action-toolbar">
+            <div class="ts-toolbar-left">
+              <span style="font-weight: 700; color: var(--text-primary);">Resume Downloads:</span>
+              <a id="ts-dl-pdf" href="#" target="_blank" class="btn btn-primary btn-sm">
+                ⬇️ Download PDF (1-Page)
+              </a>
+              <a id="ts-dl-docx" href="#" target="_blank" class="btn btn-secondary btn-sm">
+                ⬇️ Download Word (.docx)
+              </a>
+              <a id="ts-dl-txt" href="#" target="_blank" class="btn btn-outline btn-sm">
+                ⬇️ Plain Text (.txt)
+              </a>
+              <a id="ts-dl-tex" href="#" target="_blank" class="btn btn-outline btn-sm">
+                ⬇️ Overleaf (.tex)
+              </a>
+            </div>
+            <div class="ts-toolbar-right">
+              <button type="button" class="btn btn-outline btn-sm" onclick="printStudioResume()">
+                🖨️ Print Preview
+              </button>
+            </div>
+          </div>
+<div class="ts-preview-card">
+            <div class="ts-preview-container" id="ts-resume-html-preview">
+              <!-- Rendered Resume HTML Preview -->
+            </div>
+          </div>
+        </div>
+<!-- RESULT VIEW 2: COVER LETTER -->
+        <div id="ts-view-coverletter" class="ts-result-pane" style="display: none;">
+          <div class="ts-action-toolbar">
+            <div class="ts-toolbar-left">
+              <span style="font-weight: 700; color: var(--text-primary);">Cover Letter Downloads:</span>
+              <a id="ts-dl-cl-pdf" href="#" target="_blank" class="btn btn-primary btn-sm">
+                ⬇️ Download PDF
+              </a>
+              <a id="ts-dl-cl-docx" href="#" target="_blank" class="btn btn-secondary btn-sm">
+                ⬇️ Download Word (.docx)
+              </a>
+              <a id="ts-dl-cl-txt" href="#" target="_blank" class="btn btn-outline btn-sm">
+                ⬇️ Plain Text (.txt)
+              </a>
+            </div>
+            <div class="ts-toolbar-right">
+              <button type="button" class="btn btn-primary btn-sm" onclick="copyStudioCoverLetter()">
+                📋 Copy Text to Clipboard
+              </button>
+            </div>
+          </div>
+
+          <div class="ts-preview-card">
+            <div class="ts-cl-document" id="ts-coverletter-preview">
+              <!-- Rendered Cover Letter -->
+            </div>
+          </div>
+        </div>
+
+        <!-- RESULT VIEW 3: LATEX SOURCE -->
+        <div id="ts-view-latex" class="ts-result-pane" style="display: none;">
+          <div class="ts-action-toolbar">
+            <div class="ts-toolbar-left">
+              <span style="font-weight: 700; color: var(--text-primary);">Overleaf / pdflatex Code:</span>
+            </div>
+            <div class="ts-toolbar-right">
+              <button type="button" class="btn btn-primary btn-sm" onclick="copyStudioLatex()">
+                📋 Copy LaTeX Code
+              </button>
+            </div>
+          </div>
+          <div class="ts-code-container">
+            <pre><code id="ts-latex-code" class="ts-code-block"></code></pre>
+          </div>
+        </div>
+
+        <!-- RESULT VIEW 4: SCREENING Q&A -->
+        <div id="ts-view-screening" class="ts-result-pane" style="display: none;">
+          <div class="ts-card" style="margin-top: 0.5rem;">
+            <h4 style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.5rem;">
+              🎯 AI Application Screening Questions & Answers
+            </h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+              Ready-to-use answers tailored for LinkedIn Easy Apply, Naukri, or career portal screening prompts.
+            </p>
+            <div id="ts-screening-qa-list" class="ts-qa-list"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Dedicated Tab: LinkedIn HR & Recruiter Feed Platform Page -->
+    <div class="tab-pane" id="tab-linkedin-feed" style="display: none;">
+
+      <!-- Platform Header & Metrics Banner -->
+      <div class="linkedin-feed-header-card">
+        <div class="linkedin-header-left">
+          <div class="linkedin-brand-icon">👔</div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <h2 style="font-size: 1.4rem; font-weight: 800; color: #0a66c2; margin: 0;">
+                LinkedIn HR & Recruiter Feed Hub
+              </h2>
+              <span class="badge-fresher" style="background: #e0f2fe; color: #0369a1; border-color: #bae6fd;">
+                🎓 0–1 Yr Fresher
+              </span>
+              <span class="status-pill status-completed">
+                🟢 Live Ingestion Active
+              </span>
+            </div>
+            <p style="color: #475569; font-size: 0.875rem; margin: 0.35rem 0 0 0; line-height: 1.45;">
+              Curated and real-time hiring announcements shared directly by verified Talent Acquisition specialists, HR managers, and startup founders on their LinkedIn feed.
+            </p>
+          </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="openLinkedInPersonalSyncModal()"
+            style="background: #0284c7; border-color: #0284c7; color: #FFFFFF; font-weight: 700; box-shadow: 0 2px 6px rgba(2,132,199,0.3);">
+            📥 Sync My Personal Feed
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-sync-linkedin-feed" onclick="syncLinkedInFeedNow()"
+            style="background: #0a66c2; border-color: #0a66c2; color: #FFFFFF; font-weight: 700; box-shadow: 0 2px 6px rgba(10,102,194,0.3);">
+            ⚡ Scrape Benchmark Feed
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="toggleLinkedInIngestForm()"
+            style="border-color: #0a66c2; color: #0a66c2; font-weight: 700;">
+            📋 Ingest / Paste Post
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openLinkedInSettingsModal()"
+            title="Configure LinkedIn session cookie & sync preferences">
+            ⚙️ Feed Settings
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Counter -->
+      <div class="stats-grid" style="margin-bottom: 1.25rem;">
+        <div class="stat-item">
+          <span class="stat-value" id="li-stat-total-posts" style="color: #0a66c2;">0</span>
+          <span class="stat-label">Total Recruiter Posts</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="li-stat-direct-emails" style="color: #10b981;">0</span>
+          <span class="stat-label">Direct HR Emails Verified ✉️</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="li-stat-fresh-today" style="color: #ef4444;">0</span>
+          <span class="stat-label">Fresh Posts Today 🔥</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="li-stat-response-rate" style="color: #8b5cf6;">100%</span>
+          <span class="stat-label">Direct Outreach Readiness</span>
+        </div>
+      </div>
+
+      <!-- Collapsible Quick Ingest Box -->
+      <div id="li-ingest-panel" style="display: none; background: #ffffff; border: 1.5px solid #bae6fd; border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem; box-shadow: 0 4px 14px rgba(10,102,194,0.08);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h4 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0a66c2; display: flex; align-items: center; gap: 6px;">
+            📥 Paste LinkedIn Recruiter Post to Ingest & Add to Explorer
+          </h4>
+          <button type="button" class="btn-text-xs" onclick="toggleLinkedInIngestForm()" style="color: #64748b; font-size: 0.85rem;">✕ Close</button>
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 0.85rem;">
+          Saw a recruiter hiring post on your LinkedIn feed? Copy and paste the text or URL below. Our smart parser will extract the company, recruiter name, contact email, skills, and eligibility, and immediately add it to both the Recruiter Feed and the Fresher Jobs Explorer.
+        </p>
+        <div class="responsive-grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+          <div>
+            <label style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">RECRUITER NAME (OPTIONAL)</label>
+            <input type="text" id="li-input-recruiter-name" class="search-input" placeholder="e.g. Priya Sharma, Swiggy Talent Acquisition" style="font-size: 0.825rem; padding: 0.45rem 0.65rem;">
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">DIRECT HR EMAIL (OPTIONAL)</label>
+            <input type="email" id="li-input-recruiter-email" class="search-input" placeholder="e.g. priya.sharma@swiggy.in" style="font-size: 0.825rem; padding: 0.45rem 0.65rem;">
+          </div>
+        </div>
+        <div style="margin-bottom: 0.75rem;">
+          <label style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">LINKEDIN POST TEXT OR POST URL *</label>
+          <textarea id="li-input-post-text" class="studio-input" rows="4" placeholder="Paste the recruiter's full LinkedIn post here (e.g. '#Hiring We are looking for Data Analyst freshers at Swiggy... email resume to...')" style="font-size: 0.825rem; padding: 0.55rem;"></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="toggleLinkedInIngestForm()">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="submitLinkedInIngest()" style="background: #0a66c2; border-color: #0a66c2; color: #fff; font-weight: 700;">⚡ Parse & Add to Database</button>
+        </div>
+      </div>
+
+      <!-- Search & Filter Bar -->
+      <div class="filter-card" style="margin-bottom: 1.25rem;">
+        <div class="search-row" style="margin-bottom: 0.85rem;">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="li-search-input" class="search-input" oninput="debounceLinkedInFeedSearch()"
+              placeholder="Search recruiter posts by name, company, skill (e.g. Priya Sharma, PhonePe, SQL, Power BI, Bengaluru)...">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+          <div class="freshness-quick-bar" style="margin: 0; padding: 0; border: none; background: none;">
+            <button type="button" class="freshness-pill active" id="li-filter-all" onclick="setLinkedInQuickFilter('all')">All Recruiter Posts</button>
+            <button type="button" class="freshness-pill pill-today" id="li-filter-today" onclick="setLinkedInQuickFilter('today')">🔥 Today's Posts</button>
+            <button type="button" class="freshness-pill pill-24h" id="li-filter-email" onclick="setLinkedInQuickFilter('email')">✉️ Direct HR Email Only</button>
+            <button type="button" class="freshness-pill pill-week" id="li-filter-remote" onclick="setLinkedInQuickFilter('remote')">🌐 Remote (Open to India)</button>
+            <button type="button" class="freshness-pill pill-month" id="li-filter-bengaluru" onclick="setLinkedInQuickFilter('bengaluru')">📍 Bengaluru Hub</button>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="li-workmode-select" onchange="loadLinkedInFeedPosts()" style="padding: 0.4rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem; background: #fff;">
+              <option value="">All Work Modes</option>
+              <option value="Remote">Remote</option>
+              <option value="Hybrid">Hybrid</option>
+              <option value="Onsite">On-Site</option>
+            </select>
+            <span id="li-results-counter" style="font-size: 0.8rem; font-weight: 700; color: #64748b;">Loading posts...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recruiter Feed Stream Grid -->
+      <div id="linkedin-feed-posts-grid" class="jobs-grid">
+        <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #64748b;">
+          Loading LinkedIn HR & Recruiter Feed posts...
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tab 2: Career Knowledge Base & AI Studio -->
+    <div class="tab-pane" id="tab-kb" style="display: none;">
+
+      <!-- Hero Banner & 6-Step Workflow Stepper -->
+      <div class="kb-hero-banner">
+        <div
+          style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+              <span style="font-size: 1.5rem;">📚</span>
+              <h2 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; margin: 0;">
+                Career Knowledge Base & Multi-Document Repository
+              </h2>
+              <span class="status-pill status-pill-ready">Active Profile: Verified</span>
+            </div>
+            <p style="color: #94a3b8; font-size: 0.88rem; max-width: 820px; line-height: 1.5; margin: 0;">
+              Upload all career documents (resumes, certificates, project case studies, awards, recommendation letters,
+              LinkedIn exports).
+              The AI extracts skills and competencies across all documents into a unified knowledge base, and
+              dynamically matches them to generate highly personalized resumes and cover letters for any job
+              description.
+            </p>
+          </div>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button class="btn btn-outline btn-sm" onclick="reindexAllKBDocuments()"
+              title="Force re-indexing and update profile">
+              🔄 Re-index All Docs
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="switchKBSubnav('studio')">
+              ⚡ Open Tailor Studio
+            </button>
+          </div>
+        </div>
+
+        <!-- 6-Stage Smart Resume & Cover Letter Workflow Stepper -->
+        <div class="kb-stepper">
+          <div class="kb-step-item active">
+            <span class="kb-step-number">1</span>
+            <div>
+              <div class="kb-step-title">Upload Career Docs</div>
+              <div style="font-size: 0.68rem; color: #94a3b8;">Multi-format batch</div>
+            </div>
+          </div>
+          <div class="kb-step-item active">
+            <span class="kb-step-number">2</span>
+            <div>
+              <div class="kb-step-title">AI Extraction</div>
+              <div style="font-size: 0.68rem; color: #94a3b8;">Unified profile built</div>
+            </div>
+          </div>
+          <div class="kb-step-item">
+            <span class="kb-step-number">3</span>
+            <div>
+              <div class="kb-step-title">Target Job Description</div>
+              <div style="font-size: 0.68rem; color: #94a3b8;">Paste JD or pick job</div>
+            </div>
+          </div>
+          <div class="kb-step-item">
+            <span class="kb-step-number">4</span>
+            <div>
+              <div class="kb-step-title">AI JD Analysis</div>
+              <div style="font-size: 0.68rem; color: #94a3b8;">Extract role & keywords</div>
+            </div>
+          </div>
+          <div class="kb-step-item">
+            <span class="kb-step-number">5</span>
+            <div>
+              <div class="kb-step-title">Multi-Doc Matching</div>
+              <div style="font-size: 0.68rem; color: #94a3b8;">Align evidence & certs</div>
+            </div>
+          </div>
+          <div class="kb-step-item">
+            <span class="kb-step-number">6</span>
+            <div>
+              <div class="kb-step-title">Tailored Documents</div>
+              <div style="font-size: 0.68rem; color: #94a3b8;">Resume, CL, Word, PDF</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KB Internal Sub-Navigation Tabs -->
+      <div class="kb-subnav">
+        <button type="button" class="kb-subnav-btn active" id="kb-subnav-repo" onclick="switchKBSubnav('repo')">
+          📁 Document Repository (<span id="kb-repo-count">0</span>)
+        </button>
+        <button type="button" class="kb-subnav-btn" id="kb-subnav-profile" onclick="switchKBSubnav('profile')">
+          🧠 Unified Professional Profile
+        </button>
+        <button type="button" class="kb-subnav-btn" id="kb-subnav-studio" onclick="switchKBSubnav('studio')">
+          ⚡ Smart Resume & Cover Letter Studio
+        </button>
+      </div>
+
+      <!-- SUB-PANE 1: Document Repository -->
+      <div id="kb-pane-repo">
+        <!-- Prominent Evidence-Based Single Source of Truth Notice -->
+        <div class="evidence-notice-banner"
+          style="background: rgba(14, 165, 233, 0.08); border: 1.5px solid #0284c7; border-radius: 10px; padding: 0.95rem 1.25rem; margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 0.85rem;">
+          <div style="font-size: 1.35rem; line-height: 1.2;">🔒</div>
+          <div style="font-size: 0.84rem; color: #e0f2fe; line-height: 1.55;">
+            <strong style="color: #38bdf8; font-size: 0.9rem; display: block; margin-bottom: 0.2rem;">Single Source of
+              Truth Notice:</strong>
+            Only documents listed in the 'Documents Available for Resume Tailoring' section will be used for resume and
+            cover letter generation. No cached profile data, sample data, previous conversations, browser storage, or
+            AI-generated assumptions will be used.
+          </div>
+        </div>
+
+        <!-- Uploaded Files Transparency Summary Card (Requirement 2) -->
+        <div id="kb-repo-stats-container" style="margin-bottom: 1rem;"></div>
+
+        <!-- Batch Multi-File Upload Dropzone -->
+        <div class="kb-upload-container" id="kb-upload-dropzone"
+          onclick="document.getElementById('kb-multi-file-input').click()">
+          <input type="file" id="kb-multi-file-input" multiple accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.csv"
+            style="display: none;" onchange="handleKBBatchUpload(this.files)">
+          <div style="font-size: 2.2rem; margin-bottom: 0.35rem;">📤</div>
+          <div style="font-size: 1.05rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem;">
+            Click or drag & drop multiple career documents to upload
+          </div>
+          <div style="font-size: 0.82rem; color: #94a3b8; max-width: 600px; margin: 0 auto 0.6rem auto;">
+            Upload Resumes, Cover Letters, Certificates, Project Documentation, Case Studies, Awards, Recommendations,
+            Transcripts, Licenses, or LinkedIn Exports.
+          </div>
+          <div class="kb-upload-formats-badge">
+            <span class="kb-format-chip">PDF</span>
+            <span class="kb-format-chip">DOCX / DOC</span>
+            <span class="kb-format-chip">TXT / MD</span>
+            <span class="kb-format-chip">PNG / JPG (Certificates)</span>
+            <span class="kb-format-chip">CSV</span>
+            <span class="kb-format-chip">Multiple Files</span>
+          </div>
+
+          <!-- Document Category Selector (Defaults to Auto-Detect) -->
+          <div
+            style="margin-top: 1rem; display: inline-flex; align-items: center; gap: 0.5rem; background: #131c31; padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #233558;"
+            onclick="event.stopPropagation()">
+            <label style="font-size: 0.78rem; font-weight: 700; color: #94a3b8;">Document Category:</label>
+            <select id="kb-upload-category-select"
+              style="background: #0a0f1d; color: #38bdf8; border: 1px solid #334155; border-radius: 4px; padding: 0.25rem 0.5rem; font-size: 0.78rem; font-weight: 600;">
+              <option value="auto">✨ Auto-Detect From File</option>
+              <option value="resume">📄 Resume / CV</option>
+              <option value="cover_letter">✉️ Cover Letter</option>
+              <option value="certificate">🏆 Certificate / Credential</option>
+              <option value="project_doc">📊 Project Documentation</option>
+              <option value="case_study">💼 Case Study</option>
+              <option value="portfolio">🎨 Portfolio Document</option>
+              <option value="award">🎖️ Award & Achievement</option>
+              <option value="recommendation">📝 Recommendation Letter</option>
+              <option value="transcript">🎓 Transcript / Marksheet</option>
+              <option value="license">🛡️ Professional License</option>
+              <option value="training">💻 Training Completion</option>
+              <option value="linkedin_export">🔗 LinkedIn Profile Export</option>
+              <option value="bio">👤 Personal Bio</option>
+              <option value="other">📁 Other Career File</option>
+            </select>
+          </div>
+
+          <div id="kb-upload-status" style="margin-top: 0.85rem; font-size: 0.85rem; display: none;"></div>
+        </div>
+
+        <!-- Repository Filter & Action Bar -->
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+          <div class="search-input-wrapper" style="flex: 1; min-width: 260px; max-width: 450px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="kb-search-input" class="search-input"
+              placeholder="Search documents by name, category, or skills..." oninput="filterKBDocuments()">
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <div class="kb-category-bar" id="kb-category-filters" style="margin-bottom: 0;">
+              <button type="button" class="kb-cat-filter-btn active" data-cat="all"
+                onclick="setKBCategoryFilter('all')">All Documents</button>
+              <button type="button" class="kb-cat-filter-btn" data-cat="resume"
+                onclick="setKBCategoryFilter('resume')">Resumes</button>
+              <button type="button" class="kb-cat-filter-btn" data-cat="certificate"
+                onclick="setKBCategoryFilter('certificate')">Certificates</button>
+              <button type="button" class="kb-cat-filter-btn" data-cat="project_doc"
+                onclick="setKBCategoryFilter('project_doc')">Projects & Cases</button>
+              <button type="button" class="kb-cat-filter-btn" data-cat="recommendation"
+                onclick="setKBCategoryFilter('recommendation')">Recommendations</button>
+              <button type="button" class="kb-cat-filter-btn" data-cat="other"
+                onclick="setKBCategoryFilter('other')">Other</button>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="btn-reprocess-all"
+              onclick="reprocessAllKBDocuments()"
+              style="font-size: 0.78rem; padding: 0.35rem 0.75rem; font-weight: 700;"
+              title="Re-extract and re-parse all documents in the repository">
+              🔄 Reprocess All
+            </button>
+          </div>
+        </div>
+
+        <!-- Documents Grid -->
+        <div class="kb-docs-grid" id="kb-documents-grid">
+          <div style="text-align: center; padding: 2rem; grid-column: 1 / -1;">
+            <div class="spinner"></div>
+            <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Loading career knowledge base
+              documents...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-PANE 2: Unified Professional Profile -->
+      <div id="kb-pane-profile" style="display: none;">
+        <div id="kb-unified-profile-content">
+          <div style="text-align: center; padding: 2.5rem;">
+            <div class="spinner"></div> Loading unified professional profile...
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-PANE 3: Smart Resume & Cover Letter Studio -->
+      <div id="kb-pane-studio" style="display: none;">
+        <div class="studio-layout">
+          <!-- Left: Job Description Input Card -->
+          <div class="studio-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.35rem;">
+              🎯 Target Any Job Description
+            </h3>
+            <p style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 1rem; line-height: 1.4;">
+              Paste any job posting or internship description below. The AI will cross-reference requirements against
+              all uploaded career documents to generate a tailored 1-page LaTeX resume, personalized cover letter, and
+              ATS skill gap analysis.
+            </p>
+
+            <div class="studio-presets-row">
+              <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">Try Sample JDs:</span>
+              <button type="button" class="studio-preset-chip" onclick="loadSampleJD('power_bi')">📊 Power BI
+                Developer</button>
+              <button type="button" class="studio-preset-chip" onclick="loadSampleJD('data_analyst')">📈 Junior Data
+                Analyst</button>
+              <button type="button" class="studio-preset-chip" onclick="loadSampleJD('sql_analyst')">🗄️ SQL & BI
+                Analyst</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div class="studio-input-group">
+                <label>Target Job Title</label>
+                <input type="text" id="studio-job-title" class="studio-input" placeholder="e.g. Junior Data Analyst">
+              </div>
+              <div class="studio-input-group">
+                <label>Company / Employer Name</label>
+                <input type="text" id="studio-company" class="studio-input"
+                  placeholder="e.g. Deloitte, Swiggy, Accenture">
+              </div>
+            </div>
+
+            <div class="studio-input-group">
+              <label>Full Job Description & Requirements</label>
+              <textarea id="studio-jd-text" class="studio-input"
+                style="min-height: 220px; font-family: inherit; line-height: 1.5; resize: vertical;"
+                placeholder="Paste the complete job description, required skills, tools, and responsibilities here..."></textarea>
+            </div>
+
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <span style="font-size: 0.75rem; color: #06b6d4;">
+                🔒 Strict Truthfulness: Uses verified facts from your Knowledge Base only.
+              </span>
+              <button type="button" class="btn btn-primary" id="btn-studio-generate"
+                onclick="generateTailoredFromStudio()"
+                style="font-weight: 700; background: linear-gradient(135deg, #06b6d4, #10b981);">
+                ⚡ Generate Tailored Resume & Cover Letter
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Knowledge Base Summary & Live Matching Readiness -->
+          <div class="studio-card">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #34d399; margin-bottom: 0.35rem;">
+              🧠 Knowledge Base Source Profile
+            </h3>
+            <p style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 1rem; line-height: 1.4;">
+              Source truth used when matching against target job openings:
+            </p>
+
+            <div id="studio-kb-snapshot">
+              <div style="text-align: center; padding: 2rem;">
+                <div class="spinner"></div> Loading profile snapshot...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tab 3: Career Knowledge Base (72 Curated Platforms) -->
+    <div class="tab-pane" id="tab-directory" style="display: none;">
+      <div class="filter-card">
+        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.4rem; color: #333333;">
+          📚 Curated Platform Directory (72 Sources from Directory PDF)
+        </h3>
+        <p style="color: #666666; font-size: 0.875rem; margin-bottom: 1.15rem;">
+          Exclusively includes platforms from <code>india_and_global_remote_job_platforms.pdf</code>:
+          <strong>Section A (India-only portals)</strong>, <strong>Section B (Remote jobs open to Indian
+            applicants)</strong>, and <strong>Section C (Direct employer career pages)</strong>.
+        </p>
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="dir-search-input" class="search-input"
+            placeholder="Search platforms by name, country, or section (e.g. Internshala, Remotive, TCS, Swiggy, Naukri)...">
+        </div>
+      </div>
+
+      <div id="platforms-directory">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </div>
+
+    <!-- Tab 4: Analytics -->
+    <div class="tab-pane" id="tab-analytics" style="display: none;">
+      <div id="analytics-view">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </div>
+
+    <!-- Tab 5: Automated Job Scraping, Scheduling & Monitoring Center -->
+    <div class="tab-pane" id="tab-scheduler-center" style="display: none;">
+      <div class="scheduler-container">
+
+        <!-- 1. Job Scraping Controls -->
+        <section class="scheduler-section" id="section-scraping-controls">
+          <div class="section-title-wrap">
+            <div>
+              <h2 class="section-main-title">⚡ 1. Job Scraping Controls</h2>
+              <p class="section-subtitle">Configure on-demand scraping triggers, target platforms, and smart ATS
+                extraction controls.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-trigger-manual-scrape" onclick="triggerManualScrapeWithControls()">
+              🚀 Start Scraping Now
+            </button>
+          </div>
+
+          <div class="scheduler-controls-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1.25rem;">
+            <!-- Adapters & Sources Selection -->
+            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 1.25rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <label style="font-size: 0.8rem; font-weight: 700; color: #1e293b; text-transform: uppercase;">
+                  Target Job Sources & Portals
+                </label>
+                <div style="font-size: 0.75rem;">
+                  <a href="javascript:void(0)" onclick="toggleAllManualAdapters(true)"
+                    style="color: #D97F95; font-weight: 600; margin-right: 8px;">Select All</a>
+                  <a href="javascript:void(0)" onclick="toggleAllManualAdapters(false)"
+                    style="color: #64748b; font-weight: 600;">Deselect All</a>
+                </div>
+              </div>
+              <div class="responsive-grid-sources" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 0.5rem;" id="manual-sources-checkboxes">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" name="manual_adapter" value="linkedin_feed" checked> 👔 LinkedIn HR Recruiter Feed
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" name="manual_adapter" value="internshala" checked> Internshala (India)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" name="manual_adapter" value="remotive" checked> Remotive (Global)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" name="manual_adapter" value="remoteok" checked> RemoteOK (Global)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" name="manual_adapter" value="jobicy" checked> Jobicy Remote
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" name="manual_adapter" value="weworkremotely" checked> We Work Remotely
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" name="manual_adapter" value="company_careers" checked> Company Boards
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" name="manual_adapter" value="real_market_seed" checked> Real Market Seed
+                </label>
+              </div>
+            </div>
+
+            <!-- Smart Scraping Controls -->
+            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 1.25rem;">
+              <label
+                style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; text-transform: uppercase; margin-bottom: 0.75rem;">
+                Smart Job Scraping Controls
+              </label>
+              <div class="responsive-grid-sources" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 0.6rem;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" id="ctrl-scrape-new-only" checked> Scrape New Jobs Only
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" id="ctrl-update-existing" checked> Update Existing Listings
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" id="ctrl-deduplication" checked> Job De-Duplication
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" id="ctrl-ats-scoring" checked> ATS Relevance Scoring
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" id="ctrl-skill-matching" checked> Skill Match Scoring
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" id="ctrl-resume-matching" checked> Resume Match Scoring
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" id="ctrl-rescrape-existing"> Re-Scrape Existing Jobs
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.825rem; cursor: pointer;">
+                  <input type="checkbox" id="ctrl-refresh-expired"> Refresh Expired Jobs
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced Settings Row -->
+          <div class="scheduler-advanced-grid"
+            style="margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 1rem; background: #FFFBF2; border: 1px solid #F2D6D6; padding: 1rem; border-radius: 10px;">
+            <div>
+              <label
+                style="display: block; font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 4px;">MAX
+                JOBS PER RUN</label>
+              <input type="number" id="ctrl-max-jobs" value="50" min="5" max="200"
+                style="width: 100%; padding: 0.4rem 0.6rem; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; font-weight: 700;">
+            </div>
+            <div>
+              <label
+                style="display: block; font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 4px;">RETRY
+                FAILED SCRAPES</label>
+              <select id="ctrl-retry-count"
+                style="width: 100%; padding: 0.45rem 0.6rem; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem;">
+                <option value="1">1 Retry</option>
+                <option value="2" selected>2 Retries (Recommended)</option>
+                <option value="3">3 Retries</option>
+              </select>
+            </div>
+            <div>
+              <label
+                style="display: block; font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 4px;">DELAY
+                BETWEEN REQUESTS</label>
+              <select id="ctrl-request-delay"
+                style="width: 100%; padding: 0.45rem 0.6rem; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem;">
+                <option value="0.2">0.2s (Fast)</option>
+                <option value="0.5" selected>0.5s (Standard)</option>
+                <option value="1.0">1.0s (Polite)</option>
+                <option value="2.0">2.0s (Conservative)</option>
+              </select>
+            </div>
+            <div>
+              <label
+                style="display: block; font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 4px;">RECOVERY
+                & SAFETY</label>
+              <div style="display: flex; gap: 12px; margin-top: 6px;">
+                <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 4px;">
+                  <input type="checkbox" id="ctrl-auto-recovery" checked> Auto-Recovery
+                </label>
+                <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 4px;">
+                  <input type="checkbox" id="ctrl-auto-stop"> Auto-Stop on Errors
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Default Schedules -->
+        <section class="scheduler-section" id="section-default-schedules">
+          <div class="section-title-wrap">
+            <div>
+              <h2 class="section-main-title">🌅 2. Default Automated Job Scraping Schedules</h2>
+              <p class="section-subtitle">Runs daily without manual intervention — even if your browser is closed or you
+                are offline.</p>
+            </div>
+            <span class="status-pill status-completed">Built-in & Self-Healing</span>
+          </div>
+
+          <div class="default-schedules-grid">
+            <!-- Morning Schedule Card -->
+            <div class="default-schedule-card active" id="card-default-morning">
+              <div>
+                <div class="sched-header">
+                  <div class="sched-name">🌅 Morning Job Scraping</div>
+                  <label class="switch" title="Enable or Disable Morning Schedule">
+                    <input type="checkbox" id="toggle-morning-schedule" checked
+                      onchange="toggleDefaultSchedule('sched_morning_default', this.checked)">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="sched-time-badge">⏰ 11:00 AM Daily</div>
+                <div class="sched-meta-grid">
+                  <div class="sched-meta-item">
+                    <strong>Next Scheduled Run</strong>
+                    <span id="morning-next-run" style="font-weight: 700; color: #0284c7;">Calculating...</span>
+                  </div>
+                  <div class="sched-meta-item">
+                    <strong>Last Successful Run</strong>
+                    <span id="morning-last-run" style="font-weight: 600; color: #475569;">Checking...</span>
+                  </div>
+                  <div class="sched-meta-item">
+                    <strong>Sources Configured</strong>
+                    <span>All 7 Active Portals</span>
+                  </div>
+                  <div class="sched-meta-item">
+                    <strong>Deduplication & ATS</strong>
+                    <span style="color: #10b981; font-weight: 700;">Active & Synced</span>
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 0.75rem;">
+                <button class="btn btn-outline btn-sm" onclick="runScheduleNow('sched_morning_default')">
+                  ⚡ Run Now
+                </button>
+              </div>
+            </div>
+
+            <!-- Evening Schedule Card -->
+            <div class="default-schedule-card active" id="card-default-evening">
+              <div>
+                <div class="sched-header">
+                  <div class="sched-name">🌙 Evening Job Scraping</div>
+                  <label class="switch" title="Enable or Disable Evening Schedule">
+                    <input type="checkbox" id="toggle-evening-schedule" checked
+                      onchange="toggleDefaultSchedule('sched_evening_default', this.checked)">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="sched-time-badge">⏰ 10:00 PM Daily</div>
+                <div class="sched-meta-grid">
+                  <div class="sched-meta-item">
+                    <strong>Next Scheduled Run</strong>
+                    <span id="evening-next-run" style="font-weight: 700; color: #0284c7;">Calculating...</span>
+                  </div>
+                  <div class="sched-meta-item">
+                    <strong>Last Successful Run</strong>
+                    <span id="evening-last-run" style="font-weight: 600; color: #475569;">Checking...</span>
+                  </div>
+                  <div class="sched-meta-item">
+                    <strong>Sources Configured</strong>
+                    <span>All 7 Active Portals</span>
+                  </div>
+                  <div class="sched-meta-item">
+                    <strong>Deduplication & ATS</strong>
+                    <span style="color: #10b981; font-weight: 700;">Active & Synced</span>
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 0.75rem;">
+                <button class="btn btn-outline btn-sm" onclick="runScheduleNow('sched_evening_default')">
+                  ⚡ Run Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Custom Scheduler -->
+        <section class="scheduler-section" id="section-custom-scheduler">
+          <div class="section-title-wrap">
+            <div>
+              <h2 class="section-main-title">⚙️ 3. Custom Scraping Scheduler</h2>
+              <p class="section-subtitle">Create multiple independent scraping schedules with custom frequencies,
+                multiple run times, portals, and filters.</p>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="openCustomScheduleModal()">
+              ➕ Add New Custom Schedule
+            </button>
+          </div>
+
+          <div id="custom-schedules-container" class="custom-schedules-grid">
+            <div style="padding: 2rem; text-align: center; color: #64748b; font-size: 0.9rem; grid-column: 1 / -1;">
+              Loading custom schedules...
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Upcoming Scheduled Jobs -->
+        <section class="scheduler-section" id="section-upcoming-tasks">
+          <div class="section-title-wrap">
+            <div>
+              <h2 class="section-main-title">📅 4. Upcoming Scheduled Scraping Tasks</h2>
+              <p class="section-subtitle">Chronological queue of future scraping runs with expected execution windows
+                and live countdowns.</p>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="loadUpcomingTasks()">
+              🔄 Refresh Queue
+            </button>
+          </div>
+
+          <div class="activity-table-wrap">
+            <table class="activity-table" id="upcoming-tasks-table">
+              <thead>
+                <tr>
+                  <th>Schedule Name</th>
+                  <th>Next Run Time</th>
+                  <th>Frequency & Times</th>
+                  <th>Status</th>
+                  <th>Job Sources</th>
+                  <th>Expected Execution Window</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="upcoming-tasks-tbody">
+                <tr>
+                  <td colspan="7" style="text-align: center; color: #64748b; padding: 2rem;">Loading upcoming tasks...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 5. Real-Time Status Monitor -->
+        <section class="scheduler-section" id="section-status-monitor">
+          <div class="section-title-wrap">
+            <div>
+              <h2 class="section-main-title">📡 5. Real-Time Scraping Status Monitor</h2>
+              <p class="section-subtitle">Live background telemetry displaying active portal, progress percentage,
+                stage, and discovered jobs.</p>
+            </div>
+            <span class="status-pill status-idle" id="monitor-status-pill">🟢 Idle</span>
+          </div>
+
+          <div class="live-monitor-card">
+            <!-- Metrics Row -->
+            <div class="monitor-stats-row">
+              <div class="monitor-stat-box">
+                <div class="monitor-stat-val" id="mon-active-source">-</div>
+                <div class="monitor-stat-lbl">Active Job Source</div>
+              </div>
+              <div class="monitor-stat-box">
+                <div class="monitor-stat-val" id="mon-active-portal" style="font-size: 1.05rem;">All Portals Ready</div>
+                <div class="monitor-stat-lbl">Portal Being Scraped</div>
+              </div>
+              <div class="monitor-stat-box">
+                <div class="monitor-stat-val" id="mon-jobs-scanned" style="color: #0284c7;">0</div>
+                <div class="monitor-stat-lbl">Jobs Found So Far</div>
+              </div>
+              <div class="monitor-stat-box">
+                <div class="monitor-stat-val" id="mon-jobs-added" style="color: #10b981;">0</div>
+                <div class="monitor-stat-lbl">New Listings Added</div>
+              </div>
+              <div class="monitor-stat-box">
+                <div class="monitor-stat-val" id="mon-elapsed-time">00:00</div>
+                <div class="monitor-stat-lbl">Time Elapsed</div>
+              </div>
+              <div class="monitor-stat-box">
+                <div class="monitor-stat-val" id="mon-remaining-tasks" style="font-size: 0.95rem;">Standby</div>
+                <div class="monitor-stat-lbl">Remaining Tasks</div>
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="monitor-progress-wrap">
+              <div
+                style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 6px;">
+                <span>Execution Progress</span>
+                <span id="mon-progress-text">0%</span>
+              </div>
+              <div class="monitor-progress-bar">
+                <div class="monitor-progress-fill" id="mon-progress-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <!-- Processing Stage Banner -->
+            <div class="monitor-stage-banner" id="mon-stage-banner">
+              <span>⏳</span>
+              <span id="mon-stage-text">System Idle. Next automatic run scheduled according to active calendar.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. Recommended Jobs -->
+        <section class="scheduler-section" id="section-recommended-jobs">
+          <div class="section-title-wrap">
+            <div>
+              <h2 class="section-main-title">⭐ 6. Recommended Jobs (Resume Match Integration)</h2>
+              <p class="section-subtitle">Newly discovered vacancies automatically compared, scored, and ranked against
+                your uploaded resume repository.</p>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="loadRecommendedJobs()">
+              🔄 Re-Score Jobs
+            </button>
+          </div>
+
+          <div
+            style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: gap: 8px;">
+            <div>
+              <strong style="color: #0f172a;">Candidate Profile Alignment:</strong>
+              <span id="rec-profile-skills" style="color: #64748b; margin-left: 6px;">Matching verified tools & core
+                competencies...</span>
+            </div>
+            <span class="status-pill status-completed">Strict ATS Grounding</span>
+          </div>
+
+          <div id="recommended-jobs-grid" class="recommended-jobs-grid">
+            <div style="padding: 2rem; text-align: center; color: #64748b; font-size: 0.9rem; grid-column: 1 / -1;">
+              Loading high-relevance job recommendations...
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. Scrape Activity Logs -->
+        <section class="scheduler-section" id="section-activity-logs">
+          <div class="section-title-wrap">
+            <div>
+              <h2 class="section-main-title">📊 7. Scrape Activity Logs</h2>
+              <p class="section-subtitle">Complete audit history of all past, running, queued, and scheduled scraping
+                executions.</p>
+            </div>
+            <!-- Export Buttons -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-outline btn-sm" onclick="exportLogs('csv')" title="Export full logs to CSV">
+                📥 Export CSV
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="exportLogs('excel')"
+                title="Export full logs to Excel (.xlsx)">
+                📥 Export Excel
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="exportLogs('json')" title="Export full logs to JSON">
+                📥 Export JSON
+              </button>
+            </div>
+          </div>
+
+          <!-- Activity Logs Filter Bar -->
+          <div
+            style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0; align-items: center;">
+            <div style="flex: 1; min-width: 140px;">
+              <label
+                style="display: block; font-size: 0.7rem; font-weight: 700; color: #64748b; margin-bottom: 2px;">DATE
+                RANGE</label>
+              <select id="log-filter-date" onchange="loadActivityLogs()"
+                style="width: 100%; padding: 0.45rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.825rem;">
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="7d" selected>Past 7 Days</option>
+                <option value="30d">Past 30 Days</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 140px;">
+              <label
+                style="display: block; font-size: 0.7rem; font-weight: 700; color: #64748b; margin-bottom: 2px;">STATUS</label>
+              <select id="log-filter-status" onchange="loadActivityLogs()"
+                style="width: 100%; padding: 0.45rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.825rem;">
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed 🟢</option>
+                <option value="running">Running 🟡</option>
+                <option value="partially_completed">Partial 🟠</option>
+                <option value="failed">Failed 🔴</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 140px;">
+              <label
+                style="display: block; font-size: 0.7rem; font-weight: 700; color: #64748b; margin-bottom: 2px;">TRIGGER
+                SOURCE</label>
+              <select id="log-filter-trigger" onchange="loadActivityLogs()"
+                style="width: 100%; padding: 0.45rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.825rem;">
+                <option value="all">All Sources</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="manual">Manual</option>
+              </select>
+            </div>
+            <div style="flex: 2; min-width: 200px;">
+              <label
+                style="display: block; font-size: 0.7rem; font-weight: 700; color: #64748b; margin-bottom: 2px;">SEARCH
+                LOGS</label>
+              <input type="text" id="log-filter-query" placeholder="Filter by schedule name, run ID, or error..."
+                oninput="debounceLogSearch()"
+                style="width: 100%; padding: 0.45rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.825rem;">
+            </div>
+          </div>
+
+          <!-- Logs Data Table -->
+          <div class="activity-table-wrap">
+            <table class="activity-table" id="activity-logs-table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Schedule Name</th>
+                  <th>Trigger / Initiator</th>
+                  <th>Date & Time</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Job Sources Used</th>
+                  <th>Scanned</th>
+                  <th>Added</th>
+                  <th>Duplicates</th>
+                  <th>Errors</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="activity-logs-tbody">
+                <tr>
+                  <td colspan="12" style="text-align: center; color: #64748b; padding: 2.5rem;">Loading scrape activity
+                    logs...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 8. Scraping Analytics Dashboard -->
+        <section class="scheduler-section" id="section-scraping-analytics">
+          <div class="section-title-wrap">
+            <div>
+              <h2 class="section-main-title">📈 8. Scraping Analytics Dashboard</h2>
+              <p class="section-subtitle">Aggregated historical telemetry, productivity breakdowns by portal, and job
+                discovery volume trends.</p>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="loadScrapingAnalytics()">
+              🔄 Refresh Analytics
+            </button>
+          </div>
+
+          <!-- Summary Metric Tiles -->
+          <div class="analytics-metrics-grid" id="analytics-metric-tiles">
+            <div class="analytics-metric-tile">
+              <div class="analytics-metric-val" id="an-total-runs">-</div>
+              <div class="analytics-metric-lbl">Total Scraping Runs</div>
+            </div>
+            <div class="analytics-metric-tile">
+              <div class="analytics-metric-val" id="an-total-scraped" style="color: #0284c7;">-</div>
+              <div class="analytics-metric-lbl">Total Jobs Scraped</div>
+            </div>
+            <div class="analytics-metric-tile">
+              <div class="analytics-metric-val" id="an-total-unique" style="color: #10b981;">-</div>
+              <div class="analytics-metric-lbl">Unique Jobs Found</div>
+            </div>
+            <div class="analytics-metric-tile">
+              <div class="analytics-metric-val" id="an-success-rate" style="color: #059669;">-</div>
+              <div class="analytics-metric-lbl">Success Rate</div>
+            </div>
+            <div class="analytics-metric-tile">
+              <div class="analytics-metric-val" id="an-failed-runs" style="color: #dc2626;">-</div>
+              <div class="analytics-metric-lbl">Failed Runs</div>
+            </div>
+            <div class="analytics-metric-tile">
+              <div class="analytics-metric-val" id="an-avg-time">-</div>
+              <div class="analytics-metric-lbl">Avg Duration (s)</div>
+            </div>
+            <div class="analytics-metric-tile">
+              <div class="analytics-metric-val" id="an-top-portal" style="font-size: 1.15rem; color: #D97F95;">-</div>
+              <div class="analytics-metric-lbl">Most Productive Portal</div>
+            </div>
+            <div class="analytics-metric-tile">
+              <div class="analytics-metric-val" id="an-best-sched" style="font-size: 1.15rem; color: #D97F95;">-</div>
+              <div class="analytics-metric-lbl">Best Performing Schedule</div>
+            </div>
+          </div>
+
+          <!-- Visual Trends Grid -->
+          <div class="scheduler-split-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1.25rem;">
+            <!-- Jobs Found Over Time Chart -->
+            <div class="chart-visual-box">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="font-size: 0.95rem; font-weight: 700; color: #1e293b; margin: 0;">Jobs Discovered Over Time
+                </h3>
+                <div style="display: flex; gap: 4px;">
+                  <button class="btn btn-outline btn-sm active" id="btn-chart-day"
+                    onclick="switchChartGranularity('day')">Daily</button>
+                  <button class="btn btn-outline btn-sm" id="btn-chart-week"
+                    onclick="switchChartGranularity('week')">Weekly</button>
+                  <button class="btn btn-outline btn-sm" id="btn-chart-month"
+                    onclick="switchChartGranularity('month')">Monthly</button>
+                </div>
+              </div>
+              <div class="chart-bars-row" id="analytics-trend-bars">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Portal Productivity Distribution -->
+            <div class="chart-visual-box">
+              <h3 style="font-size: 0.95rem; font-weight: 700; color: #1e293b; margin: 0 0 1rem 0;">Portal Productivity
+                Breakdown</h3>
+              <div id="analytics-portal-breakdown" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Job Details Modal -->
+  <div class="modal-overlay" id="job-detail-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('job-detail-modal')">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="brand-title" style="font-size: 1.15rem;">Fresher Job Details (0–1 Year Exp)</span>
+        <button class="modal-close" onclick="closeModal('job-detail-modal')">✕</button>
+      </div>
+      <div class="modal-body" id="modal-job-body">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Scraper Control Modal -->
+  <div class="modal-overlay" id="scraper-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('scraper-modal')">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="brand-title" style="font-size: 1.15rem;">⚡ Trigger Live Fresher Scraper (0–1 Year Exp)</span>
+        <button class="modal-close" onclick="closeModal('scraper-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: #666666; margin-bottom: 1.25rem;">
+          Scrapes live vacancies tailored for candidates with <strong>0 to 1 year experience</strong> across curated
+          Indian portals (Internshala, Naukri, Foundit), global remote platforms open to India (Remotive, RemoteOK,
+          Jobicy), and direct enterprise ATS boards.
+        </p>
+
+        <div
+          style="background: #FFFBF2; padding: 1.15rem; border-radius: 12px; margin-bottom: 1.25rem; border: 1.5px solid #F2D6D6;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #333333; margin-bottom: 0.4rem;">
+            MAX RESULTS PER ADAPTER
+          </label>
+          <input type="number" id="scraper-limit-input" value="30" min="5" max="100"
+            style="width: 100%; padding: 0.6rem 0.8rem; background: #FFFFFF; border: 1.5px solid #F2D6D6; border-radius: 8px; color: #333333; font-weight: 600;">
+        </div>
+
+        <div id="scraper-status-msg"
+          style="display: none; padding: 0.85rem; background: #FFFBF2; border: 1px solid #F2D6D6; border-radius: 12px; font-size: 0.875rem; margin-bottom: 1.25rem;">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button class="btn btn-outline" onclick="closeModal('scraper-modal')">Cancel</button>
+          <button class="btn btn-primary" id="run-scraper-btn" onclick="triggerLiveScraper()">
+            ⚡ Start Live Scrape
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Master Resume Management Modal (with FILE UPLOAD SECTION) -->
+  <div class="modal-overlay" id="master-resume-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('master-resume-modal')">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <div>
+          <span class="brand-title" style="font-size: 1.25rem;">📄 Master Resume & Career Profile</span>
+          <div style="font-size: 0.825rem; color: #666666; margin-top: 0.2rem;">
+            Single source of truth for all ATS tailored resumes. Strictly verified details.
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('master-resume-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Prominent Evidence-Based Single Source of Truth Notice (Requirement 10) -->
+        <div class="evidence-notice-banner"
+          style="background: rgba(220, 38, 38, 0.06); border: 1.5px solid #f87171; border-radius: 10px; padding: 0.95rem 1.25rem; margin-bottom: 1.15rem; display: flex; align-items: flex-start; gap: 0.85rem;">
+          <div style="font-size: 1.35rem; line-height: 1.2;">🔒</div>
+          <div style="font-size: 0.84rem; color: #1e293b; line-height: 1.55;">
+            <strong style="color: #dc2626; font-size: 0.9rem; display: block; margin-bottom: 0.2rem;">Single Source of
+              Truth Notice:</strong>
+            Only documents listed in the 'Documents Available for Resume Tailoring' section will be used for resume and
+            cover letter generation. No cached profile data, sample data, previous conversations, browser storage, or
+            AI-generated assumptions will be used.
+          </div>
+        </div>
+
+        <!-- FILE UPLOAD SECTION -->
+        <div class="upload-dropzone" id="master-resume-dropzone"
+          onclick="document.getElementById('master-resume-file-input').click()">
+          <input type="file" id="master-resume-file-input" accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.csv"
+            multiple style="display: none;" onchange="handleResumeFileSelected(this.files)">
+          <div style="font-size: 2.3rem; margin-bottom: 0.35rem;">📤</div>
+          <div style="font-weight: 700; font-size: 1.05rem; color: #333333; margin-bottom: 0.3rem;">
+            Click or drag & drop to upload Master Resume & Career Documents
+          </div>
+          <div style="font-size: 0.825rem; color: #666666;">
+            Supports PDF, DOCX, DOC, TXT, MD, Images (Certificates), CSV (Multiple Files Supported)
+          </div>
+          <div id="upload-file-status" style="margin-top: 0.85rem; font-size: 0.875rem; display: none;"></div>
+        </div>
+
+        <!-- DOCUMENTS AVAILABLE FOR RESUME TAILORING (Requirement 1, 2 & 3) -->
+        <div class="master-docs-repo-section" style="margin-top: 1.75rem; margin-bottom: 1.75rem;">
+          <div
+            style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.85rem;">
+            <div>
+              <h3
+                style="font-size: 1.15rem; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <span>📂</span> Documents Available for Resume Tailoring
+              </h3>
+              <p style="font-size: 0.84rem; color: #64748b; margin: 0.2rem 0 0 0;">
+                These are the documents currently available and approved for resume and cover letter tailoring.
+              </p>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="reprocessAllKBDocuments()"
+              title="Re-extract and re-parse all documents in the repository"
+              style="font-size: 0.8rem; font-weight: 700;">
+              🔄 Reprocess All Files
+            </button>
+          </div>
+
+          <!-- Uploaded Files Transparency Summary Card (Requirement 2) -->
+          <div id="master-modal-repo-stats" style="margin-bottom: 1.15rem;"></div>
+
+          <!-- Document Cards Grid (Requirement 1 & 3) -->
+          <div id="master-modal-repo-grid" class="master-resume-grid"
+            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 1rem;">
+            <div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;">
+              <div class="spinner"></div> Loading documents available for tailoring...
+            </div>
+          </div>
+        </div>
+
+        <!-- Master Resume Profile Details (Rendered into elegant white cards) -->
+        <div style="margin-top: 1.5rem; border-top: 2px dashed #e2e8f0; padding-top: 1.5rem;">
+          <h3
+            style="font-size: 1.15rem; font-weight: 800; color: #1e293b; margin: 0 0 0.85rem 0; display: flex; align-items: center; gap: 0.5rem;">
+            <span>🧠</span> Candidate Profile Synthesized from Documents
+          </h3>
+          <div id="master-profile-content">
+            <div style="text-align: center; padding: 2rem;">
+              <div class="spinner"></div> Loading master profile...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Permanent Delete Confirmation Modal (Requirement 3) -->
+  <div class="modal-overlay" id="delete-confirm-modal" style="display: none; z-index: 10000;"
+    onclick="if(event.target === this) closeModal('delete-confirm-modal')">
+    <div class="modal-content"
+      style="max-width: 480px; text-align: center; padding: 2rem; border-radius: 14px; background: #ffffff; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+      <div style="font-size: 2.8rem; margin-bottom: 0.65rem;">🗑️</div>
+      <h3 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin-bottom: 0.4rem;">Permanently Remove File?
+      </h3>
+      <p style="color: #475569; font-size: 0.925rem; line-height: 1.55; margin-bottom: 0.95rem;">
+        Are you sure you want to permanently remove this file from the Master Resume repository?
+      </p>
+      <div id="delete-confirm-file-badge"
+        style="background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0.6rem 0.9rem; font-weight: 700; color: #0f172a; font-size: 0.875rem; margin-bottom: 1.15rem; word-break: break-all;">
+      </div>
+      <div
+        style="font-size: 0.8rem; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.65rem 0.85rem; margin-bottom: 1.4rem; text-align: left; line-height: 1.45;">
+        ⚠️ <strong>Notice:</strong> This file and all its extracted skills, experience, and profile data will be
+        permanently deleted and will no longer influence resume or cover letter generation.
+      </div>
+      <div style="display: flex; justify-content: center; gap: 0.85rem;">
+        <button type="button" class="btn btn-outline" style="min-width: 105px; font-weight: 700;"
+          onclick="closeModal('delete-confirm-modal')">Cancel</button>
+        <button type="button" class="btn btn-danger"
+          style="min-width: 105px; background: #dc2626; color: #ffffff; border: none; font-weight: 700; padding: 0.6rem 1.25rem; border-radius: 8px; cursor: pointer;"
+          id="btn-confirm-delete-action">Delete</button>
+      </div>
+    </div>
+  </div>
+  </div>
+  </div>
+  </div>
+
+  <!-- Tailored Resume Modal (Split-Screen Layout: Left JD, Right Personalized Resume) -->
+  <div class="modal-overlay" id="tailor-resume-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('tailor-resume-modal')">
+    <div class="modal-content modal-split-screen">
+      <div class="split-screen-header" id="tailor-modal-header">
+        <div class="split-screen-title-area">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span class="brand-title" id="tailor-modal-title" style="font-size: 1.2rem;">⚡ Tailored ATS Resume</span>
+            <span class="badge-fresher" style="background-color: #6BBF73; color: #FFFFFF; font-size: 0.72rem;">Strict
+              1-Page LaTeX PDF</span>
+            <span class="badge-fresher"
+              style="background-color: #FFE8C4; color: #333333; border: 1px solid #F7D8A7; font-size: 0.72rem;">Editable
+              Word .docx</span>
+          </div>
+          <div id="tailor-modal-subtitle" style="font-size: 0.825rem; color: #666666;">
+            Target Role & Employer
+          </div>
+        </div>
+        <div class="split-screen-top-actions" id="tailor-modal-top-actions">
+          <!-- Dynamic Download buttons and actions rendered via JS -->
+          <button class="modal-close" onclick="closeModal('tailor-resume-modal')"
+            style="font-size: 1.4rem; padding: 0.2rem 0.5rem;">✕</button>
+        </div>
+      </div>
+
+      <!-- Mobile/Tablet Toggle Nav (Job Description vs Resume) -->
+      <div class="split-screen-mobile-nav" id="split-mobile-nav">
+        <button type="button" class="split-screen-mobile-btn active" id="btn-mobile-jd"
+          onclick="switchMobileSplitPanel('jd')">
+          📋 Job Description
+        </button>
+        <button type="button" class="split-screen-mobile-btn" id="btn-mobile-resume"
+          onclick="switchMobileSplitPanel('resume')">
+          📄 Personalized Resume
+        </button>
+      </div>
+
+      <div class="modal-body" id="tailor-modal-body"
+        style="padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;">
+        <!-- Rendered dynamically via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal Window -->
+  <div class="modal-overlay" id="settings-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('settings-modal')">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <span class="brand-title" style="font-size: 1.15rem;">⚙️ Platform & ATS Settings</span>
+          <div style="font-size: 0.8rem; color: #666666;">Configure your career preferences and match strictness</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('settings-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-card">
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Target Fresher Experience Window</div>
+              <div class="settings-desc">Keep strictly restricted to 0-1 Year entry-level roles</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-fresher-strict" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">High ATS Match Threshold</div>
+              <div class="settings-desc">Highlight roles with >= 80% compatibility</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-high-ats" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Auto-highlight JD Keywords (#FFCED8)</div>
+              <div class="settings-desc">Highlight matching technical skills inside job description</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-auto-highlight" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Dark Theme Interface</div>
+              <div class="settings-desc">Switch between Clean Pastel Light Mode and High-Contrast Dark Mode</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-dark-theme" onchange="toggleTheme(this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem;">
+          <button class="btn btn-outline" onclick="closeModal('settings-modal')">Cancel</button>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Preferences</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Standalone Cover Letter Generator Modal -->
+  <div class="modal-overlay" id="cover-letter-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('cover-letter-modal')">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <div>
+          <span class="brand-title" style="font-size: 1.2rem;">✉️ Tailored Cover Letter Builder</span>
+          <div style="font-size: 0.825rem; color: #666666;">Draft a persuasive, ATS-aligned cover letter aligned to your
+            master resume</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('cover-letter-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="responsive-grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1rem;">
+          <div>
+            <label class="filter-label" style="margin-bottom: 0.35rem;">Target Company</label>
+            <input type="text" id="cl-company-input" class="search-input" style="padding-left: 1rem;"
+              placeholder="e.g. Swiggy, TCS, Remotive Partner...">
+          </div>
+          <div>
+            <label class="filter-label" style="margin-bottom: 0.35rem;">Target Role</label>
+            <input type="text" id="cl-role-input" class="search-input" style="padding-left: 1rem;"
+              placeholder="e.g. Junior Data Analyst, BI Trainee...">
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+          <span style="font-size: 0.85rem; font-weight: 700; color: #333333;">EDITABLE COVER LETTER PREVIEW</span>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="generateCoverLetterDraft()">✨
+              Regenerate</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="copyCoverLetterText()">📋 Copy Text</button>
+          </div>
+        </div>
+
+        <textarea id="cl-preview-textarea" class="edit-textarea"
+          style="min-height: 280px; font-size: 0.9rem; line-height: 1.65; padding: 1rem;"></textarea>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem;">
+          <button class="btn btn-outline" onclick="closeModal('cover-letter-modal')">Close</button>
+          <button class="btn btn-primary" onclick="downloadCoverLetterTxt()">📥 Download as .txt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Preview Modal -->
+  <div class="modal-overlay" id="doc-preview-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('doc-preview-modal')">
+    <div class="modal-content doc-preview-modal-content">
+      <div class="modal-header">
+        <div style="min-width: 0;">
+          <span class="brand-title" id="doc-preview-title" style="font-size: 1.15rem;">📄 Document Preview</span>
+          <div id="doc-preview-meta" style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;"></div>
+        </div>
+        <button class="modal-close" onclick="closeModal('doc-preview-modal')">✕</button>
+      </div>
+      <div class="modal-body" id="doc-preview-body" style="padding: 1.25rem;">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Document Metadata Modal (Rename / Re-categorize) -->
+  <div class="modal-overlay" id="doc-edit-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('doc-edit-modal')">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <span class="brand-title" style="font-size: 1.15rem;">✏️ Edit Document Metadata</span>
+        <button class="modal-close" onclick="closeModal('doc-edit-modal')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem;">
+        <input type="hidden" id="edit-doc-id">
+        <div class="studio-input-group" style="margin-bottom: 1rem;">
+          <label
+            style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 0.35rem;">Display
+            Name</label>
+          <input type="text" id="edit-doc-name" class="studio-input"
+            placeholder="e.g. AWS Certified Data Analytics Specialty">
+        </div>
+        <div class="studio-input-group" style="margin-bottom: 1.25rem;">
+          <label
+            style="font-size: 0.8rem; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 0.35rem;">Category</label>
+          <select id="edit-doc-category" class="studio-input" style="color: #38bdf8;">
+            <option value="resume">📄 Resume / CV</option>
+            <option value="cover_letter">✉️ Cover Letter</option>
+            <option value="certificate">🏆 Certificate / Credential</option>
+            <option value="project_doc">📊 Project Documentation</option>
+            <option value="case_study">💼 Case Study</option>
+            <option value="portfolio">🎨 Portfolio Document</option>
+            <option value="award">🎖️ Award & Achievement</option>
+            <option value="recommendation">📝 Recommendation Letter</option>
+            <option value="transcript">🎓 Transcript / Marksheet</option>
+            <option value="license">🛡️ Professional License</option>
+            <option value="training">💻 Training Completion</option>
+            <option value="linkedin_export">🔗 LinkedIn Profile Export</option>
+            <option value="bio">👤 Personal Bio</option>
+            <option value="other">📁 Other Career File</option>
+          </select>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('doc-edit-modal')">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="saveDocMeta()">💾 Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Schedule Add / Edit Modal -->
+  <div class="modal-overlay" id="custom-schedule-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('custom-schedule-modal')">
+    <div class="modal-content modal-lg" style="max-width: 720px;">
+      <div class="modal-header">
+        <span class="brand-title" id="custom-sched-modal-title" style="font-size: 1.15rem;">➕ Add Custom Scraping
+          Schedule</span>
+        <button class="modal-close" onclick="closeModal('custom-schedule-modal')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem; max-height: 80vh; overflow-y: auto;">
+        <input type="hidden" id="custom-sched-id">
+
+        <div class="responsive-grid-custom-sched" style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label
+              style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">SCHEDULE
+              NAME *</label>
+            <input type="text" id="cs-name" placeholder="e.g. Weekday Morning Analytics Sweep"
+              style="width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">TIME
+              ZONE</label>
+            <select id="cs-timezone"
+              style="width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+              <option value="Asia/Kolkata" selected>Asia/Kolkata (IST +05:30)</option>
+              <option value="UTC">UTC (+00:00)</option>
+              <option value="America/New_York">America/New_York (EST/EDT)</option>
+              <option value="Europe/London">Europe/London (GMT/BST)</option>
+              <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="responsive-grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label
+              style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">FREQUENCY</label>
+            <select id="cs-frequency" onchange="handleFrequencyChange()"
+              style="width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+              <option value="daily" selected>Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">RUN
+              TIMES (Comma separated 24h, e.g. 08:00, 13:00, 20:00)</label>
+            <input type="text" id="cs-runtimes" value="09:00, 18:00" placeholder="e.g. 08:00, 14:00, 20:00"
+              style="width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+          </div>
+        </div>
+
+        <!-- Days of Week Selection -->
+        <div id="cs-days-wrap" style="margin-bottom: 1rem;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">DAYS
+            OF WEEK</label>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <label
+              style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" name="cs_day" value="Monday" checked> Mon
+            </label>
+            <label
+              style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" name="cs_day" value="Tuesday" checked> Tue
+            </label>
+            <label
+              style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" name="cs_day" value="Wednesday" checked> Wed
+            </label>
+            <label
+              style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" name="cs_day" value="Thursday" checked> Thu
+            </label>
+            <label
+              style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" name="cs_day" value="Friday" checked> Fri
+            </label>
+            <label
+              style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" name="cs_day" value="Saturday"> Sat
+            </label>
+            <label
+              style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" name="cs_day" value="Sunday"> Sun
+            </label>
+          </div>
+        </div>
+
+        <!-- Portals & Source Selection -->
+        <div
+          style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">JOB
+            PORTALS & SOURCES</label>
+          <div class="responsive-grid-sources" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 0.4rem;" id="cs-sources-container">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="linkedin_feed" checked> 👔 LinkedIn HR Recruiter Feed
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="internshala" checked> Internshala (India)
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="remotive" checked> Remotive (Global)
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="remoteok" checked> RemoteOK (Global)
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="jobicy" checked> Jobicy Remote
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="weworkremotely" checked> We Work Remotely
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="company_careers" checked> Company Careers
+            </label>
+          </div>
+        </div>
+
+        <!-- Keywords, Location & Filters -->
+        <div class="responsive-grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label
+              style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">TARGET
+              ROLES & KEYWORDS</label>
+            <input type="text" id="cs-keywords" value="Data Analyst, Power BI Developer, Python, SQL"
+              placeholder="Comma separated roles..."
+              style="width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+          </div>
+          <div>
+            <label
+              style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">LOCATION
+              FILTERS</label>
+            <input type="text" id="cs-locations" value="India, Remote" placeholder="e.g. India, Remote, Bangalore"
+              style="width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+          </div>
+        </div>
+
+        <!-- Work Modes & Smart Settings -->
+        <div
+          style="background: #FFFBF2; border: 1px solid #F2D6D6; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">SMART
+            CONTROLS & WORK MODES</label>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 8px;">
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem;">
+              <input type="checkbox" name="cs_workmode" value="Remote" checked> Remote
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem;">
+              <input type="checkbox" name="cs_workmode" value="Hybrid" checked> Hybrid
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem;">
+              <input type="checkbox" name="cs_workmode" value="Onsite" checked> Onsite
+            </label>
+          </div>
+          <div
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.5rem; font-size: 0.8rem;">
+            <label style="display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" id="cs-dedup" checked> Job De-Duplication
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" id="cs-ats" checked> ATS Relevance Scoring
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" id="cs-resume" checked> Resume Match Ranking
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px;">
+              <input type="checkbox" id="cs-update-existing" checked> Update Existing
+            </label>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('custom-schedule-modal')">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="saveCustomSchedule()">💾 Save Schedule</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scrape Activity Log Details Modal -->
+  <div class="modal-overlay" id="log-details-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('log-details-modal')">
+    <div class="modal-content modal-lg" style="max-width: 680px;">
+      <div class="modal-header">
+        <span class="brand-title" style="font-size: 1.15rem;">📋 Scrape Execution Trace</span>
+        <button class="modal-close" onclick="closeModal('log-details-modal')">✕</button>
+      </div>
+      <div class="modal-body" id="log-details-modal-body" style="padding: 1.5rem; max-height: 75vh; overflow-y: auto;">
+        <!-- Rendered by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification & Alerts Settings Modal -->
+  <div class="modal-overlay" id="notification-settings-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('notification-settings-modal')">
+    <div class="modal-content" style="max-width: 560px;">
+      <div class="modal-header">
+        <span class="brand-title" style="font-size: 1.15rem;">🔔 Notification & Alert Preferences</span>
+        <button class="modal-close" onclick="closeModal('notification-settings-modal')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div style="background: #FFFBF2; border: 1px solid #F2D6D6; border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 1.15rem; font-size: 0.8rem; color: #64748b; display: flex; align-items: center; gap: 8px;">
+          <span>🇮🇳</span>
+          <span>Alert notifications, logs, and email schedules are recorded in <strong>Indian Standard Time (IST • Asia/Kolkata)</strong>.</span>
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label
+            style="font-weight: 700; font-size: 0.85rem; color: #1e293b; display: block; margin-bottom: 6px;">IN-APP
+            NOTIFICATIONS</label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer;">
+            <input type="checkbox" id="notif-in-app" checked> Enable in-app activity badges and dropdown alert drawer
+          </label>
+        </div>
+
+        <div
+          style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 1.15rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label style="font-weight: 700; font-size: 0.85rem; color: #1e293b;">EMAIL NOTIFICATIONS</label>
+            <label class="switch">
+              <input type="checkbox" id="notif-email-enabled">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 10px 0;">Receive scraping completion reports,
+            high-match alerts, and failure notifications directly in your inbox.</p>
+          <div style="margin-bottom: 8px;">
+            <label
+              style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">RECIPIENT
+              EMAIL ADDRESS</label>
+            <input type="email" id="notif-email-recipient" placeholder="youremail@domain.com"
+              style="width: 100%; padding: 0.45rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+          </div>
+          <div class="responsive-grid-custom-sched" style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+            <div>
+              <label
+                style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">SMTP
+                HOST</label>
+              <input type="text" id="notif-smtp-host" value="smtp.gmail.com"
+                style="width: 100%; padding: 0.45rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.825rem;">
+            </div>
+            <div>
+              <label
+                style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">PORT</label>
+              <input type="number" id="notif-smtp-port" value="587"
+                style="width: 100%; padding: 0.45rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.825rem;">
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-weight: 700; font-size: 0.85rem; color: #1e293b; display: block; margin-bottom: 6px;">ALERT
+            TRIGGERS</label>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.825rem;">
+            <label style="display: flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="notif-trigger-complete" checked> Scheduled scraping run completed
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="notif-trigger-newjobs" checked> New fresher job listings discovered
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="notif-trigger-highmatch" checked> High-match jobs found (Resume match >= 75%)
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px;">
+              <input type="checkbox" id="notif-trigger-failure" checked> Scraping failure or rate limit detected
+            </label>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="sendTestNotificationEmail()">✉️ Send Test
+            Email</button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-outline"
+              onclick="closeModal('notification-settings-modal')">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveNotificationSettings()">💾 Save Settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LinkedIn Feed Settings Modal -->
+  <div class="modal-overlay" id="linkedin-settings-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('linkedin-settings-modal')">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <span class="brand-title" style="font-size: 1.15rem; color: #0a66c2;">👔 LinkedIn Feed Sync Settings</span>
+        <button class="modal-close" onclick="closeModal('linkedin-settings-modal')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.825rem; color: #0369a1; line-height: 1.45;">
+          <strong>Connect Your Account Feed:</strong> By supplying your LinkedIn session cookie (<code>li_at</code>), the platform can query live feed hiring posts matching fresher keywords directly from your personal network.
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-weight: 700; font-size: 0.8rem; color: #1e293b; display: block; margin-bottom: 4px;">LINKEDIN SESSION COOKIE (li_at)</label>
+          <input type="password" id="li-setting-cookie" class="search-input" placeholder="Paste your li_at cookie here (optional for live feed sync)..." style="font-size: 0.825rem; width: 100%; padding: 0.45rem 0.65rem;">
+          <span style="font-size: 0.7rem; color: #64748b; margin-top: 2px; display: block;">Found in your browser Developer Tools -> Application -> Cookies -> linkedin.com -> li_at</span>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-weight: 700; font-size: 0.8rem; color: #1e293b; display: block; margin-bottom: 4px;">SEARCH & FEED KEYWORDS</label>
+          <input type="text" id="li-setting-keywords" class="search-input" value="data analyst fresher hiring" style="font-size: 0.825rem; width: 100%; padding: 0.45rem 0.65rem;">
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.825rem; cursor: pointer;">
+            <input type="checkbox" id="li-setting-auto-sync" checked> Automatically scrape and seed verified Indian HR benchmark posts
+          </label>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('linkedin-settings-modal')">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="saveLinkedInSettings()" style="background: #0a66c2; border-color: #0a66c2; color: #fff;">💾 Save Settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Personal LinkedIn Feed Modal -->
+  <div class="modal-overlay" id="linkedin-personal-sync-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('linkedin-personal-sync-modal')">
+    <div class="modal-content" style="max-width: 640px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <div>
+          <span class="brand-title" style="font-size: 1.15rem; color: #0a66c2;">📥 Sync Posts From Your Personal LinkedIn Feed</span>
+          <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
+            Extract hiring posts visible on your personal account feed with 100% account safety
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('linkedin-personal-sync-modal')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem 1.5rem;">
+        
+        <!-- Safety Alert -->
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; align-items: flex-start; gap: 8px;">
+            <span style="font-size: 1.2rem;">🔒</span>
+            <div style="font-size: 0.825rem; color: #065f46; line-height: 1.5;">
+              <strong>No Password Required — Your Account Is 100% Safe:</strong><br>
+              We <em>never</em> ask for your LinkedIn password or login credentials. Sharing passwords triggers automated security checkpoints, 2FA errors, or account locks. Instead, use these 3 safe, instantaneous methods:
+            </div>
+          </div>
+        </div>
+
+        <!-- Featured Method: Chrome Extension (Recommended) -->
+        <div style="border: 2px solid #0a66c2; border-radius: 8px; padding: 1.15rem; margin-bottom: 1.25rem; background: #f0f7ff; box-shadow: 0 2px 8px rgba(10,102,194,0.08);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.3rem;">🚀</span>
+              <span style="font-weight: 800; font-size: 0.95rem; color: #0a66c2;">Method 1 (Recommended): 1-Click Chrome Extension</span>
+            </div>
+            <span class="badge-fresher" style="background: #0a66c2; color: #ffffff; font-size: 0.725rem; font-weight: 700; padding: 3px 8px; border-radius: 999px;">Zero Network Blocks • 100% Automated</span>
+          </div>
+          <p style="font-size: 0.825rem; color: #334155; margin: 0 0 0.75rem 0; line-height: 1.5;">
+            The easiest, most powerful way to scrape both <strong>official job cards</strong> and <strong>recruiter posts</strong> across LinkedIn. Works seamlessly with 1-click on your Home Feed or Search Results with zero mixed-content or security blocks!
+          </p>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; margin-bottom: 0.75rem; font-size: 0.8rem; color: #1e293b; line-height: 1.6;">
+            <strong>Quick Setup (Takes 15 seconds):</strong>
+            <ol style="margin: 4px 0 0 16px; padding: 0;">
+              <li>Open Chrome and navigate to <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #0a66c2; font-weight: 700;">chrome://extensions</code></li>
+              <li>Toggle <strong>Developer mode</strong> ON in the top-right corner.</li>
+              <li>Click <strong>Load unpacked</strong> in the top-left corner.</li>
+              <li>Select this folder: <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700;">E:\Antygravity\job finder web\extension</code></li>
+            </ol>
+          </div>
+          <div style="font-size: 0.775rem; color: #0369a1; display: flex; align-items: center; gap: 6px;">
+            <span>✨</span>
+            <span>Once loaded, browse LinkedIn — a floating <strong>"🎯 Job Finder"</strong> button will appear right on your screen to harvest jobs in 1 click!</span>
+          </div>
+        </div>
+
+        <!-- Method 2: 1-Click Bookmarklet -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: #fafbfc;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-weight: 800; font-size: 0.9rem; color: #0a66c2;">🌟 Method 2: Feed Harvester Bookmarklet</span>
+            <span class="badge-fresher" style="background: #dcfce7; color: #15803d; font-size: 0.725rem;">Works on Home Feed &amp; Search Results</span>
+          </div>
+          <p style="font-size: 0.8rem; color: #475569; margin: 0 0 0.75rem 0; line-height: 1.45;">
+            Drag the button below to your Chrome/Edge Bookmarks Bar. Then browse your LinkedIn home feed or post search results (<a href="https://www.linkedin.com/search/results/content/?keywords=data%20analyst%20fresher" target="_blank" style="color: #0a66c2; text-decoration: underline;">e.g., search "data analyst fresher"</a>), and click the bookmark. It automatically grabs all visible recruiter hiring posts and pushes them right here!
+          </p>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="javascript:(async function harvestLinkedInFeed() { if (!window.location.hostname.includes(&#x27;linkedin.com&#x27;)) { alert(&#x27;⚠️ Action Required:\\n\\nPlease run this script in the browser Console while viewing LinkedIn (https: return; } console.log(&#x27;🚀 Job Finder: Starting Precision LinkedIn Feed & Jobs Harvester...&#x27;); document.querySelectorAll( &#x27;button[aria-label*=&quot;more&quot; i], &#x27; + &#x27;button.feed-shared-inline-show-more-text__see-more-less-toggle, &#x27; + &#x27;button.update-components-text__see-more-button, &#x27; + &#x27;button.see-more, &#x27; + &#x27;[data-view-name*=&quot;see-more&quot;], &#x27; + &#x27;.feed-shared-see-more-less-toggle, &#x27; + &#x27;span.feed-shared-inline-show-more-text__see-more-less-toggle&#x27; ).forEach(b => { try { b.click(); } catch(e) {} }); await new Promise(r => setTimeout(r, 350)); const cardSet = new Set(); const containerSelectors = [ &#x27;div.feed-shared-update-v2&#x27;, &#x27;div[data-urn*=&quot;activity&quot;]&#x27;, &#x27;div[data-urn*=&quot;ugcPost&quot;]&#x27;, &#x27;div[data-urn*=&quot;jobPosting&quot;]&#x27;, &#x27;div[data-urn*=&quot;share&quot;]&#x27;, &#x27;div[data-chameleon-result-urn]&#x27;, &#x27;div[data-entity-urn*=&quot;activity&quot;]&#x27;, &#x27;div[data-entity-urn*=&quot;jobPosting&quot;]&#x27;, &#x27;div[data-id*=&quot;activity&quot;]&#x27;, &#x27;div[data-view-name*=&quot;feed-full-update&quot;]&#x27;, &#x27;div[data-view-name*=&quot;search-entity-result&quot;]&#x27;, &#x27;li.reusable-search__result-container&#x27;, &#x27;div.job-card-container&#x27;, &#x27;li.jobs-search-results__list-item&#x27;, &#x27;div[data-job-id]&#x27;, &#x27;.search-results__cluster-content li&#x27;, &#x27;article&#x27; ]; document.querySelectorAll(containerSelectors.join(&#x27;,&#x27;)).forEach(el => { const parent = el.closest(&#x27;.feed-shared-update-v2, li.reusable-search__result-container, li.jobs-search-results__list-item, div.artdeco-card&#x27;) || el; cardSet.add(parent); }); document.querySelectorAll(&#x27;.update-components-actor, .feed-shared-actor, a[data-field=&quot;actor_name&quot;], a[href*=&quot;/jobs/view/&quot;], a[href*=&quot;/feed/update/urn:li:activity:&quot;]&#x27;).forEach(el => { const parent = el.closest(&#x27;li, article, div.feed-shared-update-v2, div[data-urn], div[data-view-name], div.job-card-container, .artdeco-card&#x27;) || el.parentElement.parentElement; if (parent && parent !== document.body) { cardSet.add(parent); } }); const rawCards = Array.from(cardSet); const cards = rawCards.filter(c => { for (const other of rawCards) { if (other !== c && other.contains(c)) return false; } return true; }); if (cards.length === 0) { alert(&#x27;ℹ️ No LinkedIn posts or job cards detected on screen.\\n\\nPlease scroll down your LinkedIn feed or search page to load posts, then click again!&#x27;); return; } const ROLE_REGEX = /(?:data\\s*(?:analyst|analytics|engineer|intern|trainee|associate|specialist)|business\\s*analyst|bi\\s*(?:analyst|developer)|power\\s*bi|tableau|sql\\s*(?:developer|analyst)|reporting\\s*analyst|mis\\s*(?:analyst|executive)|analytics\\s*engineer|data\\s*visualization|decision\\s*scientist|junior\\s*analyst|associate\\s*analyst)/i; const HIRING_REGEX = /(?:hiring|actively\\s*hiring|hiring\\s*now|open\\s*position|job\\s*opening|openings|vacancy|vacancies|recruitment|recruiting|looking\\s*for|immediate\\s*hiring|we\\s*are\\s*hiring|we&#x27;re\\s*hiring|join\\s*our\\s*team|apply\\s*now|apply\\s*here|register\\s*here|apply\\s*link|apply\\s*through|how\\s*to\\s*apply|send\\s*(?:your\\s*)?(?:resume|cv)|share\\s*(?:your\\s*)?(?:resume|cv)|fresher\\s*hiring|walk-?in|hiring\\s*alert|job\\s*alert|opportunity|opportunities|easy\\s*apply|job\\s*listing)/i; const DISQUALIFIER_REGEX = /(?:certificate\\s*of\\s*completion|completed\\s*the\\s*course|thrilled\\s*to\\s*share\\s*that\\s*i\\s*(?:have\\s*)?completed|course\\s*completed|internship\\s*certificate|completed\\s*an\\s*online|webinar\\s*recording|happy\\s*to\\s*share\\s*my\\s*certificate|thought\\s*for\\s*the\\s*day|monday\\s*motivation)/i; const postsToIngest = []; const seenUrls = new Set(); const seenTexts = new Set(); for (const card of cards) { const fullCardText = (card.innerText || &#x27;&#x27;).trim(); if (fullCardText.length < 25) continue; if (DISQUALIFIER_REGEX.test(fullCardText)) continue; if (!ROLE_REGEX.test(fullCardText)) continue; const jobLinkCheck = card.querySelector(&#x27;a[href*=&quot;/jobs/view/&quot;], a[href*=&quot;linkedin.com/jobs/view/&quot;]&#x27;); if (!jobLinkCheck) { const hasHiring = HIRING_REGEX.test(fullCardText); const hasApply = /https?:\/\/(?:lnkd\.in|forms\.gle|bit\.ly|[a-zA-Z0-9\-_.]+\.[a-zA-Z]{2,}(?:\/[^\s)&quot;]*)?)/i.test(fullCardText); const hasEmail = /[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/.test(fullCardText); if (!hasHiring && !hasApply && !hasEmail) continue; } const postText = fullCardText; const textSig = postText.replace(/\\s+/g, &#x27; &#x27;).slice(0, 100); if (seenTexts.has(textSig)) continue; seenTexts.add(textSig); let postUrl = &#x27;&#x27;; const jobLink = card.querySelector(&#x27;a[href*=&quot;/jobs/view/&quot;], a[href*=&quot;linkedin.com/jobs/view/&quot;]&#x27;); if (jobLink && jobLink.href) { const jm = jobLink.href.match(/https?:\\/\\/(?:[a-z]{2,3}\\.)?linkedin\\.com\\/jobs\\/view\\/(\\d+)/i); if (jm) { postUrl = &#x27;https: } } if (!postUrl) { const urnAttrEl = card.matches(&#x27;[data-urn*=&quot;activity&quot;], [data-urn*=&quot;ugcPost&quot;], [data-chameleon-result-urn*=&quot;activity&quot;], [data-entity-urn*=&quot;activity&quot;], [data-id*=&quot;activity&quot;]&#x27;) ? card : card.querySelector(&#x27;[data-urn*=&quot;activity&quot;], [data-urn*=&quot;ugcPost&quot;], [data-chameleon-result-urn*=&quot;activity&quot;], [data-entity-urn*=&quot;activity&quot;], [data-id*=&quot;activity&quot;]&#x27;); const urnVal = urnAttrEl ? (urnAttrEl.getAttribute(&#x27;data-urn&#x27;) || urnAttrEl.getAttribute(&#x27;data-chameleon-result-urn&#x27;) || urnAttrEl.getAttribute(&#x27;data-entity-urn&#x27;) || urnAttrEl.getAttribute(&#x27;data-id&#x27;) || &#x27;&#x27;) : &#x27;&#x27;; const matchUrn = urnVal.match(/urn:li:(?:activity|ugcPost|share):(\\d+)/); if (matchUrn) { postUrl = &#x27;https: } } if (!postUrl) { const permalink = card.querySelector( &#x27;a.update-components-actor__sub-description-link, &#x27; + &#x27;a[href*=&quot;/feed/update/urn:li:activity:&quot;], &#x27; + &#x27;a[href*=&quot;/feed/update/urn:li:ugcPost:&quot;], &#x27; + &#x27;a[href*=&quot;/posts/&quot;], &#x27; + &#x27;a[href*=&quot;activity-&quot;], &#x27; + &#x27;a.app-aware-link[href*=&quot;activity&quot;], &#x27; + &#x27;a.app-aware-link[href*=&quot;/posts/&quot;]&#x27; ); if (permalink && permalink.href) { const href = permalink.href; const actMatch = href.match(/urn:li:activity:(\\d+)/); const postSlugMatch = href.match(/https?:\\/\\/(?:[a-z]{2,3}\\.)?linkedin\\.com\\/posts\\/[a-zA-Z0-9_\\-]+/i); if (actMatch) { postUrl = &#x27;https: } else if (postSlugMatch) { postUrl = postSlugMatch[0]; } else if (href.includes(&#x27;/feed/update/&#x27;) || href.includes(&#x27;/posts/&#x27;)) { postUrl = href.split(&#x27;?&#x27;)[0]; } } } if (!postUrl) { const htmlMatch = card.innerHTML.match(/urn:li:(?:activity|ugcPost|share):(\\d{15,22})/); if (htmlMatch) { postUrl = &#x27;https: } } if (!postUrl) { const lnkdMatch = postText.match(/https?:\\/\\/lnkd\\.in\\/[a-zA-Z0-9_\\-]+/i); if (lnkdMatch) { postUrl = lnkdMatch[0]; } } if (postUrl && (postUrl.includes(&#x27;/feed/?&#x27;) || postUrl.endsWith(&#x27;/feed&#x27;) || postUrl.endsWith(&#x27;/feed/&#x27;) || postUrl.includes(&#x27;/search/&#x27;) || postUrl.includes(&#x27;127.0.0.1&#x27;) || postUrl.includes(&#x27;localhost&#x27;))) { postUrl = &#x27;&#x27;; } let recruiterName = &#x27;&#x27;; const authorEl = card.querySelector( &#x27;.update-components-actor__name, &#x27; + &#x27;.feed-shared-actor__name, &#x27; + &#x27;a[data-field=&quot;actor_name&quot;], &#x27; + &#x27;.entity-result__title-text, &#x27; + &#x27;span.update-components-actor__single-line-truncate, &#x27; + &#x27;.job-card-container__company-name, &#x27; + &#x27;h3, h4&#x27; ); if (authorEl && authorEl.innerText.trim()) { recruiterName = authorEl.innerText.trim().split(&#x27;\\n&#x27;)[0].trim(); } let recruiterDesignation = &#x27;&#x27;; const desigEl = card.querySelector( &#x27;.update-components-actor__description, &#x27; + &#x27;.feed-shared-actor__description, &#x27; + &#x27;.update-components-actor__sub-description, &#x27; + &#x27;.entity-result__primary-subtitle, &#x27; + &#x27;.job-card-container__metadata-item&#x27; ); if (desigEl && desigEl.innerText.trim()) { recruiterDesignation = desigEl.innerText.trim().split(&#x27;\\n&#x27;)[0].trim(); } let linkedinProfile = &#x27;&#x27;; const profEl = card.querySelector( &#x27;.update-components-actor a[href*=&quot;/in/&quot;], &#x27; + &#x27;.feed-shared-actor a[href*=&quot;/in/&quot;], &#x27; + &#x27;a.app-aware-link[href*=&quot;/in/&quot;], &#x27; + &#x27;a[href*=&quot;linkedin.com/in/&quot;]&#x27; ); if (profEl && profEl.href) { const pm = profEl.href.match(/https?:\\/\\/(?:[a-z]{2,3}\\.)?linkedin\\.com\\/in\\/[a-zA-Z0-9\\-_%]+/i); if (pm) linkedinProfile = pm[0].replace(/\\/+$/, &#x27;&#x27;) + &#x27;/&#x27;; } let applyUrl = &#x27;&#x27;; if (jobLink && jobLink.href) { applyUrl = postUrl; } else { const applyMatch = postText.match(/https?:\\/\\/(?:lnkd\\.in\\/[a-zA-Z0-9_\\-]+|forms\\.gle\\/[a-zA-Z0-9_\\-]+|bit\\.ly\\/[a-zA-Z0-9_\\-]+|[a-zA-Z0-9\\-_.]+\\.[a-zA-Z]{2,}(?:\\/[^\\s)&quot;]*)?)/i); if (applyMatch) { applyUrl = applyMatch[0].replace(/[.,;:)]+$/, &#x27;&#x27;); } } if (!postUrl && applyUrl) { postUrl = applyUrl; } if (!postUrl) { let h = 0; for (let i = 0; i < fullCardText.length && i < 120; i++) { h = ((h << 5) - h) + fullCardText.charCodeAt(i); h |= 0; } postUrl = &#x27;https: } if (seenUrls.has(postUrl)) continue; seenUrls.add(postUrl); postsToIngest.push({ post_text: postText, post_url: postUrl, recruiter_name: recruiterName, designation: recruiterDesignation, linkedin_profile: linkedinProfile, apply_url: applyUrl || postUrl }); } if (postsToIngest.length === 0) { alert(&#x27;ℹ️ Found &#x27; + cards.length + &#x27; post(s) on screen, but none matched Data / Business Analyst fresher hiring criteria.\\n\\nTip: Scroll down to reveal more posts or search for &quot;data analyst job hiring&quot; / &quot;business analyst fresher&quot;.&#x27;); return; } console.log(&#x27;Ingesting &#x27; + postsToIngest.length + &#x27; qualified hiring posts...&#x27;, postsToIngest); let savedCount = 0; let skippedCount = 0; let networkFailed = false; for (const host of [&#x27;http: try { const res = await fetch(host + &#x27;/api/scraper/linkedin/ingest/batch&#x27;, { method: &#x27;POST&#x27;, headers: { &#x27;Content-Type&#x27;: &#x27;application/json&#x27; }, body: JSON.stringify({ posts: postsToIngest }) }); if (res.ok) { const batchData = await res.json(); savedCount = batchData.saved_count || 0; skippedCount = batchData.skipped_count || 0; networkFailed = false; break; } } catch(err) { networkFailed = true; } } if (networkFailed && savedCount === 0) { for (const post of postsToIngest) { for (const host of [&#x27;http: try { const res = await fetch(host + &#x27;/api/scraper/linkedin/ingest&#x27;, { method: &#x27;POST&#x27;, headers: { &#x27;Content-Type&#x27;: &#x27;application/json&#x27; }, body: JSON.stringify(post) }); if (res.ok) { const data = await res.json(); if (data.id || data.success) { savedCount++; networkFailed = false; break; } } else if (res.status === 422) { skippedCount++; networkFailed = false; break; } } catch(e) {} } } } if (networkFailed && savedCount === 0 && skippedCount === 0) { try { await navigator.clipboard.writeText(JSON.stringify(postsToIngest, null, 2)); } catch(e) {} alert( &#x27;⚠️ Direct Network Sync Blocked by Browser Security:\\n\\n&#x27; + &#x27;Found &#x27; + postsToIngest.length + &#x27; genuine hiring post(s) on screen!\\n&#x27; + &#x27;Because LinkedIn is loaded over HTTPS, Chrome blocked the direct connection to Job Finder (HTTP).\\n\\n&#x27; + &#x27;📋 ALL &#x27; + postsToIngest.length + &#x27; POSTS HAVE BEEN COPIED TO YOUR CLIPBOARD!\\n\\n&#x27; + &#x27;👉 Switch back to Job Finder, click &quot;Open Post Ingest Box&quot; or paste them directly to sync instantly!&#x27; ); return; } alert( &#x27;🎉 Harvested & Synced Successfully!\\n\\n&#x27; + &#x27;✅ Verified Genuine Jobs Added: &#x27; + savedCount + &#x27;\\n&#x27; + (skippedCount > 0 ? (&#x27;⏭️ Filtered (Duplicate / Non-Fresher): &#x27; + skippedCount + &#x27;\\n&#x27;) : &#x27;&#x27;) + &#x27;\\nSwitch back to Job Finder to view them!&#x27; ); })();"
+              class="btn btn-primary" 
+              style="background: #0a66c2; border-color: #0a66c2; color: #fff; font-weight: 700; font-size: 0.825rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: move;" 
+              title="Drag this button onto your browser's Bookmarks bar (Ctrl+Shift+B)">
+              📌 Drag to Bookmarks: 📥 Harvest LinkedIn Posts
+            </a>
+            <span style="font-size: 0.725rem; color: #64748b;">(Press Ctrl+Shift+B to show Bookmarks bar)</span>
+          </div>
+          <div style="margin-top: 0.6rem; font-size: 0.75rem; color: #b45309; background: #fffbeb; padding: 6px 10px; border-radius: 6px; border: 1px solid #fef3c7;">
+            ⚡ <strong>Updated Harvester:</strong> If you already added this bookmark previously, please right-click and <strong>Delete</strong> your old bookmark from your Bookmarks bar, then drag the updated button above!
+          </div>
+        </div>
+
+        <!-- Method 2: Browser Console 1-Liner -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: #fafbfc;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-weight: 800; font-size: 0.9rem; color: #1e293b;">⚡ Method 3: Browser Console (No Bookmarks Needed)</span>
+            <button type="button" class="btn btn-outline btn-sm" onclick="copyLinkedInHarvesterScript()" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;">📋 Copy Harvester Script</button>
+          </div>
+          <p style="font-size: 0.8rem; color: #475569; margin: 0 0 0.5rem 0; line-height: 1.45;">
+            1. On LinkedIn (<a href="https://www.linkedin.com/feed/" target="_blank" style="color: #0a66c2; font-weight: 600;">Feed</a> or <a href="https://www.linkedin.com/search/results/content/?keywords=data%20analyst%20fresher" target="_blank" style="color: #0a66c2; font-weight: 600;">Search Posts</a>), scroll down to load posts.<br>
+            2. Press <kbd style="background: #e2e8f0; padding: 2px 5px; border-radius: 4px; font-size: 0.75rem;">F12</kbd> (or right-click &gt; Inspect) and click the <strong>Console</strong> tab.<br>
+            3. Click the button above to copy the script, paste it into Console, and press <kbd style="background: #e2e8f0; padding: 2px 5px; border-radius: 4px; font-size: 0.75rem;">Enter</kbd>. It sends all visible posts directly to Job Finder!
+          </p>
+        </div>
+
+        <!-- Method 3: Ingest / Paste Individual Posts -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #fafbfc;">
+          <span style="font-weight: 800; font-size: 0.9rem; color: #1e293b; display: block; margin-bottom: 0.35rem;">📋 Method 4: Copy & Paste Any Post</span>
+          <p style="font-size: 0.8rem; color: #475569; margin: 0 0 0.5rem 0; line-height: 1.45;">
+            Found a great hiring post on your feed? Click "..." on LinkedIn &gt; "Copy link to post", or copy the text.
+          </p>
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('linkedin-personal-sync-modal'); toggleLinkedInIngestForm();" style="border-color: #0a66c2; color: #0a66c2; font-weight: 700; font-size: 0.8rem;">
+            Open Post Ingest Box &rarr;
+          </button>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="closeModal('linkedin-personal-sync-modal')" style="background: #0a66c2; border-color: #0a66c2; color: #fff;">Got It, Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replace Document Hidden Input -->
+  <input type="file" id="replace-doc-file-input" style="display: none;"
+    onchange="handleReplaceFileSelected(this.files[0])">
+
+  <!-- Recruiter Email Outreach Modal -->
+  <!-- Recruiter Email Outreach & Gmail Modal -->
+  <div class="modal-overlay" id="recruiter-email-modal" style="display: none;"
+    onclick="if(event.target === this) closeModal('recruiter-email-modal')">
+    <div class="modal-content" style="max-width: 660px; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.18);">
+      <div class="modal-header" style="padding: 1rem 1.25rem; border-bottom: 1.5px solid #e2e8f0;">
+        <div>
+          <span class="brand-title" style="font-size: 1.15rem; display: flex; align-items: center; gap: 6px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA4335" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            Recruiter Direct Outreach & Tailored Application
+          </span>
+          <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;" id="outreach-modal-subtitle">Direct hiring manager outreach draft grounded in verified profile</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('recruiter-email-modal')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem;">
+        
+        <!-- Job & Recruiter Summary Banner -->
+        <div id="outreach-job-summary"></div>
+
+        <div style="margin-bottom: 0.75rem;">
+          <label style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">RECIPIENT EMAIL</label>
+          <input type="email" id="outreach-email-to" class="search-input" style="width: 100%; padding: 0.5rem 0.75rem; font-size: 0.85rem;" placeholder="Enter recruiter email (e.g. priya.sharma@swiggy.in)">
+        </div>
+        
+        <div style="margin-bottom: 0.75rem;">
+          <label style="font-size: 0.75rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">SUBJECT LINE</label>
+          <input type="text" id="outreach-email-subject" class="search-input" style="width: 100%; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+        </div>
+
+        <div style="margin-bottom: 0.85rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: #475569;">PERSONALIZED MESSAGE (WITH PORTFOLIO & ATTACHMENTS STATEMENT)</label>
+            <button type="button" class="btn btn-outline btn-sm" onclick="copyOutreachMessage()" style="font-size: 0.75rem; padding: 2px 8px;">📋 Copy Message</button>
+          </div>
+          <textarea id="outreach-email-body" class="edit-textarea" style="width: 100%; min-height: 190px; font-size: 0.83rem; line-height: 1.55; padding: 0.75rem; border-radius: 8px; border: 1.5px solid #e2e8f0; font-family: inherit;"></textarea>
+        </div>
+
+        <!-- Tailored Attachments & Portfolio Hub -->
+        <div id="outreach-attachments-hub" style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem;">
+          <div style="font-size: 0.78rem; font-weight: 800; color: #166534; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span>📎 Tailored Attachments Ready for this Job:</span>
+            <span style="font-size: 0.72rem; color: #15803d; font-weight: 600;">Auto-generated Grounded in Master Profile</span>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <a href="#" id="outreach-btn-dl-pdf" class="btn btn-sm" style="background: #ef4444; color: #ffffff; font-weight: 700; font-size: 0.75rem; text-decoration: none; padding: 0.35rem 0.65rem; border-radius: 6px;" title="Download ATS Tailored Resume PDF">
+              📕 Tailored Resume (PDF)
+            </a>
+            <a href="#" id="outreach-btn-dl-docx" class="btn btn-sm" style="background: #2563eb; color: #ffffff; font-weight: 700; font-size: 0.75rem; text-decoration: none; padding: 0.35rem 0.65rem; border-radius: 6px;" title="Download ATS Tailored Resume Word docx">
+              📘 Resume (.docx)
+            </a>
+            <a href="#" id="outreach-btn-dl-cl-pdf" class="btn btn-sm" style="background: #059669; color: #ffffff; font-weight: 700; font-size: 0.75rem; text-decoration: none; padding: 0.35rem 0.65rem; border-radius: 6px;" title="Download Tailored Cover Letter PDF">
+              ✉️ Cover Letter (PDF)
+            </a>
+            <a href="#" id="outreach-btn-dl-cl-docx" class="btn btn-sm" style="background: #0284c7; color: #ffffff; font-weight: 700; font-size: 0.75rem; text-decoration: none; padding: 0.35rem 0.65rem; border-radius: 6px;" title="Download Tailored Cover Letter Word docx">
+              ✉️ Cover Letter (.docx)
+            </a>
+          </div>
+          <div style="margin-top: 6px; font-size: 0.72rem; color: #166534; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span>🌐 GitHub: <a href="https://github.com/TCWaghmare" target="_blank" rel="noopener noreferrer" style="color: #166534; font-weight: 700;">github.com/TCWaghmare</a></span>
+            <span>💼 LinkedIn: <a href="https://linkedin.com/in/tejascwaghmare" target="_blank" rel="noopener noreferrer" style="color: #166534; font-weight: 700;">in/tejascwaghmare</a></span>
+          </div>
+        </div>
+
+        <div class="modal-footer-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('recruiter-email-modal')">Close</button>
+          <a id="outreach-mailto-btn" href="#" class="btn btn-outline btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; border-color: #64748b; color: #475569;">
+            <span>🚀 Default Mail App (mailto)</span>
+          </a>
+          <button type="button" id="outreach-gmail-btn" onclick="handleGmailRedirect()" class="btn btn-sm"
+            style="background: #EA4335; border-color: #EA4335; color: #ffffff; font-weight: 700; font-size: 0.85rem; padding: 0.45rem 0.95rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none; box-shadow: 0 2px 6px rgba(234,67,53,0.3);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            <span>✉️ Open in Gmail</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js?v=3.0.0-responsive"></script>
+</body>
+
+</html>

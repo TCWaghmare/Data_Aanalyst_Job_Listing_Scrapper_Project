@@ -1,0 +1,205 @@
+/* Job Finder Floating Harvester Widget */
+#jf-harvester-pill {
+  position: fixed !important;
+  bottom: 24px !important;
+  left: 24px !important;
+  right: auto !important;
+  z-index: 2147483647 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  box-sizing: border-box !important;
+}
+
+#jf-harvester-pill * {
+  box-sizing: border-box !important;
+}
+
+.jf-pill-content {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: #0a66c2 !important;
+  color: #ffffff !important;
+  padding: 10px 16px !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 14px rgba(10, 102, 194, 0.45) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  user-select: none !important;
+}
+
+.jf-pill-content:hover {
+  background: #004182 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 18px rgba(10, 102, 194, 0.55) !important;
+}
+
+.jf-pill-logo {
+  font-size: 1.15rem !important;
+  line-height: 1 !important;
+}
+
+.jf-pill-label {
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  letter-spacing: -0.2px !important;
+}
+
+.jf-pill-badge {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  font-size: 0.75rem !important;
+  font-weight: 800 !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+}
+
+/* Floating Menu Popup */
+.jf-pill-menu {
+  position: absolute !important;
+  bottom: 54px !important;
+  left: 0 !important;
+  right: auto !important;
+  width: 290px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 14px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+  display: none !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  animation: jfSlideUp 0.2s ease forwards !important;
+}
+
+.jf-pill-menu.is-open {
+  display: flex !important;
+}
+
+@keyframes jfSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.jf-menu-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  font-size: 0.875rem !important;
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding-bottom: 8px !important;
+}
+
+.jf-status-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: #22c55e !important;
+}
+
+.jf-menu-stats {
+  font-size: 0.775rem !important;
+  color: #64748b !important;
+  line-height: 1.4 !important;
+}
+
+.jf-menu-btn {
+  width: 100% !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  font-size: 0.825rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  transition: all 0.15s ease !important;
+}
+
+.jf-btn-primary {
+  background: #0a66c2 !important;
+  color: #ffffff !important;
+}
+
+.jf-btn-primary:hover {
+  background: #084e96 !important;
+}
+
+.jf-btn-secondary {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+.jf-btn-secondary:hover {
+  background: #e2e8f0 !important;
+}
+
+.jf-menu-footer {
+  text-align: center !important;
+  padding-top: 4px !important;
+}
+
+.jf-menu-footer a {
+  font-size: 0.75rem !important;
+  color: #0a66c2 !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+
+.jf-menu-footer a:hover {
+  text-decoration: underline !important;
+}
+
+/* Toast Notification */
+.jf-toast {
+  position: fixed !important;
+  top: 24px !important;
+  right: 24px !important;
+  z-index: 2147483647 !important;
+  min-width: 280px !important;
+  max-width: 420px !important;
+  padding: 12px 18px !important;
+  border-radius: 8px !important;
+  font-size: 0.85rem !important;
+  line-height: 1.5 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+  display: none !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+.jf-toast-visible {
+  display: block !important;
+  animation: jfToastIn 0.3s ease forwards !important;
+}
+
+@keyframes jfToastIn {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.jf-toast-success {
+  background: #064e3b !important;
+  color: #ffffff !important;
+  border-left: 4px solid #34d399 !important;
+}
+
+.jf-toast-info {
+  background: #1e293b !important;
+  color: #ffffff !important;
+  border-left: 4px solid #38bdf8 !important;
+}
+
+.jf-toast-warning {
+  background: #78350f !important;
+  color: #ffffff !important;
+  border-left: 4px solid #fbbf24 !important;
+}
+
+.jf-toast-error {
+  background: #7f1d1d !important;
+  color: #ffffff !important;
+  border-left: 4px solid #f87171 !important;
+}

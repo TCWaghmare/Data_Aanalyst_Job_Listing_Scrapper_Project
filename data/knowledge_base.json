@@ -1,0 +1,580 @@
+{
+  "version": "3.0",
+  "last_updated": "2026-11-02T13:30:10.539148",
+  "documents_count": 1,
+  "documents": [
+    {
+      "id": "doc_f8470dd6",
+      "filename": "tejas resume.pdf",
+      "display_name": "tejas resume.pdf",
+      "category": "resume",
+      "file_type": "PDF",
+      "file_size": 99958,
+      "file_size_formatted": "97.6 KB",
+      "file_path": "E:\\Antygravity\\job finder web\\data\\documents\\doc_f8470dd6_tejas_resume.pdf",
+      "uploaded_at": "2026-11-01T11:06:19.455456",
+      "last_processed_at": "2026-11-01T11:06:19.665331",
+      "upload_status": "Uploaded",
+      "extraction_status": "Ready for AI Usage",
+      "status": "Ready for AI Usage",
+      "error_message": "",
+      "extracted_summary": "Indexed: 22 technical competencies, 3 work experience items, 3 project items, 4 certifications",
+      "extracted_data": {
+        "name": "Tejas C. Waghmare",
+        "contact": {
+          "phone": "+91 83788 69006",
+          "email": "tejaswaghmare900@gmail.com",
+          "linkedin": "linkedin.com/in/tejascwaghmare",
+          "linkedin_url": "https://linkedin.com/in/tejascwaghmare",
+          "github": "github.com/TCWaghmare",
+          "github_url": "https://github.com/TCWaghmare",
+          "location": "Remote"
+        },
+        "summary": "Passionate Data Analyst dedicated to uncovering patterns, telling compelling data stories, and driving business growth through analytics. With expertise in Power BI, SQL, Python, and Excel, Ihelp organizations make data-driven decisions that matter. Experienced in building interactive dashboards, KPI tracking systems, and business intelligence solutions across real-world internships and projects.",
+        "skills": {
+          "bi_visualization": [
+            "Power BI",
+            "DAX",
+            "Power Query",
+            "Dashboard Design",
+            "Geo Mapping",
+            "KPI Reporting",
+            "Data Visualization"
+          ],
+          "data_analytics": [
+            "Excel",
+            "Pivot Tables",
+            "Power Pivot",
+            "XLOOKUP",
+            "Data Modeling",
+            "Data Cleaning",
+            "KPI Tracking"
+          ],
+          "programming": [
+            "Python",
+            "SQL"
+          ],
+          "machine_learning": [
+            "Machine Learning",
+            "Predictive Modeling",
+            "Supervised Learning"
+          ],
+          "domains": [
+            "Business Intelligence"
+          ],
+          "tools_workflows": [
+            "GitHub",
+            "ERP Systems"
+          ]
+        },
+        "technical_tools": [
+          "Power BI",
+          "DAX",
+          "Power Query",
+          "Dashboard Design",
+          "Geo Mapping",
+          "KPI Reporting",
+          "Data Visualization",
+          "Excel",
+          "Pivot Tables",
+          "Power Pivot",
+          "XLOOKUP",
+          "Data Modeling",
+          "Data Cleaning",
+          "KPI Tracking",
+          "Python",
+          "SQL",
+          "Machine Learning",
+          "Predictive Modeling",
+          "Supervised Learning",
+          "Business Intelligence",
+          "GitHub",
+          "ERP Systems"
+        ],
+        "experience": [
+          {
+            "id": "exp_1",
+            "title": "Data Analyst Intern",
+            "company": "Microsoft Elevate×AICTE Remote",
+            "location": "India",
+            "dates": "Feb 2026 – Mar 2026",
+            "bullets": [
+              "Built interactive Power BI dashboards through a 4-week program, transforming raw data into actionable business insights for decision-making.",
+              "Completed a 20-hour curriculum covering data modeling, DAX, visualization best practices, and real-world BI use cases."
+            ],
+            "skills": [
+              "Power BI",
+              "DAX",
+              "Data Modeling"
+            ],
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "id": "exp_2",
+            "title": "Project Engineer",
+            "company": "Cybernetic India",
+            "location": "India",
+            "dates": "Sep 2025 – Dec 2025",
+            "bullets": [
+              "Automated Excel dashboards (Pivot Tables, XLOOKUP) and developed real-time Power BI dashboards for KPI tracking and executive reporting.",
+              "Improved data accuracy through cleaning, validation, and preprocessing via Excel and ERP systems; identified trends and performance gaps."
+            ],
+            "skills": [
+              "Power BI",
+              "Excel",
+              "Pivot Tables",
+              "XLOOKUP",
+              "KPI Tracking",
+              "ERP Systems"
+            ],
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "id": "exp_3",
+            "title": "Graduate Trainee Engineer — Emerging Technologies (Score: 87%)",
+            "company": "Bajaj BEST×ASDC (Automotive Skills Development Council) India",
+            "location": "India",
+            "dates": "Nov 2025",
+            "bullets": [
+              "Gained hands-on experience in Data Analysis and Data Visualization using Power BI, Excel, and SQL to analyze datasets, build visual reports, and derive actionable insights.",
+              "Acquired introductory knowledge of AI & Machine Learning concepts including supervised learning, predictive modeling, and their real-world applications in data analytics."
+            ],
+            "skills": [
+              "Power BI",
+              "Data Visualization",
+              "Excel",
+              "SQL",
+              "Machine Learning",
+              "Predictive Modeling"
+            ],
+            "source_file": "tejas resume.pdf"
+          }
+        ],
+        "projects": [
+          {
+            "id": "proj_1",
+            "title": "NYC Airbnb Data Analysis & Business Intelligence",
+            "tools": "SQL, Power BI, DAX, Power Query",
+            "link_text": "View Project",
+            "link_url": "",
+            "bullets": [
+              "Analyzed 30,259 NYC Airbnb listings across 16,441 hosts, uncovering pricing, occupancy, revenue, review, host, room-type, and location insights.",
+              "Built an interactive Power BI dashboard using SQL, DAX, and data modeling to analyze$389.3M estimated revenue, 52.4% average occupancy, and 980K+ total reviews.",
+              "Identified key marketplace patterns across 5 NYC boroughs, 4 room types, Superhost status, and host portfolios."
+            ],
+            "skills": [
+              "Power BI",
+              "DAX",
+              "Power Query",
+              "Data Modeling",
+              "SQL",
+              "Business Intelligence"
+            ],
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "id": "proj_2",
+            "title": "Bakery Sales, Profitability & Waste Analysis",
+            "tools": "Excel, Power Pivot, PivotTables, Data Modeling",
+            "link_text": "View Project",
+            "link_url": "",
+            "bullets": [
+              "Analyzed 16,569 bakery transactions (2023–2024) across 3 stores using a star-schema data model and interactive Excel dashboards to track revenue, profit, discount, and waste KPIs.",
+              "Uncovered that waste cost equaled 40% of revenue and deep discounts drove a−6.7% margin; recommended capping discounts at about 5% and cutting waste 20–25% to return the business to profit."
+            ],
+            "skills": [
+              "Excel",
+              "Power Pivot",
+              "Data Modeling"
+            ],
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "id": "proj_3",
+            "title": "Amazon Sales Dashboard",
+            "tools": "Power BI, DAX, Data Modeling, Geo Mapping",
+            "link_text": "View Project",
+            "link_url": "",
+            "bullets": [
+              "Built a 3-page interactive dashboard analyzing 50K+ orders and$32.8M revenue across 6 product categories and 5 global regions.",
+              "Identified Beauty as the top revenue driver and revealed uniform discount distribution across all categories."
+            ],
+            "skills": [
+              "Power BI",
+              "DAX",
+              "Geo Mapping",
+              "Data Modeling"
+            ],
+            "source_file": "tejas resume.pdf"
+          }
+        ],
+        "certifications": [
+          {
+            "name": "Microsoft Certified: Power BI Data Analyst Associate (PL-300)",
+            "link": "Credential Link",
+            "url": "#",
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "name": "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)",
+            "link": "Credential Link",
+            "url": "#",
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "name": "Microsoft Certified: Fabric Data Engineer Associate (DP-700)",
+            "link": "Credential Link",
+            "url": "#",
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "name": "Python for Data Science and Machine Learning — Udemy",
+            "link": "Credential Link",
+            "url": "#",
+            "source_file": "tejas resume.pdf"
+          }
+        ],
+        "education": [
+          {
+            "institution": "Bajaj Institute of Technology , Wardha",
+            "degree": "B.Tech — Mechanical Engineering (Pass)|CGPA: 8.04",
+            "dates": "2020 – 2024",
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "institution": "Maharashtra State Board of Secondary & Higher Secondary",
+            "degree": "",
+            "dates": "2018 – 2020",
+            "source_file": "tejas resume.pdf"
+          },
+          {
+            "institution": "HSC (Information Technology) : 66.62%|SSC : 81.80%",
+            "degree": "",
+            "dates": "2020",
+            "source_file": "tejas resume.pdf"
+          }
+        ],
+        "achievements": [],
+        "recommendations": [],
+        "source_file": "tejas resume.pdf",
+        "raw_snippet": "Tejas C. Waghmare\n+91 83788 69006|tejaswaghmare900@gmail.com |linkedin.com/in/tejascwaghmare |github.com/TCWaghmare\nProfessional Summary\nPassionate Data Analyst dedicated to uncovering patterns, telling compelling data stories, and driving business growth through\nanalytics. With expertise in Power BI, SQL, Python, and Excel, Ihelp organizations make data-driven decisions that matter.\nExperienced i..."
+      }
+    }
+  ],
+  "unified_profile": {
+    "name": "Tejas C. Waghmare",
+    "contact": {
+      "phone": "+91 83788 69006",
+      "email": "tejaswaghmare900@gmail.com",
+      "linkedin": "linkedin.com/in/tejascwaghmare",
+      "linkedin_url": "https://linkedin.com/in/tejascwaghmare",
+      "github": "github.com/TCWaghmare",
+      "github_url": "https://github.com/TCWaghmare",
+      "location": "Remote"
+    },
+    "summary": "Passionate Data Analyst dedicated to uncovering patterns, telling compelling data stories, and driving business growth through analytics. With expertise in Power BI, SQL, Python, and Excel, Ihelp organizations make data-driven decisions that matter. Experienced in building interactive dashboards, KPI tracking systems, and business intelligence solutions across real-world internships and projects.",
+    "experience": [
+      {
+        "id": "exp_1",
+        "title": "Data Analyst Intern",
+        "company": "Microsoft Elevate×AICTE Remote",
+        "location": "India",
+        "dates": "Feb 2026 – Mar 2026",
+        "bullets": [
+          "Built interactive Power BI dashboards through a 4-week program, transforming raw data into actionable business insights for decision-making.",
+          "Completed a 20-hour curriculum covering data modeling, DAX, visualization best practices, and real-world BI use cases."
+        ],
+        "skills": [
+          "Power BI",
+          "DAX",
+          "Data Modeling"
+        ],
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "id": "exp_2",
+        "title": "Project Engineer",
+        "company": "Cybernetic India",
+        "location": "India",
+        "dates": "Sep 2025 – Dec 2025",
+        "bullets": [
+          "Automated Excel dashboards (Pivot Tables, XLOOKUP) and developed real-time Power BI dashboards for KPI tracking and executive reporting.",
+          "Improved data accuracy through cleaning, validation, and preprocessing via Excel and ERP systems; identified trends and performance gaps."
+        ],
+        "skills": [
+          "Power BI",
+          "Excel",
+          "Pivot Tables",
+          "XLOOKUP",
+          "KPI Tracking",
+          "ERP Systems"
+        ],
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "id": "exp_3",
+        "title": "Graduate Trainee Engineer — Emerging Technologies (Score: 87%)",
+        "company": "Bajaj BEST×ASDC (Automotive Skills Development Council) India",
+        "location": "India",
+        "dates": "Nov 2025",
+        "bullets": [
+          "Gained hands-on experience in Data Analysis and Data Visualization using Power BI, Excel, and SQL to analyze datasets, build visual reports, and derive actionable insights.",
+          "Acquired introductory knowledge of AI & Machine Learning concepts including supervised learning, predictive modeling, and their real-world applications in data analytics."
+        ],
+        "skills": [
+          "Power BI",
+          "Data Visualization",
+          "Excel",
+          "SQL",
+          "Machine Learning",
+          "Predictive Modeling"
+        ],
+        "source_file": "tejas resume.pdf"
+      }
+    ],
+    "projects": [
+      {
+        "id": "proj_1",
+        "title": "NYC Airbnb Data Analysis & Business Intelligence",
+        "tools": "SQL, Power BI, DAX, Power Query",
+        "link_text": "View Project",
+        "link_url": "",
+        "bullets": [
+          "Analyzed 30,259 NYC Airbnb listings across 16,441 hosts, uncovering pricing, occupancy, revenue, review, host, room-type, and location insights.",
+          "Built an interactive Power BI dashboard using SQL, DAX, and data modeling to analyze$389.3M estimated revenue, 52.4% average occupancy, and 980K+ total reviews.",
+          "Identified key marketplace patterns across 5 NYC boroughs, 4 room types, Superhost status, and host portfolios."
+        ],
+        "skills": [
+          "Power BI",
+          "DAX",
+          "Power Query",
+          "Data Modeling",
+          "SQL",
+          "Business Intelligence"
+        ],
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "id": "proj_2",
+        "title": "Bakery Sales, Profitability & Waste Analysis",
+        "tools": "Excel, Power Pivot, PivotTables, Data Modeling",
+        "link_text": "View Project",
+        "link_url": "",
+        "bullets": [
+          "Analyzed 16,569 bakery transactions (2023–2024) across 3 stores using a star-schema data model and interactive Excel dashboards to track revenue, profit, discount, and waste KPIs.",
+          "Uncovered that waste cost equaled 40% of revenue and deep discounts drove a−6.7% margin; recommended capping discounts at about 5% and cutting waste 20–25% to return the business to profit."
+        ],
+        "skills": [
+          "Excel",
+          "Power Pivot",
+          "Data Modeling"
+        ],
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "id": "proj_3",
+        "title": "Amazon Sales Dashboard",
+        "tools": "Power BI, DAX, Data Modeling, Geo Mapping",
+        "link_text": "View Project",
+        "link_url": "",
+        "bullets": [
+          "Built a 3-page interactive dashboard analyzing 50K+ orders and$32.8M revenue across 6 product categories and 5 global regions.",
+          "Identified Beauty as the top revenue driver and revealed uniform discount distribution across all categories."
+        ],
+        "skills": [
+          "Power BI",
+          "DAX",
+          "Geo Mapping",
+          "Data Modeling"
+        ],
+        "source_file": "tejas resume.pdf"
+      }
+    ],
+    "skills": {
+      "bi_visualization": [
+        "Power BI",
+        "DAX",
+        "Power Query",
+        "Dashboard Design",
+        "Geo Mapping",
+        "KPI Reporting",
+        "Data Visualization"
+      ],
+      "data_analytics": [
+        "Excel",
+        "Pivot Tables",
+        "Power Pivot",
+        "XLOOKUP",
+        "Data Modeling",
+        "Data Cleaning",
+        "KPI Tracking"
+      ],
+      "programming": [
+        "Python",
+        "SQL"
+      ],
+      "machine_learning": [
+        "Machine Learning",
+        "Predictive Modeling",
+        "Supervised Learning"
+      ],
+      "domains": [
+        "Business Intelligence"
+      ],
+      "tools_workflows": [
+        "GitHub",
+        "ERP Systems"
+      ]
+    },
+    "technical_tools": [
+      "Power BI",
+      "DAX",
+      "Power Query",
+      "Dashboard Design",
+      "Geo Mapping",
+      "KPI Reporting",
+      "Data Visualization",
+      "Excel",
+      "Pivot Tables",
+      "Power Pivot",
+      "XLOOKUP",
+      "Data Modeling",
+      "Data Cleaning",
+      "KPI Tracking",
+      "Python",
+      "SQL",
+      "Machine Learning",
+      "Predictive Modeling",
+      "Supervised Learning",
+      "Business Intelligence",
+      "GitHub",
+      "ERP Systems"
+    ],
+    "certifications": [
+      {
+        "name": "Microsoft Certified: Power BI Data Analyst Associate (PL-300)",
+        "link": "Credential Link",
+        "url": "#",
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "name": "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)",
+        "link": "Credential Link",
+        "url": "#",
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "name": "Microsoft Certified: Fabric Data Engineer Associate (DP-700)",
+        "link": "Credential Link",
+        "url": "#",
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "name": "Python for Data Science and Machine Learning — Udemy",
+        "link": "Credential Link",
+        "url": "#",
+        "source_file": "tejas resume.pdf"
+      }
+    ],
+    "education": [
+      {
+        "institution": "Bajaj Institute of Technology , Wardha",
+        "degree": "B.Tech — Mechanical Engineering (Pass)|CGPA: 8.04",
+        "dates": "2020 – 2024",
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "institution": "Maharashtra State Board of Secondary & Higher Secondary",
+        "degree": "",
+        "dates": "2018 – 2020",
+        "source_file": "tejas resume.pdf"
+      },
+      {
+        "institution": "HSC (Information Technology) : 66.62%|SSC : 81.80%",
+        "degree": "",
+        "dates": "2020",
+        "source_file": "tejas resume.pdf"
+      }
+    ],
+    "achievements": [],
+    "recommendations": [],
+    "source_documents_count": 1,
+    "source_files": [
+      "tejas resume.pdf"
+    ],
+    "evidence_map": {
+      "contact": {
+        "name": "tejas resume.pdf",
+        "email": "tejas resume.pdf",
+        "phone": "tejas resume.pdf",
+        "linkedin": "tejas resume.pdf",
+        "linkedin_url": "tejas resume.pdf",
+        "github": "tejas resume.pdf",
+        "github_url": "tejas resume.pdf",
+        "location": "tejas resume.pdf"
+      },
+      "summary": "tejas resume.pdf",
+      "skills": {
+        "Power BI": "tejas resume.pdf",
+        "DAX": "tejas resume.pdf",
+        "Power Query": "tejas resume.pdf",
+        "Dashboard Design": "tejas resume.pdf",
+        "Geo Mapping": "tejas resume.pdf",
+        "KPI Reporting": "tejas resume.pdf",
+        "Data Visualization": "tejas resume.pdf",
+        "Excel": "tejas resume.pdf",
+        "Pivot Tables": "tejas resume.pdf",
+        "Power Pivot": "tejas resume.pdf",
+        "XLOOKUP": "tejas resume.pdf",
+        "Data Modeling": "tejas resume.pdf",
+        "Data Cleaning": "tejas resume.pdf",
+        "KPI Tracking": "tejas resume.pdf",
+        "Python": "tejas resume.pdf",
+        "SQL": "tejas resume.pdf",
+        "Machine Learning": "tejas resume.pdf",
+        "Predictive Modeling": "tejas resume.pdf",
+        "Supervised Learning": "tejas resume.pdf",
+        "Business Intelligence": "tejas resume.pdf",
+        "GitHub": "tejas resume.pdf",
+        "ERP Systems": "tejas resume.pdf"
+      },
+      "experience": {
+        "Data Analyst Intern - Microsoft Elevate×AICTE Remote": "tejas resume.pdf",
+        "Project Engineer - Cybernetic India": "tejas resume.pdf",
+        "Graduate Trainee Engineer — Emerging Technologies (Score: 87%) - Bajaj BEST×ASDC (Automotive Skills Development Council) India": "tejas resume.pdf"
+      },
+      "projects": {
+        "NYC Airbnb Data Analysis & Business Intelligence": "tejas resume.pdf",
+        "Bakery Sales, Profitability & Waste Analysis": "tejas resume.pdf",
+        "Amazon Sales Dashboard": "tejas resume.pdf"
+      },
+      "certifications": {
+        "Microsoft Certified: Power BI Data Analyst Associate (PL-300)": "tejas resume.pdf",
+        "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)": "tejas resume.pdf",
+        "Microsoft Certified: Fabric Data Engineer Associate (DP-700)": "tejas resume.pdf",
+        "Python for Data Science and Machine Learning — Udemy": "tejas resume.pdf"
+      },
+      "education": {
+        "B.Tech — Mechanical Engineering (Pass)|CGPA: 8.04 at Bajaj Institute of Technology , Wardha": "tejas resume.pdf",
+        " at Maharashtra State Board of Secondary & Higher Secondary": "tejas resume.pdf",
+        " at HSC (Information Technology) : 66.62%|SSC : 81.80%": "tejas resume.pdf"
+      }
+    },
+    "files_analyzed": [
+      {
+        "id": "doc_f8470dd6",
+        "filename": "tejas resume.pdf",
+        "display_name": "tejas resume.pdf",
+        "category": "resume",
+        "file_type": "PDF",
+        "uploaded_at": "2026-11-01T11:06:19.455456",
+        "status": "Ready for AI Usage",
+        "summary": "Indexed: 22 technical competencies, 3 work experience items, 3 project items, 4 certifications",
+        "skills_found": 22,
+        "projects_found": 3,
+        "certifications_found": 4,
+        "experience_found": 3
+      }
+    ]
+  }
+}
