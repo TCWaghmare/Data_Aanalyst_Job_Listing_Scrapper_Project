@@ -11,7 +11,8 @@ from scraper.adapters.base import BaseAdapter
 from scraper.models import Job
 from scraper.session import ResilientSession
 from scraper.taxonomy import (
-    classify_role, extract_skills, detect_work_mode, extract_fresher_experience
+    classify_role, extract_skills, detect_work_mode, extract_fresher_experience,
+    analyze_job_fresher_eligibility, is_fresher_eligible
 )
 from scraper.deep_scraper import deep_job_scraper
 
@@ -108,6 +109,13 @@ class InternshalaAdapter(BaseAdapter):
                         is_valid, reason = deep_job_scraper.validate_job_quality(scraped_deep)
                         w_mode = scraped_deep.get("work_mode") or detect_work_mode(location, title, "")
                         
+                        # Strict Fresher Eligibility Check on deep scraped JD
+                        jd_full = scraped_deep.get("description", "")
+                        is_fresher, reject_reason, _, _ = analyze_job_fresher_eligibility(title=scraped_deep.get("title") or title, text=jd_full)
+                        if not is_fresher:
+                            logger.info(f"Internshala rejected non-fresher listing: '{title}' @ '{company}' -> {reject_reason}")
+                            continue
+
                         # Strict Work Mode: Exclude pure Remote if On-Site/Hybrid requested
                         if allowed_work_modes and "remote" not in allowed_work_modes and w_mode.lower() == "remote":
                             continue
@@ -142,6 +150,11 @@ class InternshalaAdapter(BaseAdapter):
                             extraction_status="complete" if is_valid else "incomplete_extraction"
                         )
                     else:
+                        is_fresher, reject_reason, _, _ = analyze_job_fresher_eligibility(title=title, text="")
+                        if not is_fresher:
+                            logger.info(f"Internshala rejected non-fresher title: '{title}' @ '{company}' -> {reject_reason}")
+                            continue
+
                         w_mode = detect_work_mode(location, title, "")
                         if allowed_work_modes and "remote" not in allowed_work_modes and w_mode.lower() == "remote":
                             continue

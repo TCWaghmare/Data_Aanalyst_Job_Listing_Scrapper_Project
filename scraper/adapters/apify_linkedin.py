@@ -21,7 +21,7 @@ from scraper.adapters.base import BaseAdapter
 from scraper.models import Job
 from scraper.taxonomy import (
     classify_role, extract_skills, detect_work_mode, extract_fresher_experience,
-    CORE_ANALYTICS_ROLES
+    analyze_job_fresher_eligibility, is_fresher_eligible, CORE_ANALYTICS_ROLES
 )
 
 logger = logging.getLogger("apify_linkedin")
@@ -87,10 +87,13 @@ class ApifyLinkedInAdapter(BaseAdapter):
 
         allowed_work_modes = [wm.lower() for wm in work_modes] if work_modes else ["on-site", "hybrid"]
 
-        logger.info(f"Triggering Apify LinkedIn Scraper for role: '{target_role}', location: '{target_location}', limit: {fetch_limit} (Cost-Optimized, Token-Saver)")
+        # Target fresher keywords specifically to prevent LinkedIn returning Senior / Lead roles
+        search_query = f"{target_role} fresher" if "fresher" not in target_role.lower() and "junior" not in target_role.lower() else target_role
+
+        logger.info(f"Triggering Apify LinkedIn Scraper for query: '{search_query}', location: '{target_location}', limit: {fetch_limit} (Cost-Optimized, Token-Saver)")
 
         run_input = {
-            "keywords": target_role,
+            "keywords": search_query,
             "location": target_location,
             "datePosted": "pastWeek",
             "scrapeCompany": False,  # CRITICAL: Disables heavy proxy calls to company pages
@@ -164,6 +167,12 @@ class ApifyLinkedInAdapter(BaseAdapter):
         description = item.get("descriptionText") or item.get("descriptionHtml") or ""
         if len(description) < 20 and item.get("companyDescription"):
             description = f"{description}\n\nAbout the Company:\n{item.get('companyDescription')}"
+
+        # CRITICAL: Deep JD Analysis for Fresher Eligibility (Strict 0-1 yr exp)
+        is_fresher, reject_reason, min_exp, max_exp = analyze_job_fresher_eligibility(title=title, text=description)
+        if not is_fresher:
+            logger.info(f"Apify LinkedIn rejected non-fresher listing: '{title}' @ '{company}' -> {reject_reason}")
+            return None
 
         # Standard role classification and category
         standard_role, role_category = classify_role(title)

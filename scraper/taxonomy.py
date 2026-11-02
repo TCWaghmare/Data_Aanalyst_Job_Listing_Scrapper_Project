@@ -94,26 +94,99 @@ def classify_role(title: str, description: str = "") -> Tuple[str, str]:
 
     return "Data Analyst", "Core Analytics"
 
-def is_fresher_eligible(title: str, text: str) -> bool:
+def analyze_job_fresher_eligibility(title: str, text: str = "", raw_fields: dict = None) -> Tuple[bool, str, int, int]:
+    """
+    Deeply analyzes job title, full description, and raw metadata to strictly determine
+    if a job is for Freshers / 0-1 year experience candidates.
+    Returns: (is_fresher: bool, reason: str, min_exp: int, max_exp: int)
+    """
+    title_clean = (title or "").strip()
+    text_clean = (text or "").strip()
+    combined = f"{title_clean}\n{text_clean}".lower()
+    title_lower = title_clean.lower()
+
+    # 1. Title Checks - Hard Disqualifications
+    senior_title_patterns = [
+        r'\b(sr\.?|senior|lead|principal|director|head\s+of|vp|vice\s+president|chief|architect|staff)\b',
+        r'\b(team\s+lead|project\s+manager|engineering\s+manager|analytics\s+manager|product\s+manager)\b',
+        r'\bmanager\b',
+        r'\b(ii|iii|iv|v|level\s+[2-9]|l[2-9])\b',
+        r'\b(experienced|mid[- ]level|mid\s+senior)\b',
+    ]
+
+    for p in senior_title_patterns:
+        if re.search(p, title_lower):
+            if not re.search(r'\b(fresher|freshers|trainee|intern|internship)\b', title_lower):
+                matched = re.search(p, title_lower).group(0)
+                return False, f"Title contains senior/experienced indicator: '{matched}'", 2, 5
+
+    # 2. Raw Structured Experience Checks
+    if raw_fields:
+        min_e = raw_fields.get("min_experience")
+        max_e = raw_fields.get("max_experience")
+        if min_e is not None and isinstance(min_e, (int, float)) and min_e > 1:
+            return False, f"Structured metadata indicates required minimum experience: {min_e} years", int(min_e), int(max_e or min_e)
+
+    # 3. Explicit Fresher overrides in text
+    has_fresher_override = bool(re.search(
+        r'\b(fresher|freshers|fresher\s+welcome|freshers\s+welcome|freshers\s+can\s+apply|no\s+experience\s+required|0\s*years?\s*experience|0-1\s*years?|0\s*to\s*1\s*years?|0\s*-\s*1\s*yr|campus\s+hiring|2024\s+batch|2025\s+batch|2026\s+batch|college\s+graduates?|recent\s+graduates?)\b',
+        combined
+    ))
+
+    # 4. Job Description Experience Requirement Analysis
+    disqualifying_exp_patterns = [
+        (r'\b([2-9]|1\d)\+?\s*(years?|yrs?)\s+of\s+(relevant\s+|work\s+|professional\s+|industry\s+)?experience\b', "Requires {match}"),
+        (r'\bminimum\s+(of\s+)?([2-9]|1\d)\s*(years?|yrs?)\b', "Requires minimum {match}"),
+        (r'\bat\s+least\s+([2-9]|1\d)\s*(years?|yrs?)\b', "Requires at least {match}"),
+        (r'\b([2-9]|1\d)\s*(to|-)\s*\d+\s*(years?|yrs?)\s+experience\b', "Requires {match}"),
+        (r'\bexperience\s*(required|level)?\s*[:\-]\s*([2-9]|1\d)\s*(to|\-|\+)?\s*\d*\s*(years?|yrs?)\b', "Experience specified as {match}"),
+        (r'\brequire(s|d)?\s+([2-9]|1\d)\+?\s*(years?|yrs?)\b', "Requires {match}"),
+        (r'\b([3-9]|1\d)\+?\s*(years?|yrs?)\b', "Explicit experience requirement: {match}"),
+    ]
+
+    for p, reason_tmpl in disqualifying_exp_patterns:
+        m = re.search(p, combined)
+        if m:
+            matched_text = m.group(0)
+            start_pos = m.start()
+            preceding = combined[max(0, start_pos - 10):start_pos]
+            if "0" in preceding or "0 to" in preceding or "0-" in preceding:
+                continue
+
+            extracted_num = re.search(r'\d+', matched_text)
+            num_val = int(extracted_num.group(0)) if extracted_num else 3
+            if num_val >= 2:
+                if has_fresher_override and num_val == 2 and ("0-2" in combined or "0 to 2" in combined):
+                    pass
+                else:
+                    return False, reason_tmpl.format(match=matched_text), num_val, num_val + 2
+
+    # 5. Senior Responsibility / Leadership Markers in Description
+    senior_resp_patterns = [
+        r'\b(lead\s+a\s+team\s+of|manage\s+a\s+team\s+of|supervise\s+junior|mentor\s+junior\s+analysts?)\b',
+        r'\b(proven\s+track\s+record\s+of\s+leading|extensive\s+industry\s+experience)\b',
+        r'\b(seasoned\s+professional|deep\s+expertise\s+in\s+managing\s+teams)\b'
+    ]
+    for p in senior_resp_patterns:
+        if re.search(p, text_clean.lower()):
+            matched_resp = re.search(p, text_clean.lower()).group(0)
+            return False, f"JD contains senior responsibility: '{matched_resp}'", 3, 5
+
+    # 6. Granular Fresher Level Assignment
+    if re.search(r'\b(intern|internship|trainee|apprentice|student|campus)\b', combined):
+        return True, "Internship / Trainee role (0 Years)", 0, 0
+    if has_fresher_override or re.search(r'\b(entry[- ]level|junior|associate|grad|graduate)\b', combined):
+        return True, "Fresher / Entry-Level analytics role (0-1 Year)", 0, 1
+
+    return True, "Entry-level fresher compatible role (0-1 Year)", 0, 1
+
+def is_fresher_eligible(title: str, text: str = "", raw_fields: dict = None) -> bool:
     """
     Checks if a job is suitable for freshers / candidates with 0-1 year experience.
-    Disqualifies roles requiring seniority (Sr, Senior, Lead, Principal, Architect)
-    or explicitly requiring 2+, 3+, 5+ years of experience.
+    Uses deep multi-layer analysis on title, full description text, and metadata.
     """
-    combo = f"{title} {text}".lower()
-
-    # Reject strict senior and lead roles
-    if re.search(r"\b(sr\.?|senior|lead|principal|director|head\s+of|vp|architect|staff|manager)\b", combo):
-        return False
-    # Reject high-experience markers
-    if re.search(r"\b(2\+|3\+|4\+|5\+|6\+|7\+|8\+|10\+)\b", combo):
-        return False
-    if re.search(r"\b(2|3|4|5|6|7|8)\s*(to|-)\s*\d+\s*years?\b", combo):
-        return False
-    if re.search(r"\bminimum\s+(2|3|4|5)\s+years?\b", combo):
-        return False
-
-    return True
+    eligible, _, _, _ = analyze_job_fresher_eligibility(title=title, text=text, raw_fields=raw_fields)
+    return eligible
 
 def extract_fresher_experience(title: str, text: str) -> str:
     """

@@ -24,6 +24,7 @@ from scraper.adapters.apify_linkedin import ApifyLinkedInAdapter
 from scraper.adapters.apify_indeed import ApifyIndeedAdapter
 from scraper.adapters.apify_naukri import ApifyNaukriAdapter
 from scraper.deep_scraper import deep_job_scraper
+from scraper.taxonomy import analyze_job_fresher_eligibility
 from scraper.database import Database
 from scraper.models import Job, ScrapeRun
 from scraper.registry import PlatformRegistry
@@ -218,7 +219,17 @@ class ScraperEngine:
                 for job in scraped_jobs:
                     total_scanned += 1
 
-                    # Strictly enforce On-Site / Hybrid work mode (skip Remote / WFH)
+                    # 1. Strictly enforce Fresher Eligibility via deep JD & Title analysis (0-1 yr exp only)
+                    is_fresher, reject_reason, min_e, max_e = analyze_job_fresher_eligibility(
+                        title=job.title,
+                        text=job.description,
+                        raw_fields={"min_experience": job.min_experience, "max_experience": job.max_experience}
+                    )
+                    if not is_fresher:
+                        logger.info(f"Engine gatekeeper filtered out non-fresher job '{job.title}' @ '{job.company}' -> {reject_reason}")
+                        continue
+
+                    # 2. Strictly enforce On-Site / Hybrid work mode (skip Remote / WFH)
                     if allowed_modes_lower and "remote" not in allowed_modes_lower:
                         if (job.work_mode or "").lower() == "remote":
                             logger.info(f"Engine filtered out Remote job '{job.title}' at '{job.company}' - strictly On-Site & Hybrid.")
@@ -232,14 +243,26 @@ class ScraperEngine:
                             deep_res = deep_job_scraper.scrape_url(job.source_url, fallback_title=job.title, fallback_company=job.company)
                             if deep_res.get("success") and len(deep_res.get("description", "")) >= 250:
                                 is_valid, reason = deep_job_scraper.validate_job_quality(deep_res)
-                                job.title = deep_res.get("title") or job.title
+                                new_desc = deep_res.get("description") or job.description
+                                new_title = deep_res.get("title") or job.title
+                                
+                                # Re-verify fresher eligibility with the complete deep JD
+                                is_still_fresher, deep_reject, _, _ = analyze_job_fresher_eligibility(
+                                    title=new_title,
+                                    text=new_desc
+                                )
+                                if not is_still_fresher:
+                                    logger.info(f"Deep scraping revealed non-fresher requirements for '{new_title}' @ '{job.company}': {deep_reject}")
+                                    continue
+
+                                job.title = new_title
                                 job.company = deep_res.get("company") or job.company
                                 job.location = deep_res.get("location") or job.location
                                 job.salary = deep_res.get("salary") or job.salary
                                 job.experience_level = deep_res.get("experience_level") or job.experience_level
                                 job.min_experience = deep_res.get("min_experience", job.min_experience)
                                 job.max_experience = deep_res.get("max_experience", job.max_experience)
-                                job.description = deep_res.get("description") or job.description
+                                job.description = new_desc
                                 job.skills = deep_res.get("skills") or job.skills
                                 job.responsibilities = deep_res.get("responsibilities") or job.responsibilities
                                 job.qualifications = deep_res.get("qualifications") or job.qualifications

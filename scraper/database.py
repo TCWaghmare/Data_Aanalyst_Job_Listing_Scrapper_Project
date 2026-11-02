@@ -565,6 +565,21 @@ class Database:
         conditions = ["is_active = 1"]
         params = []
 
+        # Strict Fresher Guarantee: Exclude Senior, Lead, Principal, Manager, Architect, and > 1 yr min experience
+        conditions.append("""(
+            LOWER(title) NOT LIKE '%senior%' 
+            AND LOWER(title) NOT LIKE '%sr.%' 
+            AND LOWER(title) NOT LIKE '%sr %' 
+            AND LOWER(title) NOT LIKE '%lead %' 
+            AND LOWER(title) NOT LIKE '%lead -%' 
+            AND LOWER(title) NOT LIKE '%principal%' 
+            AND LOWER(title) NOT LIKE '%manager%' 
+            AND LOWER(title) NOT LIKE '%architect%'
+            AND LOWER(title) NOT LIKE '%director%'
+            AND LOWER(title) NOT LIKE '%head of%'
+            AND (min_experience IS NULL OR min_experience <= 1)
+        )""")
+
         if query:
             q_like = f"%{query}%"
             conditions.append("(title LIKE ? OR company LIKE ? OR description LIKE ? OR skills LIKE ? OR recruiter_name LIKE ?)")

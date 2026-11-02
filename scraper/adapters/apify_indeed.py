@@ -17,7 +17,8 @@ from apify_client import ApifyClient
 from scraper.adapters.base import BaseAdapter
 from scraper.models import Job
 from scraper.taxonomy import (
-    classify_role, extract_skills, detect_work_mode, extract_fresher_experience
+    classify_role, extract_skills, detect_work_mode, extract_fresher_experience,
+    analyze_job_fresher_eligibility, is_fresher_eligible
 )
 
 logger = logging.getLogger("apify_indeed")
@@ -150,6 +151,12 @@ class ApifyIndeedAdapter(BaseAdapter):
         apply_url = item.get("externalApplyLink") or source_url
 
         description = item.get("description") or item.get("descriptionHTML") or ""
+
+        # CRITICAL: Deep JD Analysis for Fresher Eligibility (Strict 0-1 yr exp)
+        is_fresher, reject_reason, min_exp, max_exp = analyze_job_fresher_eligibility(title=title, text=description)
+        if not is_fresher:
+            logger.info(f"Apify Indeed rejected non-fresher listing: '{title}' @ '{company}' -> {reject_reason}")
+            return None
 
         # Role taxonomy & Classification
         standard_role, role_category = classify_role(title)
