@@ -7823,19 +7823,29 @@ html, body {
     font-size: 1.05rem !important;
     line-height: 1.35 !important;
   }
-  .job-card-actions {
+  .job-card-actions,
+  .job-actions {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 0.45rem !important;
     margin-top: 0.75rem !important;
+    width: 100% !important;
   }
+  .job-card-actions .btn,
   .job-card-actions .btn-action-apply,
   .job-card-actions .btn-action-tailor,
   .job-card-actions .btn-action-email,
-  .job-card-actions .btn-action-bookmark {
-    min-height: 38px !important;
+  .job-card-actions .btn-action-bookmark,
+  .job-actions .btn,
+  .job-actions .btn-action-email,
+  .job-actions a {
+    min-height: 40px !important;
     justify-content: center !important;
     font-size: 0.78rem !important;
+    padding: 0.45rem 0.55rem !important;
+    text-align: center !important;
+    width: 100% !important;
+    border-radius: 8px !important;
   }
 
   /* Job Table view on mobile */
@@ -8180,7 +8190,260 @@ html, body {
   .mobile-drawer-grid-2 {
     grid-template-columns: 1fr !important;
   }
-  .job-card-actions {
+  .job-card-actions,
+  .job-actions {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* ==========================================================================
+   5. COMPREHENSIVE MOBILE BROWSER OPTIMIZATIONS (iOS Safari / Android Chrome)
+   ========================================================================== */
+
+/* Touch-action and tap highlight normalization across mobile browsers */
+button,
+a,
+input,
+select,
+textarea,
+.tab-btn,
+.skill-pill,
+.freshness-pill,
+.mobile-bottom-nav-item {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile search clear button */
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.08);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  z-index: 2;
+}
+
+[data-theme="dark"] .search-clear-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+}
+
+.search-clear-btn:active {
+  transform: scale(0.9);
+}
+
+/* Floating Back to Top Button */
+.mobile-back-to-top {
+  display: none;
+  position: fixed;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  right: 14px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 9999px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  z-index: 990;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px);
+}
+
+.mobile-back-to-top.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.mobile-back-to-top:active {
+  transform: scale(0.92);
+}
+
+/* Bottom Nav Bar */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Safe body bottom padding so sticky bottom bar never covers any card */
+  body {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Show mobile bottom nav */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(58px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    z-index: 1000;
+    justify-content: space-around;
+    align-items: center;
+    box-sizing: border-box;
+  }
+
+  [data-theme="dark"] .mobile-bottom-nav {
+    background: rgba(24, 24, 27, 0.88);
+    border-top-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .mobile-bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    gap: 2px;
+    padding: 3px 2px;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    transition: color 0.15s ease, transform 0.1s ease;
+  }
+
+  .mobile-bottom-nav-item:active {
+    transform: scale(0.92);
+  }
+
+  .bottom-nav-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+    display: inline-block;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .bottom-nav-label {
+    letter-spacing: -0.01em;
+    font-size: 0.68rem;
+  }
+
+  .mobile-bottom-nav-item.active {
+    color: var(--color-primary);
+    font-weight: 800;
+  }
+
+  .mobile-bottom-nav-item.active .bottom-nav-icon {
+    transform: translateY(-2px) scale(1.12);
+  }
+
+  .mobile-bottom-nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 26px;
+    height: 3px;
+    background: var(--color-primary);
+    border-radius: 0 0 3px 3px;
+  }
+
+  .bottom-nav-badge {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 16px);
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 9999px;
+    line-height: 1.1;
+  }
+
+  /* Show floating back to top button on mobile */
+  .mobile-back-to-top {
+    display: inline-flex;
+  }
+
+  /* Horizontal swipe carousel for skills pills on mobile */
+  .skills-pills {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 6px !important;
+    margin-top: 0.75rem !important;
+  }
+
+  .skills-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .skill-pill {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 0.76rem !important;
+    padding: 0.35rem 0.65rem !important;
+  }
+
+  /* Prevent background body scroll when modals are open on mobile */
+  body.modal-open {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+
+  /* Bottom sheet drag indicator */
+  .modal-drag-indicator {
+    display: block;
+    width: 38px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 9999px;
+    margin: -0.35rem auto 0.85rem;
+  }
+
+  /* Safe max height for mobile actions drawer */
+  .mobile-actions-drawer {
+    max-height: 0;
+  }
+  .mobile-actions-drawer.open {
+    max-height: calc(100vh - 65px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }

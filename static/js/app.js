@@ -9,7 +9,7 @@ const state = {
   page: 0,
   limit: 18,
   totalJobs: 0,
-  layout: localStorage.getItem('job_finder_layout') || 'list', // Default: list layout
+  layout: localStorage.getItem('job_finder_layout') || (typeof window !== 'undefined' && window.innerWidth <= 768 ? 'card' : 'list'), // Responsive Default: card on mobile, list on desktop
   currentJobs: [],
   filters: {
     q: '',
@@ -380,6 +380,10 @@ function applyTheme(theme) {
   const btn = document.getElementById('theme-toggle-btn');
   const icon = document.getElementById('theme-toggle-icon');
   const label = document.getElementById('theme-toggle-text');
+  const metaTheme = document.getElementById('meta-theme-color');
+  if (metaTheme) {
+    metaTheme.setAttribute('content', isDark ? '#18181b' : '#FFE4E8');
+  }
   if (btn) {
     btn.setAttribute('title', isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme');
     btn.setAttribute('aria-label', isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme');
@@ -437,6 +441,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupKBDropzone();
   loadSettings();
   initSchedulerModule();
+  initMobileScrollWatcher();
+  initSearchClearWatcher();
+  initModalScrollLockWatcher();
 });
 
 function setupEventListeners() {
@@ -618,6 +625,9 @@ function switchTab(tabName) {
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tabName);
   });
+  document.querySelectorAll('.mobile-bottom-nav-item[data-tab]').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabName);
+  });
   document.querySelectorAll('.tab-pane').forEach(p => {
     p.style.display = p.id === `tab-${tabName}` ? 'block' : 'none';
   });
@@ -637,6 +647,18 @@ function switchTab(tabName) {
   if (tabName === 'tailor-studio') {
     initTailorStudioPage();
   }
+}
+
+function handleMobileNavTab(tabName) {
+  if (state.activeTab === tabName) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  if (typeof closeMobileMenu === 'function') {
+    closeMobileMenu();
+  }
+  switchTab(tabName);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // --- API Calls ---
@@ -8318,4 +8340,76 @@ function printStudioResume() {
   } else {
     window.print();
   }
+}
+
+// ==========================================================================
+// MOBILE BROWSER ENHANCEMENTS & EVENT HANDLERS
+// ==========================================================================
+
+function initMobileScrollWatcher() {
+  const topBtn = document.getElementById('mobile-back-to-top');
+  if (!topBtn) return;
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        if (window.scrollY > 280) {
+          topBtn.classList.add('visible');
+        } else {
+          topBtn.classList.remove('visible');
+        }
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function initSearchClearWatcher() {
+  const input = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear-btn');
+  if (!input) return;
+
+  // Responsive placeholder on mobile screens
+  if (window.innerWidth <= 640 && input.placeholder.length > 35) {
+    input.placeholder = 'Search by title, skills, companies...';
+  }
+
+  function updateClearBtn() {
+    if (clearBtn) {
+      clearBtn.style.display = input.value.trim().length > 0 ? 'flex' : 'none';
+    }
+  }
+
+  input.addEventListener('input', updateClearBtn);
+  input.addEventListener('change', updateClearBtn);
+  updateClearBtn();
+}
+
+function clearSearchInput() {
+  const input = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear-btn');
+  if (!input) return;
+  input.value = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+  state.filters.q = '';
+  state.page = 0;
+  loadJobs();
+}
+
+function initModalScrollLockWatcher() {
+  if (typeof MutationObserver === 'undefined') return;
+  const modalObserver = new MutationObserver(() => {
+    const anyOpen = Array.from(document.querySelectorAll('.modal-overlay')).some(
+      m => m.style.display === 'flex' || m.style.display === 'block'
+    );
+    document.body.classList.toggle('modal-open', anyOpen);
+  });
+  document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modalObserver.observe(modal, { attributes: true, attributeFilter: ['style'] });
+  });
 }
