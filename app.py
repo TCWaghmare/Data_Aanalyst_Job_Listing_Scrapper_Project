@@ -10,7 +10,9 @@ import json
 import logging
 import os
 import re
-from datetime import datetime
+import threading
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import List, Optional, Dict, Any, Tuple
 from urllib.parse import quote
 from fastapi import FastAPI, BackgroundTasks, Query, Response, UploadFile, File, Form, HTTPException
@@ -23,7 +25,7 @@ from scraper.database import Database
 from scraper.engine import ScraperEngine
 from scraper.registry import PlatformRegistry
 from scraper.taxonomy import ALL_ROLES, CORE_ANALYTICS_ROLES, RELATED_ROLES
-from scraper.scheduler import scraper_scheduler
+from scraper.scheduler import scraper_scheduler, calculate_next_run
 from resume_tailor.parser import master_resume_parser
 from resume_tailor.engine import resume_tailor_engine
 from resume_tailor.latex_builder import latex_builder
@@ -218,23 +220,21 @@ class LinkedInSettingsRequest(BaseModel):
 @app.on_event("startup")
 def on_app_startup():
     is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
-    if is_serverless:
-        logger.info("Running in serverless environment (Vercel/Lambda) - skipping background scheduler and startup scrape.")
-        return
-    logger.info("Initializing ScraperScheduler background worker on application startup...")
+    logger.info(f"Application starting up (Serverless mode: {is_serverless}). Initializing ScraperScheduler...")
     try:
         scraper_scheduler.start()
     except Exception as e:
         logger.warning(f"Could not start scraper_scheduler: {e}")
-    try:
-        _, count = db.get_jobs(source_id="linkedin_feed", limit=5)
-        if count < 5:
-            feed_jobs = linkedin_adapter.scrape(limit=30)
-            for j in feed_jobs:
-                db.save_job(j)
-            logger.info(f"Auto-seeded {len(feed_jobs)} LinkedIn recruiter feed jobs into database.")
-    except Exception as e:
-        logger.warning(f"Could not auto-seed LinkedIn feed jobs: {e}")
+    if not is_serverless:
+        try:
+            _, count = db.get_jobs(source_id="linkedin_feed", limit=5)
+            if count < 5:
+                feed_jobs = linkedin_adapter.scrape(limit=30)
+                for j in feed_jobs:
+                    db.save_job(j)
+                logger.info(f"Auto-seeded {len(feed_jobs)} LinkedIn recruiter feed jobs into database.")
+        except Exception as e:
+            logger.warning(f"Could not auto-seed LinkedIn feed jobs: {e}")
 
 @app.on_event("shutdown")
 def on_app_shutdown():
@@ -602,7 +602,84 @@ def get_scraper_status():
 @app.get("/api/scraper/monitor/live")
 def get_live_monitor():
     """Returns real-time scraping progress, stage, active adapter, elapsed time, and jobs found."""
+    # Ensure due schedules are checked on every client monitor poll (vital for serverless/cloud hosting like Vercel)
+    if scraper_scheduler.live_monitor.get("status") != "running":
+        try:
+            scraper_scheduler._check_and_trigger_due_schedules()
+        except Exception as _e:
+            logger.warning(f"Error checking due schedules on monitor poll: {_e}")
     return scraper_scheduler.live_monitor
+
+@app.get("/api/cron")
+@app.post("/api/scraper/schedules/auto-tick")
+def cron_trigger():
+    """
+    Automated Cron Trigger endpoint for serverless and cloud deployments.
+    Checks all enabled schedules and triggers scraping for any due schedule.
+    Can be pinged by Vercel Cron, GitHub Actions, or client auto-tickers.
+    """
+    triggered_runs = []
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+    schedules = db.get_schedules()
+    tz = ZoneInfo("Asia/Kolkata")
+    now_in_tz = datetime.now(tz)
+
+    for s in schedules:
+        if not s.get("is_enabled"):
+            continue
+        next_run_str = s.get("next_run_at")
+        if not next_run_str:
+            continue
+        try:
+            next_dt = datetime.fromisoformat(next_run_str)
+            if next_dt.tzinfo is None:
+                next_dt = next_dt.replace(tzinfo=tz)
+
+            if next_dt <= now_in_tz and scraper_scheduler.live_monitor.get("status") != "running":
+                logger.info(f"[Cron Auto-Trigger] Schedule '{s['name']}' ({s['id']}) is DUE ({next_dt} <= {now_in_tz})")
+                subsequent_run = calculate_next_run(
+                    s.get("frequency", "daily"),
+                    s.get("run_times", ["11:00"]),
+                    s.get("days_of_week"),
+                    s.get("timezone", "Asia/Kolkata"),
+                    from_dt=now_in_tz + timedelta(minutes=1)
+                )
+                s["next_run_at"] = subsequent_run
+                db.save_schedule(s)
+
+                if is_serverless:
+                    # In serverless, execute synchronously so Vercel keeps the lambda container alive
+                    res = scraper_scheduler.execute_scrape(
+                        schedule_id=s["id"],
+                        trigger_source="scheduled",
+                        triggered_by="Cloud Cron Scheduler"
+                    )
+                    triggered_runs.append({"schedule_id": s["id"], "name": s["name"], "result": res})
+                    break
+                else:
+                    t = threading.Thread(
+                        target=scraper_scheduler.execute_scrape,
+                        kwargs={
+                            "schedule_id": s["id"],
+                            "trigger_source": "scheduled",
+                            "triggered_by": "Automated Scheduler"
+                        },
+                        daemon=True,
+                        name=f"CronWorker_{s['id']}"
+                    )
+                    t.start()
+                    triggered_runs.append({"schedule_id": s["id"], "name": s["name"], "status": "started_async"})
+                    break
+        except Exception as e:
+            logger.error(f"Error checking schedule {s.get('id')} in cron_trigger: {e}")
+
+    return {
+        "success": True,
+        "server_time_ist": now_in_tz.strftime("%Y-%m-%d %H:%M:%S"),
+        "triggered_count": len(triggered_runs),
+        "triggered_schedules": triggered_runs,
+        "active_monitor": scraper_scheduler.live_monitor
+    }
 
 # --- Schedules Management Endpoints ---
 

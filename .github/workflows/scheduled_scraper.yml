@@ -1,0 +1,28 @@
+name: Automated Job Scraping Cloud Cron Dispatcher
+
+on:
+  schedule:
+    # 05:30 UTC = 11:00 AM IST (Morning Job Scraping Sweep)
+    - cron: '30 5 * * *'
+    # 16:30 UTC = 10:00 PM IST (Evening Job Scraping Sweep)
+    - cron: '30 16 * * *'
+    # Periodic sweep every 15 minutes to trigger custom scheduled user times
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  cron_trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Deployed Scraper Cron Endpoint
+        run: |
+          DEPLOY_URL="${{ secrets.DEPLOYED_APP_URL }}"
+          if [ -z "$DEPLOY_URL" ]; then
+            # Automatically check common project domain or repo fallback
+            DEPLOY_URL="https://data-aanalyst-job-listing-scrapper-project.vercel.app"
+          fi
+          echo "Triggering cloud cron check on: $DEPLOY_URL"
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET "$DEPLOY_URL/api/cron" || true)
+          echo "Cron Response:"
+          echo "$RESPONSE"

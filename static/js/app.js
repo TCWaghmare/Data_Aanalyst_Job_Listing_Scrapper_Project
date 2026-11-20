@@ -6662,9 +6662,60 @@ async function pollLiveMonitor() {
     } else {
       if (schedulerMonitorTimer) clearInterval(schedulerMonitorTimer);
       schedulerMonitorTimer = setInterval(pollLiveMonitor, 8000);
+      
+      // Automatic Client-Assisted Due Schedule Trigger (Crucial for live deployed web on Vercel/serverless where background threads sleep)
+      if (!window._isAutoTriggering) {
+        checkClientSideDueSchedules();
+      }
     }
   } catch (err) {
     // Ignore fetch aborts during reloads
+  }
+}
+
+async function checkClientSideDueSchedules() {
+  if (window._isAutoTriggering) return;
+  const now = new Date();
+
+  try {
+    const res = await fetch('/api/scraper/upcoming');
+    const data = await res.json();
+    const tasks = data.tasks || [];
+
+    for (const t of tasks) {
+      if (t.status !== 'Active' || !t.next_run_at) continue;
+      let cleanIso = String(t.next_run_at).trim();
+      if (!cleanIso.endsWith('Z') && !/[-+]\d{2}(:\d{2})?$/.test(cleanIso)) {
+        cleanIso += 'Z';
+      }
+      const targetTime = new Date(cleanIso);
+      const diffMs = targetTime - now;
+
+      // If task reached scheduled time (or within past 5 mins):
+      if (diffMs <= 1000 && diffMs >= -300000) {
+        window._isAutoTriggering = true;
+        console.log(`[Auto-Trigger] Schedule '${t.name}' (${t.id}) is DUE! Auto-triggering on live web...`);
+
+        const stageEl = document.getElementById('mon-stage-text');
+        if (stageEl) {
+          stageEl.innerText = `⏰ Scheduled time reached! Auto-executing '${t.name}' across all platforms...`;
+        }
+
+        try {
+          await fetch(`/api/scraper/schedules/${t.id}/run-now`, { method: 'POST' });
+          if (typeof pollLiveMonitor === 'function') pollLiveMonitor();
+        } catch (e) {
+          console.error('Auto-trigger run error:', e);
+        } finally {
+          setTimeout(() => {
+            window._isAutoTriggering = false;
+          }, 25000);
+        }
+        break; // Trigger one schedule at a time
+      }
+    }
+  } catch (err) {
+    // Ignore fetch aborts
   }
 }
 
