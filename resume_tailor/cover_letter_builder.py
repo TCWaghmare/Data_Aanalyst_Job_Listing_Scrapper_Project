@@ -6,6 +6,7 @@ Supports export to Word (.docx), PDF (Edge headless), and Plain Text (.txt).
 """
 
 import os
+import io
 import re
 import subprocess
 from datetime import datetime
@@ -16,7 +17,8 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import parse_xml
 
-EDGE_PATH = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+from resume_tailor.pdf_compiler import find_browser_executable, EDGE_PATH
+
 is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 OUTPUT_DIR = "/tmp/data/resumes" if is_serverless else os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "resumes")
 try:
@@ -369,9 +371,131 @@ class CoverLetterBuilder:
         doc.save(file_path)
         return file_path
 
+    def _compile_pure_python_pdf(self, data: Dict[str, Any], pdf_path: str) -> str:
+        """Pure-Python standard 1-page PDF generator for cover letters."""
+        name = data.get("candidate_name", "Tejas C. Waghmare")
+        contact = data.get("contact", {})
+        date_str = data.get("date", datetime.now().strftime("%B %d, %Y"))
+        target_role = data.get("target_role", "Data Analyst")
+        target_company = data.get("target_company", "Target Employer")
+        paragraphs = data.get("paragraphs", [])
+
+        def escape_pdf(text: str) -> str:
+            t = str(text or "").replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+            t = t.replace("–", "-").replace("—", "-").replace("•", "*").replace("\xa0", " ")
+            return t.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+        def wrap(text: str, max_chars: int = 90) -> List[str]:
+            words = str(text).split()
+            lines = []
+            cur = []
+            cur_len = 0
+            for w in words:
+                if cur_len + len(w) + (1 if cur else 0) > max_chars:
+                    lines.append(" ".join(cur))
+                    cur = [w]
+                    cur_len = len(w)
+                else:
+                    cur.append(w)
+                    cur_len += len(w) + (1 if len(cur) > 1 else 0)
+            if cur:
+                lines.append(" ".join(cur))
+            return lines
+
+        contact_parts = []
+        if contact.get("phone"):
+            contact_parts.append(contact["phone"])
+        if contact.get("email"):
+            contact_parts.append(contact["email"])
+        if contact.get("linkedin"):
+            contact_parts.append(contact["linkedin"])
+        contact_line = " | ".join(contact_parts)
+
+        ops = []
+        y = 750
+        left_x = 45
+        right_x = 567
+
+        # Name Header
+        ops.append(f"BT /F1 15 Tf {left_x} {y} Td ({escape_pdf(name)}) Tj ET")
+        y -= 15
+        if contact_line:
+            ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({escape_pdf(contact_line)}) Tj ET")
+            y -= 14
+        ops.append(f"0.75 w {left_x} {y} m {right_x} {y} l S")
+        y -= 20
+
+        # Date
+        ops.append(f"BT /F2 9.5 Tf {left_x} {y} Td ({escape_pdf(date_str)}) Tj ET")
+        y -= 18
+
+        # Recruiter / Employer Block
+        ops.append(f"BT /F1 9.5 Tf {left_x} {y} Td (Hiring Team) Tj ET")
+        y -= 13
+        ops.append(f"BT /F2 9.5 Tf {left_x} {y} Td ({escape_pdf(target_company)}) Tj ET")
+        y -= 18
+
+        # Subject Line
+        ops.append(f"BT /F1 10 Tf {left_x} {y} Td (SUBJECT: Application for {escape_pdf(target_role)} Role) Tj ET")
+        y -= 18
+
+        # Salutation
+        ops.append(f"BT /F2 9.5 Tf {left_x} {y} Td (Dear Hiring Team,) Tj ET")
+        y -= 16
+
+        # Paragraphs
+        for p in paragraphs:
+            for line in wrap(p, 92):
+                ops.append(f"BT /F2 9 Tf {left_x} {y} Td ({escape_pdf(line)}) Tj ET")
+                y -= 12
+            y -= 6
+
+        # Sign-off
+        y -= 4
+        ops.append(f"BT /F2 9.5 Tf {left_x} {y} Td (Sincerely,) Tj ET")
+        y -= 14
+        ops.append(f"BT /F1 10 Tf {left_x} {y} Td ({escape_pdf(name)}) Tj ET")
+
+        stream_content = "\n".join(ops).encode('latin1', errors='replace')
+        objects = [
+            b'<< /Type /Catalog /Pages 2 0 R >>',
+            b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>',
+            b'<< /Length ' + str(len(stream_content)).encode('ascii') + b' >>\nstream\n' + stream_content + b'\nendstream',
+            b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>',
+            b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+        ]
+
+        out = io.BytesIO()
+        out.write(b'%PDF-1.4\n')
+        offsets = [0]
+        for i, obj in enumerate(objects, 1):
+            offsets.append(out.tell())
+            out.write(f'{i} 0 obj\n'.encode('ascii'))
+            out.write(obj)
+            out.write(b'\nendobj\n')
+
+        startxref = out.tell()
+        out.write(b'xref\n')
+        out.write(f'0 {len(objects) + 1}\n'.encode('ascii'))
+        out.write(b'0000000000 65535 f \n')
+        for offset in offsets[1:]:
+            out.write(f'{offset:010d} 00000 n \n'.encode('ascii'))
+
+        out.write(b'trailer\n')
+        out.write(f'<< /Size {len(objects) + 1} /Root 1 0 R >>\n'.encode('ascii'))
+        out.write(b'startxref\n')
+        out.write(f'{startxref}\n'.encode('ascii'))
+        out.write(b'%%EOF\n')
+
+        with open(pdf_path, "wb") as f:
+            f.write(out.getvalue())
+
+        return pdf_path
+
     def build_pdf(self, cover_letter_data: Dict[str, Any], job_id: str) -> str:
         """
-        Compiles the cover letter into a clean PDF via Edge headless matching Overleaf LaTeX styling.
+        Compiles the cover letter into a clean PDF via headless browser or pure Python fallback.
         """
         clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
         html_path = os.path.join(self.output_dir, f"cover_letter_{clean_id}.html")
@@ -381,9 +505,10 @@ class CoverLetterBuilder:
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html)
 
-        if os.path.exists(EDGE_PATH):
+        browser_exe = find_browser_executable()
+        if browser_exe:
             cmd = [
-                EDGE_PATH,
+                browser_exe,
                 "--headless=new",
                 "--disable-gpu",
                 "--no-pdf-header-footer",
@@ -393,7 +518,10 @@ class CoverLetterBuilder:
             try:
                 subprocess.run(cmd, capture_output=True, text=True, timeout=15)
             except Exception as e:
-                print(f"[CoverLetter] PDF compilation error: {e}")
+                print(f"[CoverLetter] Headless browser error: {e}")
+
+        if not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
+            self._compile_pure_python_pdf(cover_letter_data, pdf_path)
 
         return pdf_path
 

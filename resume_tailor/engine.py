@@ -39,10 +39,14 @@ class ResumeTailorEngine:
         """
         profile = self.get_source_profile()
 
-        # Guard: Check if user has uploaded documents
-        if not profile or profile.get("source_documents_count", 0) == 0:
+        # Guard: Check if user has uploaded documents or active profile
+        if not profile or (profile.get("source_documents_count", 0) == 0 and not profile.get("technical_tools")):
+            self.kb._load_or_initialize()
+            profile = self.get_source_profile()
+
+        if not profile or (profile.get("source_documents_count", 0) == 0 and not profile.get("technical_tools") and not self.kb.documents):
             raise ValueError(
-                "Cannot tailor resume: No documents uploaded. Please upload your master resume or career documents in the Master Resume section first."
+                "Cannot tailor resume: No master resume uploaded. Please upload your master resume or career documents in the Master Resume section first."
             )
 
         combined_text = f"{job_title} {company} {job_description} {' '.join(job_skills or [])} {' '.join(responsibilities or [])} {' '.join(requirements or [])} {' '.join(ats_keywords or [])}".lower()

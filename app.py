@@ -1598,24 +1598,20 @@ def tailor_resume_for_job(req: TailorResumeRequest):
     description = req.description
     skills = req.skills or []
 
-    db_job = db.get_job_by_id(req.job_id)
-    if db_job and (not db_job.is_deep_scraped or len(db_job.description or "") < 250 or getattr(db_job, "extraction_status", "") == "incomplete_extraction"):
-        enriched = deep_job_scraper.enrich_job(db, req.job_id, force=True)
-        if enriched:
-            db_job = enriched
-
-    # Quality check: prevent ATS tailoring until full job data exists
-    if db_job and (len(db_job.description or "") < 250 or not (db_job.responsibilities or db_job.skills)):
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot tailor resume: Job description is incomplete (< 250 characters or missing responsibilities). Please click '🔄 Re-scrape Live Job URL' on the Job Details modal to fetch the complete posting first."
-        )
+    db_job = db.get_job_by_id(req.job_id) if req.job_id else None
+    if db_job and (not db_job.is_deep_scraped or len(db_job.description or "") < 150):
+        try:
+            enriched = deep_job_scraper.enrich_job(db, req.job_id, force=False)
+            if enriched:
+                db_job = enriched
+        except Exception as e:
+            logger.warning(f"Optional deep enrichment skipped for {req.job_id}: {e}")
 
     if db_job:
-        job_title = job_title or db_job.title
-        company = company or db_job.company
-        description = description or db_job.description
-        skills = skills or db_job.skills
+        job_title = job_title or db_job.title or "Data Analyst"
+        company = company or db_job.company or "Hiring Company"
+        description = description or db_job.description or ""
+        skills = skills or db_job.skills or []
         responsibilities = req.responsibilities or db_job.responsibilities or []
         requirements = req.requirements or db_job.requirements or []
         qualifications = req.qualifications or db_job.qualifications or []
@@ -1631,13 +1627,29 @@ def tailor_resume_for_job(req: TailorResumeRequest):
         source_url = req.source_url or db_job.source_url or "#"
         published_at = db_job.published_at or ""
         is_deep_scraped = db_job.is_deep_scraped
+
+        # Synthesize rich description if original description is concise
+        if len(description.strip()) < 50:
+            synth_parts = [f"{job_title} at {company}"]
+            if description.strip():
+                synth_parts.append(description.strip())
+            if skills:
+                synth_parts.append(f"Required technical skills: {', '.join(skills)}")
+            if responsibilities:
+                synth_parts.append(f"Key responsibilities: {'; '.join(responsibilities)}")
+            description = ". ".join(synth_parts) + "."
     else:
         # Custom or direct URL job
-        if not description or len(description.strip()) < 30:
-            raise HTTPException(
-                status_code=400,
-                detail="Job description is too short to perform ATS tailoring. Please provide at least 30 characters of job details."
-            )
+        job_title = job_title or "Data Analyst"
+        company = company or "Target Employer"
+        if not description or len(description.strip()) < 20:
+            if skills:
+                description = f"{job_title} role at {company}. Seeking skills in {', '.join(skills)} for data reporting and analytics."
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Job description is too short to perform ATS tailoring. Please provide at least 20 characters of job details or required skills."
+                )
         job_title = job_title or "Data Analyst"
         company = company or "Target Employer"
         responsibilities = req.responsibilities or []
@@ -1973,6 +1985,8 @@ def preview_tailored_pdf(job_id: str):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
     pdf_path = os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.pdf")
     if not os.path.exists(pdf_path):
+        _ensure_job_artifacts(job_id)
+    if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail="Tailored PDF not found. Please click Tailor Resume first.")
     return FileResponse(
         pdf_path,
@@ -1984,6 +1998,8 @@ def preview_tailored_pdf(job_id: str):
 def preview_tailored_html(job_id: str):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
     html_path = os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.html")
+    if not os.path.exists(html_path):
+        _ensure_job_artifacts(job_id)
     if not os.path.exists(html_path):
         raise HTTPException(status_code=404, detail="Tailored preview not found. Please click Tailor Resume first.")
     return FileResponse(

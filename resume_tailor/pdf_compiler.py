@@ -5,11 +5,33 @@ matching the reference resume format and typography.
 """
 
 import os
+import io
+import shutil
 import subprocess
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 import pypdf
 
-EDGE_PATH = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+def find_browser_executable() -> Optional[str]:
+    """Finds available Edge, Chrome, or Chromium executable across Windows, Linux, and Mac."""
+    candidates = [
+        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        os.path.expandvars("%LOCALAPPDATA%\\Microsoft\\Edge\\Application\\msedge.exe"),
+        os.path.expandvars("%LOCALAPPDATA%\\Google\\Chrome\\Application\\chrome.exe"),
+    ]
+    for name in ["msedge", "edge", "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "brave", "chrome"]:
+        p = shutil.which(name)
+        if p:
+            candidates.append(p)
+
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+EDGE_PATH = find_browser_executable() or "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
 is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 OUTPUT_DIR = "/tmp/data/resumes" if is_serverless else os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "resumes")
 try:
@@ -26,6 +48,193 @@ class PDFCompiler:
         except OSError:
             pass
 
+    def _escape_pdf_text(self, text: str) -> str:
+        if not text:
+            return ""
+        t = str(text).replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
+        t = t.replace("–", "-").replace("—", "-").replace("•", "*").replace("\xa0", " ")
+        t = t.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        return t
+
+    def _wrap_text(self, text: str, max_chars: int = 95) -> List[str]:
+        words = str(text).split()
+        lines = []
+        cur = []
+        cur_len = 0
+        for w in words:
+            if cur_len + len(w) + (1 if cur else 0) > max_chars:
+                lines.append(" ".join(cur))
+                cur = [w]
+                cur_len = len(w)
+            else:
+                cur.append(w)
+                cur_len += len(w) + (1 if len(cur) > 1 else 0)
+        if cur:
+            lines.append(" ".join(cur))
+        return lines
+
+    def _compile_pure_python_pdf(self, data: Dict[str, Any], pdf_path: str) -> str:
+        """Pure-Python standard 1-page PDF generator that works in any environment without external browsers."""
+        name = data.get("name") or "Candidate Name"
+        contact = data.get("contact", {})
+        phone = contact.get("phone") or ""
+        email = contact.get("email") or ""
+        linkedin = contact.get("linkedin") or ""
+        github = contact.get("github") or ""
+
+        contact_parts = [p for p in [phone, email, linkedin, github] if p and "not available" not in str(p).lower()]
+        contact_line = " | ".join(contact_parts)
+
+        ops = []
+        y = 756
+        left_x = 36
+        right_x = 576
+
+        # 1. Name Header
+        ops.append(f"BT /F1 15 Tf {left_x} {y} Td ({self._escape_pdf_text(name)}) Tj ET")
+        y -= 15
+
+        # 2. Contact Line
+        if contact_line:
+            ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(contact_line)}) Tj ET")
+            y -= 14
+
+        def draw_section_header(title: str, cur_y: float) -> float:
+            cur_y -= 8
+            ops.append(f"BT /F1 10 Tf {left_x} {cur_y} Td ({self._escape_pdf_text(title)}) Tj ET")
+            line_y = cur_y - 2
+            ops.append(f"0.75 w {left_x} {line_y} m {right_x} {line_y} l S")
+            return cur_y - 12
+
+        # 3. Professional Summary
+        summary = data.get("summary") or ""
+        if summary and "not available" not in summary.lower():
+            y = draw_section_header("PROFESSIONAL SUMMARY", y)
+            for line in self._wrap_text(summary, 102):
+                ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(line)}) Tj ET")
+                y -= 11
+
+        # 4. Technical Skills
+        skills = data.get("skills", {})
+        tech_tools = data.get("technical_tools", [])
+        if skills or tech_tools:
+            y = draw_section_header("TECHNICAL SKILLS", y)
+            if isinstance(skills, dict) and skills:
+                for cat, items in list(skills.items())[:4]:
+                    cat_name = cat.replace("_", " ").title()
+                    line_str = f"{cat_name}: {', '.join(items[:8])}"
+                    for line in self._wrap_text(line_str, 100):
+                        ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(line)}) Tj ET")
+                        y -= 11
+            elif tech_tools:
+                line_str = f"Core Competencies: {', '.join(tech_tools[:18])}"
+                for line in self._wrap_text(line_str, 100):
+                    ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(line)}) Tj ET")
+                    y -= 11
+
+        # 5. Work Experience
+        experience = data.get("experience", [])
+        if experience:
+            y = draw_section_header("WORK EXPERIENCE", y)
+            for exp in experience[:2]:
+                title = exp.get("title", "Role")
+                company = exp.get("company", "Company")
+                dates = exp.get("dates", "")
+                loc = exp.get("location", "")
+
+                header_left = f"{title} - {company}"
+                header_right = f"{dates} ({loc})" if loc else dates
+                ops.append(f"BT /F1 9 Tf {left_x} {y} Td ({self._escape_pdf_text(header_left)}) Tj ET")
+                ops.append(f"BT /F2 8.5 Tf {right_x - len(header_right)*5} {y} Td ({self._escape_pdf_text(header_right)}) Tj ET")
+                y -= 11
+
+                for b in exp.get("bullets", [])[:2]:
+                    for idx, line in enumerate(self._wrap_text(b, 98)):
+                        prefix = "* " if idx == 0 else "  "
+                        ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(prefix + line)}) Tj ET")
+                        y -= 11
+                y -= 2
+
+        # 6. Projects
+        projects = data.get("projects", [])
+        if projects:
+            y = draw_section_header("KEY PROJECTS", y)
+            for proj in projects[:2]:
+                p_title = proj.get("title", "Project")
+                tools = proj.get("tools", "")
+                p_header = f"{p_title}" + (f" | {tools}" if tools else "")
+                ops.append(f"BT /F1 9 Tf {left_x} {y} Td ({self._escape_pdf_text(p_header)}) Tj ET")
+                y -= 11
+                for b in proj.get("bullets", [])[:2]:
+                    for idx, line in enumerate(self._wrap_text(b, 98)):
+                        prefix = "* " if idx == 0 else "  "
+                        ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(prefix + line)}) Tj ET")
+                        y -= 11
+                y -= 2
+
+        # 7. Education
+        education = data.get("education", [])
+        if education:
+            y = draw_section_header("EDUCATION", y)
+            for edu in education[:2]:
+                deg = edu.get("degree", "Degree")
+                inst = edu.get("institution", "Institution")
+                yr = edu.get("year", "")
+                edu_left = f"{deg} - {inst}"
+                ops.append(f"BT /F1 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(edu_left)}) Tj ET")
+                if yr:
+                    ops.append(f"BT /F2 8.5 Tf {right_x - len(str(yr))*6} {y} Td ({self._escape_pdf_text(str(yr))}) Tj ET")
+                y -= 11
+
+        # 8. Certifications
+        certs = data.get("certifications", [])
+        if certs:
+            y = draw_section_header("CERTIFICATIONS", y)
+            cert_names = [c.get("name") if isinstance(c, dict) else str(c) for c in certs[:4]]
+            line_str = " | ".join(cert_names)
+            for line in self._wrap_text(line_str, 100):
+                ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(line)}) Tj ET")
+                y -= 11
+
+        # Assemble PDF stream
+        stream_content = "\n".join(ops).encode('latin1', errors='replace')
+        objects = [
+            b'<< /Type /Catalog /Pages 2 0 R >>',
+            b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> >> >>',
+            b'<< /Length ' + str(len(stream_content)).encode('ascii') + b' >>\nstream\n' + stream_content + b'\nendstream',
+            b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>',
+            b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+            b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>'
+        ]
+
+        out = io.BytesIO()
+        out.write(b'%PDF-1.4\n')
+        offsets = [0]
+        for i, obj in enumerate(objects, 1):
+            offsets.append(out.tell())
+            out.write(f'{i} 0 obj\n'.encode('ascii'))
+            out.write(obj)
+            out.write(b'\nendobj\n')
+
+        startxref = out.tell()
+        out.write(b'xref\n')
+        out.write(f'0 {len(objects) + 1}\n'.encode('ascii'))
+        out.write(b'0000000000 65535 f \n')
+        for offset in offsets[1:]:
+            out.write(f'{offset:010d} 00000 n \n'.encode('ascii'))
+
+        out.write(b'trailer\n')
+        out.write(f'<< /Size {len(objects) + 1} /Root 1 0 R >>\n'.encode('ascii'))
+        out.write(b'startxref\n')
+        out.write(f'{startxref}\n'.encode('ascii'))
+        out.write(b'%%EOF\n')
+
+        with open(pdf_path, "wb") as f:
+            f.write(out.getvalue())
+
+        return os.path.abspath(pdf_path)
+
     def compile(self, tailored_data: Dict[str, Any], job_id: str) -> str:
         """
         Compiles the tailored resume into an exact 1-page PDF.
@@ -40,54 +249,54 @@ class PDFCompiler:
         with open(html_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
-        # Compile HTML to PDF via Edge headless
-        if os.path.exists(EDGE_PATH):
+        # Attempt browser headless compilation if executable is available
+        browser_exe = find_browser_executable()
+        if browser_exe:
             cmd = [
-                EDGE_PATH,
+                browser_exe,
                 "--headless=new",
                 "--disable-gpu",
                 "--no-pdf-header-footer",
                 f"--print-to-pdf={os.path.abspath(pdf_path)}",
                 os.path.abspath(html_path)
             ]
-            subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            try:
+                subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            except Exception:
+                pass
+
+        # If headless browser is absent or didn't produce the PDF, use pure Python builder
+        if not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
+            self._compile_pure_python_pdf(tailored_data, pdf_path)
 
         # Validate that the PDF is strictly 1 page
         if os.path.exists(pdf_path):
             try:
                 reader = pypdf.PdfReader(pdf_path)
-                if len(reader.pages) > 1:
-                    # Level 1: Regenerate with tighter vertical spacing
+                if len(reader.pages) > 1 and browser_exe:
+                    # Regenerate with tighter vertical spacing
                     tight_html = self._generate_latex_styled_html(tailored_data, tight=True)
                     with open(html_path, "w", encoding="utf-8") as f:
                         f.write(tight_html)
+                    cmd = [
+                        browser_exe,
+                        "--headless=new",
+                        "--disable-gpu",
+                        "--no-pdf-header-footer",
+                        f"--print-to-pdf={os.path.abspath(pdf_path)}",
+                        os.path.abspath(html_path)
+                    ]
                     subprocess.run(cmd, capture_output=True, text=True, timeout=15)
 
                     reader2 = pypdf.PdfReader(pdf_path)
                     if len(reader2.pages) > 1:
-                        # Level 2: Compact items to strictly guarantee 1 page
-                        compact_data = dict(tailored_data)
-                        if len(compact_data.get("experience", [])) > 2:
-                            compact_data["experience"] = compact_data["experience"][:2]
-                        for exp in compact_data.get("experience", []):
-                            if len(exp.get("bullets", [])) > 2:
-                                exp["bullets"] = exp["bullets"][:2]
-                        if len(compact_data.get("projects", [])) > 2:
-                            compact_data["projects"] = compact_data["projects"][:2]
-                        for proj in compact_data.get("projects", []):
-                            if len(proj.get("bullets", [])) > 2:
-                                proj["bullets"] = proj["bullets"][:2]
-                        if len(compact_data.get("education", [])) > 1:
-                            compact_data["education"] = compact_data["education"][:1]
-                        if len(compact_data.get("certifications", [])) > 2:
-                            compact_data["certifications"] = compact_data["certifications"][:2]
-
-                        compact_html = self._generate_latex_styled_html(compact_data, tight=True)
-                        with open(html_path, "w", encoding="utf-8") as f:
-                            f.write(compact_html)
-                        subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                        # Fallback to pure Python exact 1-page generator
+                        self._compile_pure_python_pdf(tailored_data, pdf_path)
             except Exception:
                 pass
+
+        if not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
+            self._compile_pure_python_pdf(tailored_data, pdf_path)
 
         return os.path.abspath(pdf_path)
 

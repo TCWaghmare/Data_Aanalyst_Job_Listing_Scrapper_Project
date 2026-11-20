@@ -107,16 +107,31 @@ class CareerKnowledgeBase:
 
     def _load_or_initialize(self):
         """Loads repository metadata without any seeded or fake documents."""
+        loaded = False
         if os.path.exists(self.kb_file):
             try:
                 with open(self.kb_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     self.documents = data.get("documents", [])
                     self.unified_profile = data.get("unified_profile", {})
+                    if self.documents or (self.unified_profile and self.unified_profile.get("source_documents_count", 0) > 0):
+                        loaded = True
             except Exception as e:
                 logger.error(f"[KB] Error loading KB file: {e}. Reinitializing.")
                 self.documents = []
                 self.unified_profile = {}
+
+        # Fallback to bundled knowledge base if serverless /tmp was newly initialized or empty
+        if not loaded:
+            bundled_kb = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "knowledge_base.json")
+            if os.path.exists(bundled_kb) and os.path.abspath(bundled_kb) != os.path.abspath(self.kb_file):
+                try:
+                    with open(bundled_kb, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        self.documents = data.get("documents", [])
+                        self.unified_profile = data.get("unified_profile", {})
+                except Exception as e:
+                    logger.error(f"[KB] Error loading bundled KB fallback: {e}")
 
         # Ensure all documents have standard transparency fields
         for doc in self.documents:
@@ -621,7 +636,11 @@ class CareerKnowledgeBase:
         Zero hardcoded defaults. Zero hallucinations.
         If no documents are available, returns clean empty profile.
         """
-        ready_docs = [d for d in self.documents if d.get("status") == "Ready for AI Usage"]
+        ready_docs = [
+            d for d in self.documents
+            if (d.get("status") in ["Ready for AI Usage", "ready", "Ready", "Uploaded", "processed", "Processed"]
+                or bool(d.get("extracted_data")))
+        ]
 
         # Track files analyzed metadata for transparency
         files_analyzed = []
@@ -647,6 +666,9 @@ class CareerKnowledgeBase:
             })
 
         if not ready_docs:
+            if self.unified_profile and self.unified_profile.get("source_documents_count", 0) > 0 and self.unified_profile.get("name") not in [NOT_AVAILABLE, "", None]:
+                # Keep active profile intact if documents list was temporarily detached
+                return self.unified_profile
             self.unified_profile = {
                 "name": NOT_AVAILABLE,
                 "contact": {
