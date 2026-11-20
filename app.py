@@ -138,6 +138,7 @@ class ScheduleCreateRequest(BaseModel):
     keywords: Optional[List[str]] = None
     location_filters: Optional[str] = ""
     work_modes: Optional[List[str]] = None
+    is_enabled: bool = True
     scrape_new_only: bool = True
     rescrape_existing: bool = False
     refresh_expired: bool = False
@@ -164,6 +165,7 @@ class ScheduleUpdateRequest(BaseModel):
     keywords: Optional[List[str]] = None
     location_filters: Optional[str] = None
     work_modes: Optional[List[str]] = None
+    is_enabled: Optional[bool] = None
     scrape_new_only: Optional[bool] = None
     rescrape_existing: Optional[bool] = None
     refresh_expired: Optional[bool] = None
@@ -607,6 +609,8 @@ def get_live_monitor():
 @app.get("/api/scraper/schedules")
 def list_schedules():
     """Lists all automated schedules (default Morning & Evening, plus user custom schedules)."""
+    if not scraper_scheduler._is_running or not scraper_scheduler._ticker_thread or not scraper_scheduler._ticker_thread.is_alive():
+        scraper_scheduler.start()
     schedules = db.get_schedules()
     return {"schedules": schedules, "total": len(schedules)}
 

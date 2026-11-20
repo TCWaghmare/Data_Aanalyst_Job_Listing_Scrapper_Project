@@ -97,6 +97,50 @@ DAY_NAME_TO_INT = {
 }
 
 
+def _parse_time_string(t_str: str, now_dt: Optional[datetime] = None) -> Optional[Tuple[int, int]]:
+    """
+    Parses a time string in 24h ('21:30', '09:00', '21.45') or 12h ('9:30 PM', '10pm', '8:00 AM') format.
+    If ambiguous (e.g. '10:55', '11:00') without AM/PM and current local time is in the evening,
+    intelligently maps to the upcoming PM hour (e.g. 10:55 -> 22:55) so tonight's schedule runs.
+    Returns (hour, minute) as integers, or None if invalid.
+    """
+    if not t_str or not isinstance(t_str, str):
+        return None
+    raw = t_str.strip().upper()
+    is_pm = "PM" in raw
+    is_am = "AM" in raw
+    clean = raw.replace("PM", "").replace("AM", "").strip()
+
+    if ":" in clean:
+        parts = clean.split(":")
+    elif "." in clean:
+        parts = clean.split(".")
+    else:
+        parts = [clean, "0"]
+
+    try:
+        h = int(parts[0].strip())
+        m = int(parts[1].strip()) if len(parts) > 1 and parts[1].strip() else 0
+        if is_pm and h < 12:
+            h += 12
+        elif is_am and h == 12:
+            h = 0
+        elif not is_pm and not is_am and 1 <= h < 12:
+            # Ambiguous time entered without AM/PM (e.g. '10:55', '11:00')
+            ref = now_dt or datetime.now(ZoneInfo("Asia/Kolkata"))
+            pm_cand = h + 12
+            cur_mins = ref.hour * 60 + ref.minute
+            pm_mins = pm_cand * 60 + m
+            # If current time is in afternoon/evening and PM candidate is upcoming or within 5 mins ago, prefer PM
+            if pm_mins >= cur_mins - 5:
+                h = pm_cand
+        if 0 <= h <= 23 and 0 <= m <= 59:
+            return (h, m)
+    except Exception:
+        pass
+    return None
+
+
 def calculate_next_run(
     frequency: str,
     run_times: List[str],
@@ -107,24 +151,31 @@ def calculate_next_run(
     """
     Computes the next execution timestamp (ISO format with timezone offset)
     based on frequency, multiple run times, and days of week.
+    Supports both 24-hour ('21:00') and 12-hour ('9:00 PM', '9pm') time formats.
     """
     try:
         tz = ZoneInfo(tz_str)
     except Exception:
-        tz = ZoneInfo("UTC")
+        tz = ZoneInfo("Asia/Kolkata")
 
-    now = from_dt or datetime.now(tz)
+    if from_dt is not None:
+        if from_dt.tzinfo is None:
+            now = from_dt.replace(tzinfo=tz)
+        else:
+            now = from_dt.astimezone(tz)
+    else:
+        now = datetime.now(tz)
+
     frequency = (frequency or "daily").lower()
 
+    if isinstance(run_times, str):
+        run_times = [t.strip() for t in run_times.split(",") if t.strip()]
+
     clean_times: List[Tuple[int, int]] = []
-    for t_str in run_times:
-        try:
-            parts = t_str.strip().split(":")
-            h = int(parts[0])
-            m = int(parts[1]) if len(parts) > 1 else 0
-            clean_times.append((h, m))
-        except Exception:
-            continue
+    for t_str in run_times or []:
+        parsed = _parse_time_string(t_str, now_dt=now)
+        if parsed:
+            clean_times.append(parsed)
 
     if not clean_times:
         clean_times = [(11, 0)]
@@ -149,7 +200,9 @@ def calculate_next_run(
                     continue
             for h, m in clean_times:
                 dt_cand = datetime(day_candidate.year, day_candidate.month, day_candidate.day, h, m, 0, tzinfo=tz)
-                if dt_cand > now:
+                # Allow today's run if in future OR if set to current minute / within 3 minutes for immediate scheduled test
+                is_just_now = (day_offset == 0 and from_dt is None and 0 <= (now - dt_cand).total_seconds() <= 180)
+                if dt_cand > now or is_just_now:
                     candidate_runs.append(dt_cand)
 
     elif frequency == "weekly":
@@ -159,12 +212,13 @@ def calculate_next_run(
             if valid_days and day_candidate.weekday() in valid_days:
                 for h, m in clean_times:
                     dt_cand = datetime(day_candidate.year, day_candidate.month, day_candidate.day, h, m, 0, tzinfo=tz)
-                    if dt_cand > now:
+                    is_just_now = (day_offset == 0 and from_dt is None and 0 <= (now - dt_cand).total_seconds() <= 180)
+                    if dt_cand > now or is_just_now:
                         candidate_runs.append(dt_cand)
 
     elif frequency == "monthly":
-        # Check current month and next month (day 1 or specified day)
-        for month_offset in range(3):
+        # Check current month and next 3 months
+        for month_offset in range(4):
             target_year = now.year + (now.month - 1 + month_offset) // 12
             target_month = ((now.month - 1 + month_offset) % 12) + 1
             for h, m in clean_times:
@@ -257,22 +311,48 @@ class ScraperScheduler:
     def _sync_upcoming_times(self):
         """Ensures all enabled schedules have valid future next_run_at timestamps."""
         schedules = self.db.get_schedules()
-        now_utc = datetime.utcnow().isoformat()
         for s in schedules:
-            if s.get("is_enabled") and (not s.get("next_run_at") or s.get("next_run_at") < now_utc):
+            if not s.get("is_enabled"):
+                continue
+
+            tz_str = s.get("timezone", "Asia/Kolkata")
+            try:
+                tz = ZoneInfo(tz_str)
+            except Exception:
+                tz = ZoneInfo("Asia/Kolkata")
+
+            now_in_tz = datetime.now(tz)
+            next_run_str = s.get("next_run_at")
+            needs_sync = False
+
+            if not next_run_str:
+                needs_sync = True
+            else:
+                try:
+                    dt = datetime.fromisoformat(next_run_str)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=tz)
+                    # If scheduled time is in the past by more than 15 minutes, advance it to upcoming run
+                    if dt < (now_in_tz - timedelta(minutes=15)):
+                        needs_sync = True
+                except Exception:
+                    needs_sync = True
+
+            if needs_sync:
                 next_t = calculate_next_run(
                     s.get("frequency", "daily"),
                     s.get("run_times", ["11:00"]),
                     s.get("days_of_week"),
-                    s.get("timezone", "Asia/Kolkata")
+                    tz_str
                 )
                 s["next_run_at"] = next_t
                 self.db.save_schedule(s)
+                logger.info(f"Synced schedule '{s.get('name')}' next run to {next_t}")
 
     def start(self):
         """Starts the background scheduler ticker thread."""
         with self._lock:
-            if self._is_running:
+            if self._is_running and self._ticker_thread and self._ticker_thread.is_alive():
                 return
             self._is_running = True
             self._ticker_thread = threading.Thread(target=self._ticker_loop, daemon=True, name="ScraperSchedulerTicker")
@@ -285,7 +365,7 @@ class ScraperScheduler:
             self._is_running = False
 
     def _ticker_loop(self):
-        """Background loop executing every 10 seconds to check due schedules."""
+        """Background loop executing every 5 seconds to check due schedules."""
         while self._is_running:
             try:
                 self._check_and_trigger_due_schedules()
@@ -310,29 +390,36 @@ class ScraperScheduler:
             return
 
         schedules = self.db.get_schedules()
-        now_iso = datetime.now(ZoneInfo("UTC")).isoformat()
-
+        valid_schedules = []
         for s in schedules:
-            if not s.get("is_enabled"):
-                continue
+            if s.get("is_enabled") and s.get("next_run_at"):
+                valid_schedules.append(s)
 
+        # Sort so the earliest scheduled execution is handled first
+        valid_schedules.sort(key=lambda x: x.get("next_run_at", ""))
+
+        for s in valid_schedules:
             next_run_str = s.get("next_run_at")
-            if not next_run_str:
-                continue
+            tz_str = s.get("timezone", "Asia/Kolkata")
+            try:
+                tz = ZoneInfo(tz_str)
+            except Exception:
+                tz = ZoneInfo("Asia/Kolkata")
 
             try:
-                # Compare next_run_at with current time
                 next_dt = datetime.fromisoformat(next_run_str)
-                # Convert both to UTC for reliable comparison
-                now_in_tz = datetime.now(next_dt.tzinfo or ZoneInfo("UTC"))
+                if next_dt.tzinfo is None:
+                    next_dt = next_dt.replace(tzinfo=tz)
+
+                now_in_tz = datetime.now(next_dt.tzinfo or tz)
                 if next_dt <= now_in_tz:
-                    logger.info(f"Schedule '{s['name']}' ({s['id']}) is DUE! Triggering execution...")
+                    logger.info(f"Schedule '{s['name']}' ({s['id']}) is DUE ({next_dt} <= {now_in_tz})! Triggering execution...")
                     # Advance next_run_at immediately to prevent duplicate runs
                     subsequent_run = calculate_next_run(
                         s.get("frequency", "daily"),
                         s.get("run_times", ["11:00"]),
                         s.get("days_of_week"),
-                        s.get("timezone", "Asia/Kolkata"),
+                        tz_str,
                         from_dt=now_in_tz + timedelta(minutes=1)
                     )
                     s["next_run_at"] = subsequent_run
@@ -352,7 +439,7 @@ class ScraperScheduler:
                     t.start()
                     break  # Execute one schedule at a time
             except Exception as err:
-                logger.error(f"Error checking schedule {s.get('id')}: {err}")
+                logger.error(f"Error checking schedule {s.get('id')}: {err}", exc_info=True)
 
     def execute_scrape(
         self,
@@ -511,13 +598,32 @@ class ScraperScheduler:
             self.db.save_activity_log(log_record)
 
             # Update Schedule Metrics (if scheduled)
-            if schedule_id and schedule:
-                next_run_iso = calculate_next_run(
-                    schedule.get("frequency", "daily"),
-                    schedule.get("run_times", ["11:00"]),
-                    schedule.get("days_of_week"),
-                    schedule.get("timezone", "Asia/Kolkata")
-                )
+            if schedule_id:
+                latest_sched = self.db.get_schedule(schedule_id) or (schedule or {})
+                tz_str = latest_sched.get("timezone", "Asia/Kolkata")
+                try:
+                    tz = ZoneInfo(tz_str)
+                except Exception:
+                    tz = ZoneInfo("Asia/Kolkata")
+                now_in_tz = datetime.now(tz)
+
+                next_run_iso = latest_sched.get("next_run_at")
+                try:
+                    parsed_next = datetime.fromisoformat(next_run_iso) if next_run_iso else None
+                    if parsed_next and parsed_next.tzinfo is None:
+                        parsed_next = parsed_next.replace(tzinfo=tz)
+                except Exception:
+                    parsed_next = None
+
+                if not parsed_next or parsed_next <= now_in_tz:
+                    next_run_iso = calculate_next_run(
+                        latest_sched.get("frequency", "daily"),
+                        latest_sched.get("run_times", ["11:00"]),
+                        latest_sched.get("days_of_week"),
+                        tz_str,
+                        from_dt=now_in_tz + timedelta(minutes=1)
+                    )
+
                 self.db.update_schedule_run_metrics(
                     schedule_id=schedule_id,
                     last_run_at=started_at,
@@ -769,25 +875,47 @@ class ScraperScheduler:
         sched_id = f"sched_custom_{int(time.time())}_{os.urandom(2).hex()}"
         data["id"] = sched_id
         data["schedule_type"] = "custom"
+        data["is_enabled"] = True
         data["created_at"] = datetime.utcnow().isoformat()
         data["updated_at"] = data["created_at"]
 
+        # Normalize run_times
+        run_times = data.get("run_times")
+        if isinstance(run_times, str):
+            run_times = [t.strip() for t in run_times.split(",") if t.strip()]
+        if not run_times:
+            run_times = ["11:00"]
+        data["run_times"] = run_times
+
+        # Normalize sources & job portals
+        sources = data.get("sources")
+        if not sources or "all" in sources:
+            data["sources"] = ["all"]
+            data["job_portals"] = ["all"]
+
+        tz_str = data.get("timezone", "Asia/Kolkata")
         next_run = calculate_next_run(
             frequency=data.get("frequency", "daily"),
-            run_times=data.get("run_times", ["09:00"]),
+            run_times=data["run_times"],
             days_of_week=data.get("days_of_week"),
-            tz_str=data.get("timezone", "Asia/Kolkata")
+            tz_str=tz_str
         )
         data["next_run_at"] = next_run
 
         self.db.save_schedule(data)
-        self.db.add_audit_log(sched_id, data.get("name", "Custom Schedule"), "created", f"Created custom schedule with frequency {data.get('frequency')}")
+        self.db.add_audit_log(sched_id, data.get("name", "Custom Schedule"), "created", f"Created custom schedule with frequency {data.get('frequency')}. Next run: {next_run}")
         self.db.add_notification(
             title="📅 Schedule Created",
             message=f"Created schedule '{data.get('name')}'. Next run: {next_run[:16].replace('T', ' ')}",
             type="info",
             category="schedule_change"
         )
+        logger.info(f"Custom schedule created: {data.get('name')} ({sched_id}). Next run: {next_run}")
+        self.start()
+        try:
+            self._check_and_trigger_due_schedules()
+        except Exception as _e:
+            logger.warning(f"Immediate due check after schedule creation failed: {_e}")
         return self.db.get_schedule(sched_id)
 
     def update_schedule(self, schedule_id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -801,24 +929,45 @@ class ScraperScheduler:
         merged["id"] = schedule_id
         merged["updated_at"] = datetime.utcnow().isoformat()
 
-        if merged.get("is_enabled"):
+        # Normalize run_times
+        run_times = merged.get("run_times")
+        if isinstance(run_times, str):
+            run_times = [t.strip() for t in run_times.split(",") if t.strip()]
+        if not run_times:
+            run_times = ["11:00"]
+        merged["run_times"] = run_times
+
+        # Normalize sources & job portals
+        sources = merged.get("sources")
+        if not sources or "all" in sources:
+            merged["sources"] = ["all"]
+            merged["job_portals"] = ["all"]
+
+        tz_str = merged.get("timezone", "Asia/Kolkata")
+        if merged.get("is_enabled", True):
+            merged["is_enabled"] = True
             merged["next_run_at"] = calculate_next_run(
                 frequency=merged.get("frequency", "daily"),
-                run_times=merged.get("run_times", ["11:00"]),
+                run_times=merged["run_times"],
                 days_of_week=merged.get("days_of_week"),
-                tz_str=merged.get("timezone", "Asia/Kolkata")
+                tz_str=tz_str
             )
         else:
             merged["next_run_at"] = None
 
         self.db.save_schedule(merged)
-        self.db.add_audit_log(schedule_id, merged.get("name"), "updated", "Schedule configuration updated by user")
+        self.db.add_audit_log(schedule_id, merged.get("name"), "updated", f"Schedule configuration updated. Next run: {merged.get('next_run_at')}")
         self.db.add_notification(
             title="✏️ Schedule Modified",
-            message=f"Schedule '{merged.get('name')}' settings updated.",
+            message=f"Schedule '{merged.get('name')}' settings updated. Next run: {str(merged.get('next_run_at'))[:16].replace('T', ' ')}",
             type="info",
             category="schedule_change"
         )
+        self.start()
+        try:
+            self._check_and_trigger_due_schedules()
+        except Exception as _e:
+            logger.warning(f"Immediate due check after schedule update failed: {_e}")
         return self.db.get_schedule(schedule_id)
 
     def pause_schedule(self, schedule_id: str) -> bool:
@@ -848,6 +997,21 @@ class ScraperScheduler:
             tz_str=sched.get("timezone", "Asia/Kolkata")
         )
         sched["is_enabled"] = True
+        sched["next_run_at"] = next_run
+        self.db.save_schedule(sched)
+        self.db.add_audit_log(schedule_id, sched.get("name"), "resumed", f"Schedule resumed. Next run: {next_run}")
+        self.db.add_notification(
+            title="▶ Schedule Resumed",
+            message=f"Schedule '{sched.get('name')}' resumed. Next run: {next_run[:16].replace('T', ' ')}",
+            type="info",
+            category="schedule_change"
+        )
+        self.start()
+        try:
+            self._check_and_trigger_due_schedules()
+        except Exception as _e:
+            logger.warning(f"Immediate due check after schedule resume failed: {_e}")
+        return True
         sched["next_run_at"] = next_run
         self.db.save_schedule(sched)
         self.db.add_audit_log(schedule_id, sched.get("name"), "resumed", f"Schedule resumed. Next run at {next_run}")

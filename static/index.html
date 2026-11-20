@@ -1633,6 +1633,19 @@
             </button>
           </div>
 
+          <!-- Scheduler Daemon Live Status Banner -->
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-indicator-dot online"></span>
+              <span style="font-weight: 700; color: #166534; font-size: 0.85rem;">Automated Background Scheduler Daemon: ACTIVE & RUNNING</span>
+              <span style="font-size: 0.75rem; color: #15803d; background: #dcfce7; padding: 2px 8px; border-radius: 12px; font-weight: 600;">Ticks Every 5s</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #1e293b;">
+              <span style="color: #64748b;">Server Time (IST):</span>
+              <strong id="scheduler-server-clock" style="font-family: monospace; font-size: 0.95rem; color: #0284c7; background: #e0f2fe; padding: 2px 8px; border-radius: 6px;">--:--:-- --</strong>
+            </div>
+          </div>
+
           <div id="custom-schedules-container" class="custom-schedules-grid">
             <div style="padding: 2rem; text-align: center; color: #64748b; font-size: 0.9rem; grid-column: 1 / -1;">
               Loading custom schedules...
@@ -2388,10 +2401,29 @@
             </select>
           </div>
           <div>
-            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">RUN
-              TIMES (Comma separated 24h, e.g. 08:00, 13:00, 20:00)</label>
-            <input type="text" id="cs-runtimes" value="09:00, 18:00" placeholder="e.g. 08:00, 14:00, 20:00"
-              style="width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin: 0;">RUN TIME (12h or 24h format)</label>
+              <span style="font-size: 0.72rem; color: #64748b;">Clock: <strong id="modal-server-time" style="color: #0284c7;">--:--:--</strong></span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <input type="text" id="cs-runtimes" value="10:00 PM" placeholder="e.g. 10:00 PM, 22:00, 09:30 AM"
+                oninput="updateModalRunPreview()"
+                style="flex: 1; padding: 0.55rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem;">
+              <input type="time" id="cs-time-picker" onchange="syncPickerToText()"
+                style="padding: 0.45rem 0.5rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; cursor: pointer;" title="Native Time Picker">
+            </div>
+            <!-- Quick Preset Buttons for Instant Scheduled Testing -->
+            <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px;">
+              <button type="button" class="btn btn-outline btn-xs" onclick="setCustomSchedulePreset(1)" style="font-size: 0.72rem; padding: 2px 7px; background: #f0fdf4; border-color: #86efac; color: #15803d;" title="Set schedule to run automatically in 1 minute">⚡ In 1 Min</button>
+              <button type="button" class="btn btn-outline btn-xs" onclick="setCustomSchedulePreset(2)" style="font-size: 0.72rem; padding: 2px 7px; background: #f0fdf4; border-color: #86efac; color: #15803d;" title="Set schedule to run automatically in 2 minutes">⚡ In 2 Mins</button>
+              <button type="button" class="btn btn-outline btn-xs" onclick="setCustomSchedulePreset(5)" style="font-size: 0.72rem; padding: 2px 7px; background: #f0fdf4; border-color: #86efac; color: #15803d;" title="Set schedule to run automatically in 5 minutes">⚡ In 5 Mins</button>
+              <button type="button" class="btn btn-outline btn-xs" onclick="setCustomSchedulePreset('11:00 AM')" style="font-size: 0.72rem; padding: 2px 7px;">🌅 11:00 AM</button>
+              <button type="button" class="btn btn-outline btn-xs" onclick="setCustomSchedulePreset('10:00 PM')" style="font-size: 0.72rem; padding: 2px 7px;">🌙 10:00 PM</button>
+            </div>
+            <!-- Live Preview of When this Will Trigger -->
+            <div id="cs-run-preview" style="margin-top: 5px; font-size: 0.78rem; font-weight: 700; color: #0284c7; background: #f0f9ff; border: 1px dashed #bae6fd; padding: 4px 8px; border-radius: 6px;">
+              🎯 Calculating next run...
+            </div>
           </div>
         </div>
 
@@ -2422,11 +2454,11 @@
             </label>
             <label
               style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-              <input type="checkbox" name="cs_day" value="Saturday"> Sat
+              <input type="checkbox" name="cs_day" value="Saturday" checked> Sat
             </label>
             <label
               style="padding: 6px 12px; background: #f1f5f9; border-radius: 6px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-              <input type="checkbox" name="cs_day" value="Sunday"> Sun
+              <input type="checkbox" name="cs_day" value="Sunday" checked> Sun
             </label>
           </div>
         </div>
@@ -2434,29 +2466,52 @@
         <!-- Portals & Source Selection -->
         <div
           style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
-          <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">JOB
-            PORTALS & SOURCES</label>
-          <div class="responsive-grid-sources" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 0.4rem;" id="cs-sources-container">
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
-              <input type="checkbox" name="cs_source" value="linkedin_feed" checked> 👔 LinkedIn HR Recruiter Feed
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: #1e293b; margin: 0;">JOB PORTALS & SOURCES (Scan Every Platform)</label>
+            <button type="button" class="btn btn-outline btn-xs" style="font-size: 0.72rem; padding: 2px 8px;" onclick="toggleAllCustomSources()">Toggle All</button>
+          </div>
+          <div class="responsive-grid-sources" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 195px), 1fr)); gap: 0.45rem;" id="cs-sources-container">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer; font-weight: 700; color: #0284c7; grid-column: 1 / -1; padding-bottom: 4px; border-bottom: 1px dashed #cbd5e1;">
+              <input type="checkbox" name="cs_source_all" id="cs-source-all" value="all" checked onchange="handleSelectAllCustomSources(this)"> 🌐 All Job Platforms (Scan Every Platform)
             </label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
-              <input type="checkbox" name="cs_source" value="internshala" checked> Internshala (India)
+              <input type="checkbox" name="cs_source" value="internshala" checked onchange="updateCustomSourcesState()"> 🇮🇳 Internshala (India)
             </label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
-              <input type="checkbox" name="cs_source" value="remotive" checked> Remotive (Global)
+              <input type="checkbox" name="cs_source" value="linkedin_feed" checked onchange="updateCustomSourcesState()"> 👔 LinkedIn HR Recruiter Feed
             </label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
-              <input type="checkbox" name="cs_source" value="remoteok" checked> RemoteOK (Global)
+              <input type="checkbox" name="cs_source" value="linkedin_india" checked onchange="updateCustomSourcesState()"> 💼 LinkedIn India Direct
             </label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
-              <input type="checkbox" name="cs_source" value="jobicy" checked> Jobicy Remote
+              <input type="checkbox" name="cs_source" value="indeed_india" checked onchange="updateCustomSourcesState()"> 🔍 Indeed India
             </label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
-              <input type="checkbox" name="cs_source" value="weworkremotely" checked> We Work Remotely
+              <input type="checkbox" name="cs_source" value="naukri" checked onchange="updateCustomSourcesState()"> 🏢 Naukri.com India
             </label>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
-              <input type="checkbox" name="cs_source" value="company_careers" checked> Company Careers
+              <input type="checkbox" name="cs_source" value="himalayas" checked onchange="updateCustomSourcesState()"> 🏔️ Himalayas Remote
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="remotive" checked onchange="updateCustomSourcesState()"> 🌍 Remotive Global
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="remoteok" checked onchange="updateCustomSourcesState()"> 💻 RemoteOK Global
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="jobicy" checked onchange="updateCustomSourcesState()"> 🛰️ Jobicy Remote
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="weworkremotely" checked onchange="updateCustomSourcesState()"> 💼 We Work Remotely
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="company_careers" checked onchange="updateCustomSourcesState()"> 🏢 Company Careers
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="arbeitnow" checked onchange="updateCustomSourcesState()"> 🇩🇪 Arbeitnow Global
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+              <input type="checkbox" name="cs_source" value="real_market_seed" checked onchange="updateCustomSourcesState()"> 🎯 Real Market Postings
             </label>
           </div>
         </div>

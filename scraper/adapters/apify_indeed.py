@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 
 from dotenv import load_dotenv
-from apify_client import ApifyClient
+from scraper.adapters.apify_client_compat import ApifyClient
 
 from scraper.adapters.base import BaseAdapter
 from scraper.models import Job

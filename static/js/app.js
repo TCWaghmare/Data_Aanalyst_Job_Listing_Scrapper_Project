@@ -5823,14 +5823,30 @@ function handleReplaceFileSelected(file) {
 
 let schedulerMonitorTimer = null;
 let notificationTimer = null;
+let schedulerClockTimer = null;
 let currentAnalyticsData = null;
 let currentChartGranularity = 'day';
 let logSearchDebounceTimer = null;
+
+function updateSchedulerClocks() {
+  try {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).toUpperCase();
+    const scEl = document.getElementById('scheduler-server-clock');
+    if (scEl) scEl.innerText = `${timeStr} IST`;
+    const mcEl = document.getElementById('modal-server-time');
+    if (mcEl) mcEl.innerText = `${timeStr} IST`;
+  } catch (e) {}
+}
 
 function initSchedulerModule() {
   // Start periodic background polling
   pollLiveMonitor();
   fetchNotifications();
+  updateSchedulerClocks();
+  if (!schedulerClockTimer) {
+    schedulerClockTimer = setInterval(updateSchedulerClocks, 1000);
+  }
   if (!schedulerMonitorTimer) {
     schedulerMonitorTimer = setInterval(pollLiveMonitor, 5000);
   }
@@ -6115,7 +6131,7 @@ async function loadCustomSchedules() {
     container.innerHTML = schedules.map(s => {
       const timesStr = (s.run_times || []).join(', ') || '11:00';
       const daysStr = (s.days_of_week && s.days_of_week.length > 0) ? s.days_of_week.map(d => d.slice(0, 3)).join(', ') : 'Every Day';
-      const sourcesCount = (s.sources || []).includes('all') ? 'All 7 Adapters' : `${s.sources.length} Selected`;
+      const sourcesCount = (s.sources || []).includes('all') ? '🌐 All Platforms (13 Portals)' : `${s.sources.length} Portals Selected`;
 
       return `
         <div class="custom-sched-card">
@@ -6189,8 +6205,11 @@ async function openCustomScheduleModal(scheduleId = null) {
       });
 
       const sources = s.sources || ['all'];
+      const isAll = sources.includes('all') || sources.length === 0;
+      const allCb = document.getElementById('cs-source-all');
+      if (allCb) allCb.checked = isAll;
       document.querySelectorAll('input[name="cs_source"]').forEach(cb => {
-        cb.checked = sources.includes('all') || sources.includes(cb.value);
+        cb.checked = isAll || sources.includes(cb.value);
       });
 
       const workmodes = s.work_modes || ['Remote', 'Hybrid', 'Onsite'];
@@ -6204,6 +6223,7 @@ async function openCustomScheduleModal(scheduleId = null) {
       document.getElementById('cs-update-existing').checked = s.update_existing ?? true;
 
       handleFrequencyChange();
+      updateModalRunPreview();
     } catch (err) {
       alert(`Error loading schedule data: ${err.message}`);
       return;
@@ -6214,10 +6234,26 @@ async function openCustomScheduleModal(scheduleId = null) {
     document.getElementById('cs-name').value = '';
     document.getElementById('cs-timezone').value = 'Asia/Kolkata';
     document.getElementById('cs-frequency').value = 'daily';
-    document.getElementById('cs-runtimes').value = '08:00, 13:00, 20:00';
+    
+    // Automatically set default run time to upcoming 2 minutes from now for effortless testing
+    const defaultTarget = new Date(Date.now() + 2 * 60 * 1000);
+    const defH = defaultTarget.getHours();
+    const defM = defaultTarget.getMinutes();
+    const defAmpm = defH >= 12 ? 'PM' : 'AM';
+    const defDisplayH = defH % 12 || 12;
+    const defPadM = defM.toString().padStart(2, '0');
+    const defaultTimeStr = `${defDisplayH}:${defPadM} ${defAmpm}`;
+    document.getElementById('cs-runtimes').value = defaultTimeStr;
+    const picker = document.getElementById('cs-time-picker');
+    if (picker) {
+      picker.value = `${defH.toString().padStart(2, '0')}:${defPadM}`;
+    }
+
     document.getElementById('cs-keywords').value = 'Data Analyst, Power BI Developer, Python, SQL';
     document.getElementById('cs-locations').value = 'India, Remote';
     document.querySelectorAll('input[name="cs_day"]').forEach(cb => cb.checked = true);
+    const allCb = document.getElementById('cs-source-all');
+    if (allCb) allCb.checked = true;
     document.querySelectorAll('input[name="cs_source"]').forEach(cb => cb.checked = true);
     document.querySelectorAll('input[name="cs_workmode"]').forEach(cb => cb.checked = true);
     document.getElementById('cs-dedup').checked = true;
@@ -6225,9 +6261,160 @@ async function openCustomScheduleModal(scheduleId = null) {
     document.getElementById('cs-resume').checked = true;
     document.getElementById('cs-update-existing').checked = true;
     handleFrequencyChange();
+    updateModalRunPreview();
   }
 
   modal.style.display = 'flex';
+}
+
+function setCustomSchedulePreset(val) {
+  const input = document.getElementById('cs-runtimes');
+  const picker = document.getElementById('cs-time-picker');
+  if (!input) return;
+
+  if (typeof val === 'number') {
+    const target = new Date(Date.now() + val * 60 * 1000);
+    const h = target.getHours();
+    const m = target.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayH = h % 12 || 12;
+    const padM = m.toString().padStart(2, '0');
+    input.value = `${displayH}:${padM} ${ampm}`;
+    if (picker) {
+      picker.value = `${h.toString().padStart(2, '0')}:${padM}`;
+    }
+  } else if (typeof val === 'string') {
+    input.value = val;
+    if (picker) {
+      const parsed = _parseJsTimeString(val);
+      if (parsed) {
+        picker.value = `${parsed.h.toString().padStart(2, '0')}:${parsed.m.toString().padStart(2, '0')}`;
+      }
+    }
+  }
+  updateModalRunPreview();
+}
+
+function syncPickerToText() {
+  const picker = document.getElementById('cs-time-picker');
+  const input = document.getElementById('cs-runtimes');
+  if (!picker || !picker.value || !input) return;
+  const parts = picker.value.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayH = h % 12 || 12;
+  const padM = m.toString().padStart(2, '0');
+  input.value = `${displayH}:${padM} ${ampm}`;
+  updateModalRunPreview();
+}
+
+function _parseJsTimeString(tStr) {
+  if (!tStr) return null;
+  const raw = tStr.trim().toUpperCase();
+  const isPm = raw.includes('PM');
+  const isAm = raw.includes('AM');
+  const clean = raw.replace('PM', '').replace('AM', '').trim();
+  const parts = clean.includes(':') ? clean.split(':') : (clean.includes('.') ? clean.split('.') : [clean, '0']);
+  try {
+    let h = parseInt(parts[0].trim(), 10);
+    const m = parts.length > 1 ? parseInt(parts[1].trim(), 10) : 0;
+    if (isPm && h < 12) h += 12;
+    else if (isAm && h === 12) h = 0;
+    else if (!isPm && !isAm && h >= 1 && h < 12) {
+      const now = new Date();
+      const pmH = h + 12;
+      const curMins = now.getHours() * 60 + now.getMinutes();
+      const pmMins = pmH * 60 + m;
+      if (pmMins >= curMins - 5) {
+        h = pmH;
+      }
+    }
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return { h, m };
+    }
+  } catch (e) {}
+  return null;
+}
+
+function updateModalRunPreview() {
+  const preview = document.getElementById('cs-run-preview');
+  const input = document.getElementById('cs-runtimes');
+  if (!preview || !input) return;
+
+  const raw = input.value.trim();
+  if (!raw) {
+    preview.innerText = '⚠️ Please enter a run time (e.g. 10:00 PM or 22:00)';
+    preview.style.color = '#dc2626';
+    return;
+  }
+
+  const times = raw.split(',').map(t => t.trim()).filter(Boolean);
+  if (times.length === 0) return;
+
+  const parsed = _parseJsTimeString(times[0]);
+  if (!parsed) {
+    preview.innerText = '⚠️ Invalid time format. Use e.g. 10:00 PM, 22:00, or 09:30 AM';
+    preview.style.color = '#dc2626';
+    return;
+  }
+
+  const now = new Date();
+  const target = new Date();
+  target.setHours(parsed.h, parsed.m, 0, 0);
+
+  // If in the past by > 3 minutes, schedule is for tomorrow
+  let isTomorrow = false;
+  if ((now - target) > 180 * 1000) {
+    target.setDate(target.getDate() + 1);
+    isTomorrow = true;
+  }
+
+  const diffMs = target - now;
+  const diffMins = Math.round(diffMs / 60000);
+  const displayH = parsed.h % 12 || 12;
+  const displayM = parsed.m.toString().padStart(2, '0');
+  const displayAmPm = parsed.h >= 12 ? 'PM' : 'AM';
+  const timeFormatted = `${displayH}:${displayM} ${displayAmPm}`;
+
+  let countdownStr = '';
+  if (diffMs <= 30000 && diffMs >= -180000) {
+    countdownStr = 'triggers immediately upon saving!';
+  } else if (diffMins < 60 && !isTomorrow) {
+    countdownStr = `in ~${Math.max(1, diffMins)} min${diffMins > 1 ? 's' : ''}`;
+  } else {
+    const totalMins = Math.max(1, Math.round(diffMs / 60000));
+    const hrs = Math.floor(totalMins / 60);
+    const remM = totalMins % 60;
+    countdownStr = `in ${hrs}h ${remM}m`;
+  }
+
+  preview.style.color = '#0284c7';
+  preview.innerHTML = `🎯 <strong>Next Run:</strong> ${isTomorrow ? 'Tomorrow' : 'Today'} at ${timeFormatted} IST (<span style="color: #16a34a; font-weight: 800;">${countdownStr}</span>)`;
+}
+
+function handleSelectAllCustomSources(el) {
+  const isChecked = el ? el.checked : true;
+  document.querySelectorAll('input[name="cs_source"]').forEach(cb => {
+    cb.checked = isChecked;
+  });
+}
+
+function updateCustomSourcesState() {
+  const allCb = document.getElementById('cs-source-all');
+  if (!allCb) return;
+  const cbs = Array.from(document.querySelectorAll('input[name="cs_source"]'));
+  const allChecked = cbs.length > 0 && cbs.every(cb => cb.checked);
+  allCb.checked = allChecked;
+}
+
+function toggleAllCustomSources() {
+  const allCb = document.getElementById('cs-source-all');
+  const newState = allCb ? !allCb.checked : true;
+  if (allCb) allCb.checked = newState;
+  document.querySelectorAll('input[name="cs_source"]').forEach(cb => {
+    cb.checked = newState;
+  });
 }
 
 function handleFrequencyChange() {
@@ -6253,7 +6440,15 @@ async function saveCustomSchedule() {
   const keywords = keywordsRaw.split(',').map(k => k.trim()).filter(Boolean);
 
   const days = Array.from(document.querySelectorAll('input[name="cs_day"]:checked')).map(cb => cb.value);
-  const sources = Array.from(document.querySelectorAll('input[name="cs_source"]:checked')).map(cb => cb.value);
+  
+  const allSourcesChecked = document.getElementById('cs-source-all')?.checked;
+  const checkedSources = Array.from(document.querySelectorAll('input[name="cs_source"]:checked')).map(cb => cb.value);
+  const totalSourceCbs = document.querySelectorAll('input[name="cs_source"]').length;
+  // If "All Platforms" is selected or all checkboxes are checked, send ['all'] so backend scrapes all portals
+  const sources = (allSourcesChecked || checkedSources.length === totalSourceCbs || checkedSources.length === 0)
+    ? ['all']
+    : checkedSources;
+
   const workmodes = Array.from(document.querySelectorAll('input[name="cs_workmode"]:checked')).map(cb => cb.value);
 
   const payload = {
@@ -6262,10 +6457,12 @@ async function saveCustomSchedule() {
     frequency: document.getElementById('cs-frequency')?.value || 'daily',
     run_times: runTimes.length > 0 ? runTimes : ['11:00'],
     days_of_week: days,
-    sources: sources.length > 0 ? sources : ['all'],
+    sources: sources,
+    job_portals: sources.includes('all') ? ['all'] : sources,
     keywords: keywords,
     location_filters: document.getElementById('cs-locations')?.value || '',
     work_modes: workmodes,
+    is_enabled: true,
     deduplication: document.getElementById('cs-dedup')?.checked ?? true,
     ats_scoring: document.getElementById('cs-ats')?.checked ?? true,
     resume_matching: document.getElementById('cs-resume')?.checked ?? true,

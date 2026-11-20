@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 
 from dotenv import load_dotenv
 try:
-    from apify_client import ApifyClient
+    from scraper.adapters.apify_client_compat import ApifyClient
 except ImportError:
     ApifyClient = None
 
