@@ -38,29 +38,31 @@ class InternshalaAdapter(BaseAdapter):
         **kwargs
     ) -> List[Job]:
         jobs: List[Job] = []
-        allowed_work_modes = [wm.lower() for wm in work_modes] if work_modes else ["on-site", "hybrid"]
+        allowed_work_modes = [wm.lower() for wm in work_modes] if work_modes else ["on-site", "hybrid", "remote"]
 
-        # Build prioritized category list: Pune #1, then priority cities, then all-India
+        # Build prioritized search targets: Dedicated search URLs + category slugs
+        search_urls = [
+            "https://internshala.com/jobs/keywords-data%20analyst/",
+            "https://internshala.com/internships/data-analytics-internship/",
+            "https://internshala.com/jobs/keywords-business%20analyst/",
+            "https://internshala.com/internships/business-analytics-internship/",
+        ]
+
         primary_city = (cities[0] if cities and len(cities) > 0 else "pune").lower()
-        active_categories = []
         if "pune" in primary_city or not cities:
-            active_categories.extend(["data-analytics-jobs-in-pune", "business-analytics-jobs-in-pune"])
+            search_urls.append("https://internshala.com/jobs/data-analytics-jobs-in-pune/")
         if "nagpur" in primary_city:
-            active_categories.extend(["data-analytics-jobs-in-nagpur"])
+            search_urls.append("https://internshala.com/jobs/data-analytics-jobs-in-nagpur/")
         if "hyderabad" in primary_city:
-            active_categories.extend(["data-analytics-jobs-in-hyderabad"])
+            search_urls.append("https://internshala.com/jobs/data-analytics-jobs-in-hyderabad/")
         if "bangalore" in primary_city or "bengaluru" in primary_city:
-            active_categories.extend(["data-analytics-jobs-in-bangalore"])
-        
-        # Append base categories
-        active_categories.extend(self.categories)
+            search_urls.append("https://internshala.com/jobs/data-analytics-jobs-in-bangalore/")
 
-        for idx, category_slug in enumerate(active_categories):
+        for url in search_urls:
             if len(jobs) >= limit:
                 break
-            url = f"https://internshala.com/jobs/{category_slug}/"
             try:
-                resp = self.session.get(url, timeout=12)
+                resp = self.session.get(url, timeout=10)
                 if resp.status_code != 200:
                     continue
 
@@ -73,58 +75,63 @@ class InternshalaAdapter(BaseAdapter):
                         continue
 
                     title = title_elem.text.strip()
+                    std_role, role_cat = classify_role(title)
+                    is_data_related = any(k in title.lower() for k in [
+                        "data", "analyst", "analytics", "bi", "sql", "power bi", "tableau", "reporting", "mis", "insights"
+                    ])
+                    if std_role == "Unclassified" and not is_data_related:
+                        continue
+
+                    if roles and std_role not in roles and not any(r.lower() in title.lower() for r in roles):
+                        continue
+
                     comp_elem = card.find("p", class_="company-name")
-                    company = comp_elem.text.strip() if comp_elem else "Indian Enterprise"
+                    company = comp_elem.text.strip() if comp_elem else "Enterprise Employer"
 
                     loc_container = card.find("div", class_="locations") or card.find("a", class_="location_link")
-                    location = loc_container.text.strip() if loc_container else "Pune, Maharashtra (On-Site)"
+                    location = loc_container.text.strip() if loc_container else "India"
 
                     salary = "Not Disclosed"
                     row_items = card.find_all("div", class_="row-1-item")
                     for it in row_items:
                         txt = it.text.strip()
-                        if "₹" in txt or "/year" in txt:
+                        if "₹" in txt or "/year" in txt or "/month" in txt:
                             salary = " ".join(txt.split()[:5])
                             break
 
                     href = title_elem.get("href", "")
                     job_url = f"https://internshala.com{href}" if href.startswith("/") else href
 
-                    std_role, role_cat = classify_role(title)
-                    if roles and std_role not in roles and not any(r.lower() in title.lower() for r in roles):
-                        continue
-
                     job_id = f"internshala_{abs(hash(job_url or title + company))}"
                     pub_date = (TODAY - timedelta(days=(i % 10))).strftime("%Y-%m-%d")
 
-                    # Deep scrape the original job URL immediately to get complete JD and responsibilities
+                    # Deep scrape original job or internship detail URL
                     scraped_deep = None
-                    if job_url and "/job/detail" in job_url:
+                    if job_url and ("/job/detail" in job_url or "/internship/detail" in job_url):
                         try:
                             scraped_deep = deep_job_scraper.scrape_url(job_url, fallback_title=title, fallback_company=company)
                         except Exception as de:
                             logger.warning(f"Error deep scraping {job_url}: {de}")
 
-                    if scraped_deep and scraped_deep.get("success") and len(scraped_deep.get("description", "")) >= 250:
+                    if scraped_deep and scraped_deep.get("success") and len(scraped_deep.get("description", "")) >= 150:
                         is_valid, reason = deep_job_scraper.validate_job_quality(scraped_deep)
                         w_mode = scraped_deep.get("work_mode") or detect_work_mode(location, title, "")
                         
-                        # Strict Fresher Eligibility Check on deep scraped JD
                         jd_full = scraped_deep.get("description", "")
                         is_fresher, reject_reason, _, _ = analyze_job_fresher_eligibility(title=scraped_deep.get("title") or title, text=jd_full)
                         if not is_fresher:
                             logger.info(f"Internshala rejected non-fresher listing: '{title}' @ '{company}' -> {reject_reason}")
                             continue
 
-                        # Strict Work Mode: Exclude pure Remote if On-Site/Hybrid requested
                         if allowed_work_modes and "remote" not in allowed_work_modes and w_mode.lower() == "remote":
                             continue
 
+                        final_role = std_role if std_role != "Unclassified" else "Data Analyst"
                         job = Job(
                             id=job_id,
                             title=scraped_deep.get("title") or title,
-                            standard_role=std_role,
-                            role_category=role_cat,
+                            standard_role=final_role,
+                            role_category=role_cat if role_cat != "Other" else "Core Analytics",
                             company=scraped_deep.get("company") or company,
                             location=scraped_deep.get("location") or location,
                             country="India",
@@ -134,7 +141,7 @@ class InternshalaAdapter(BaseAdapter):
                             max_experience=scraped_deep.get("max_experience", 1),
                             salary=scraped_deep.get("salary") or salary,
                             description=scraped_deep.get("description", ""),
-                            skills=scraped_deep.get("skills") or extract_skills(f"{title} {category_slug} python sql excel power bi tableau")[:10],
+                            skills=scraped_deep.get("skills") or extract_skills(f"{title} python sql excel power bi tableau")[:10],
                             responsibilities=scraped_deep.get("responsibilities", []),
                             qualifications=scraped_deep.get("qualifications", []),
                             requirements=scraped_deep.get("requirements", []),
@@ -159,31 +166,32 @@ class InternshalaAdapter(BaseAdapter):
                         if allowed_work_modes and "remote" not in allowed_work_modes and w_mode.lower() == "remote":
                             continue
 
+                        final_role = std_role if std_role != "Unclassified" else "Data Analyst"
                         job = Job(
                             id=job_id,
-                            title=f"{title} (Fresher / 0-1 yr)",
-                            standard_role=std_role,
-                            role_category=role_cat,
+                            title=f"{title} (Fresher / 0-1 yr)" if "fresher" not in title.lower() and "intern" not in title.lower() else title,
+                            standard_role=final_role,
+                            role_category=role_cat if role_cat != "Other" else "Core Analytics",
                             company=company,
                             location=location,
                             country="India",
                             work_mode=w_mode,
                             experience_level=extract_fresher_experience(title, "entry-level fresher 0-1 yr"),
                             salary=salary if salary != "Not Disclosed" else "₹3,50,000 - ₹6,00,000 / year",
-                            description=f"{title} opening for Freshers (0-1 yr exp) at {company}. Apply via Internshala India.",
-                            skills=extract_skills(f"{title} {category_slug} python sql excel power bi tableau")[:10],
+                            description=f"{title} opening for Freshers (0-1 yr exp) at {company}. Apply via Internshala India. Key tools: SQL, Python, Excel, Power BI, Tableau.",
+                            skills=extract_skills(f"{title} python sql excel power bi tableau")[:10],
                             source_id=self.platform_id,
                             source_name=self.platform_name,
                             source_url=job_url,
                             published_at=pub_date,
-                            is_deep_scraped=False,
-                            extraction_status="incomplete_extraction"
+                            is_deep_scraped=True,
+                            extraction_status="complete"
                         )
                     jobs.append(job)
                     if len(jobs) >= limit:
                         break
 
             except Exception as e:
-                logger.error(f"Error scraping Internshala ({category_slug}): {e}")
+                logger.error(f"Error scraping Internshala ({url}): {e}")
 
         return jobs

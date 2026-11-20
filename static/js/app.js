@@ -2949,33 +2949,75 @@ async function triggerLiveScraper() {
   const btn = document.getElementById('run-scraper-btn');
   const statusEl = document.getElementById('scraper-status-msg');
   const limitInput = document.getElementById('scraper-limit-input');
-  const limit = parseInt(limitInput.value) || 25;
+  const limit = parseInt(limitInput?.value || '25', 10) || 25;
 
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Scraping fresher portals...';
-  statusEl.style.display = 'block';
-  statusEl.innerHTML = 'Connecting to Internshala, Remotive (India remote), RemoteOK, Jobicy, and employer career boards...';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"></span> Starting Fresher Scraper...';
+  }
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = 'Connecting to connected platforms (Internshala, Himalayas, Remotive, RemoteOK, Jobicy, WeWorkRemotely, Company Boards, LinkedIn, Indeed, Naukri)...';
+  }
 
   try {
     const res = await fetch('/api/scraper/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit_per_source: limit })
+      body: JSON.stringify({
+        limit_per_source: limit,
+        work_modes: ["On-Site", "Hybrid", "Remote"],
+        roles: ["Data Analyst", "Junior Data Analyst", "Business Analyst", "Power BI Developer", "Python"],
+        cities: ["Pune", "Nagpur", "Hyderabad", "Aurangabad", "Bengaluru", "Mumbai", "Delhi", "Pan-India"]
+      })
     });
-    await res.json();
+    const initData = await res.json();
 
-    setTimeout(async () => {
-      await loadStats();
-      await loadJobs();
-      btn.disabled = false;
-      btn.innerHTML = '⚡ Run Scraper Again';
-      statusEl.innerHTML = '<span style="color: var(--color-success); font-weight: 700;">✓ Live scrape complete! Fresher listings refreshed.</span>';
-    }, 6000);
+    if (initData.status === 'already_running') {
+      if (statusEl) statusEl.innerHTML = '⚠️ A scrape run is already in progress. Monitoring live progress...';
+    }
+
+    // Live polling until completion
+    const pollInterval = setInterval(async () => {
+      try {
+        const monRes = await fetch('/api/scraper/monitor/live');
+        const mon = await monRes.json();
+        const curPortal = mon.current_portal_being_scraped || 'All Portals';
+        const scanned = mon.jobs_found_so_far || 0;
+        const added = mon.jobs_added_so_far || 0;
+        const pct = mon.progress_percent || 10;
+
+        if (mon.status === 'running') {
+          if (btn) btn.innerHTML = `<span class="spinner" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"></span> Scraping ${escapeHtml(curPortal)}... (${pct}%)`;
+          if (statusEl) {
+            statusEl.innerHTML = `⚡ <strong>Scraping Portal:</strong> ${escapeHtml(curPortal)} (${pct}%)<br><span style="color:#0284c7;font-weight:600;">Discovered: ${scanned} jobs | Added to system: ${added} fresh listings</span>`;
+          }
+        } else {
+          clearInterval(pollInterval);
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '⚡ Start Live Scrape';
+          }
+          if (statusEl) {
+            statusEl.innerHTML = `<span style="color: #10b981; font-weight: 700;">✅ Live scrape complete! Scanned ${scanned} postings — ${added} new fresher job listings added to the system.</span>`;
+          }
+          await loadStats();
+          await loadJobs();
+          if (typeof loadActivityLogs === 'function') loadActivityLogs();
+        }
+      } catch (pollErr) {
+        // Continue polling
+      }
+    }, 1500);
 
   } catch (err) {
-    btn.disabled = false;
-    btn.innerHTML = '⚡ Run Scraper';
-    statusEl.innerHTML = `<span style="color: var(--color-error);">Error triggering scrape: ${err.message}</span>`;
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '⚡ Start Live Scrape';
+    }
+    if (statusEl) {
+      statusEl.innerHTML = `<span style="color: var(--color-error);">Error triggering scrape: ${escapeHtml(err.message)}</span>`;
+    }
   }
 }
 
@@ -5924,6 +5966,9 @@ async function triggerManualScrapeWithControls() {
   const payload = {
     adapter_ids: selectedAdapters,
     schedule_name: "Manual On-Demand Run",
+    roles: ["Data Analyst", "Junior Data Analyst", "Business Analyst", "Power BI Developer", "Python"],
+    work_modes: ["On-Site", "Hybrid", "Remote"],
+    cities: ["Pune", "Nagpur", "Hyderabad", "Aurangabad", "Bengaluru", "Mumbai", "Delhi", "Pan-India"],
     limit_per_source: parseInt(document.getElementById('ctrl-max-jobs')?.value || '50', 10),
     max_jobs_per_run: parseInt(document.getElementById('ctrl-max-jobs')?.value || '50', 10),
     retry_count: parseInt(document.getElementById('ctrl-retry-count')?.value || '2', 10),
@@ -6402,6 +6447,16 @@ async function pollLiveMonitor() {
     if (stageText) {
       stageText.innerText = mon.current_processing_stage || 'System Ready. Waiting for scheduled run or manual trigger.';
     }
+
+    // Detect completion transition to auto-refresh listings & metrics
+    if (window._lastScraperStatus === 'running' && mon.status !== 'running') {
+      if (typeof loadStats === 'function') loadStats();
+      if (typeof loadJobs === 'function') loadJobs();
+      if (typeof loadActivityLogs === 'function') loadActivityLogs();
+      if (typeof loadUpcomingTasks === 'function') loadUpcomingTasks();
+      if (typeof loadRecommendedJobs === 'function') loadRecommendedJobs();
+    }
+    window._lastScraperStatus = mon.status;
 
     // Dynamic interval adjustment
     if (mon.status === 'running') {

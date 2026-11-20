@@ -44,7 +44,7 @@ DEFAULT_SCHEDULES = [
         "job_portals": ["all"],
         "keywords": ["Data Analyst", "Junior Data Analyst", "Business Analyst", "Power BI Developer", "Python"],
         "location_filters": "India, Remote",
-        "work_modes": ["Remote", "Hybrid", "Onsite"],
+        "work_modes": ["Remote", "Hybrid", "On-Site"],
         "scrape_new_only": True,
         "rescrape_existing": False,
         "refresh_expired": False,
@@ -54,7 +54,7 @@ DEFAULT_SCHEDULES = [
         "skill_matching": True,
         "resume_matching": True,
         "max_jobs_per_run": 50,
-        "portal_priority": ["linkedin_feed", "internshala", "real_market_seed", "remotive", "remoteok", "jobicy", "weworkremotely", "company_careers"],
+        "portal_priority": ["internshala", "himalayas", "remotive", "remoteok", "jobicy", "weworkremotely", "company_careers", "arbeitnow", "linkedin_feed", "linkedin_india", "indeed_india", "naukri", "real_market_seed"],
         "retry_count": 2,
         "request_delay": 0.5,
         "auto_stop_on_error": False,
@@ -73,7 +73,7 @@ DEFAULT_SCHEDULES = [
         "job_portals": ["all"],
         "keywords": ["Data Analyst", "Junior Data Analyst", "Business Analyst", "Power BI Developer", "Python"],
         "location_filters": "India, Remote",
-        "work_modes": ["Remote", "Hybrid", "Onsite"],
+        "work_modes": ["Remote", "Hybrid", "On-Site"],
         "scrape_new_only": True,
         "rescrape_existing": False,
         "refresh_expired": False,
@@ -83,7 +83,7 @@ DEFAULT_SCHEDULES = [
         "skill_matching": True,
         "resume_matching": True,
         "max_jobs_per_run": 50,
-        "portal_priority": ["linkedin_feed", "internshala", "real_market_seed", "remotive", "remoteok", "jobicy", "weworkremotely", "company_careers"],
+        "portal_priority": ["internshala", "himalayas", "remotive", "remoteok", "jobicy", "weworkremotely", "company_careers", "arbeitnow", "linkedin_feed", "linkedin_india", "indeed_india", "naukri", "real_market_seed"],
         "retry_count": 2,
         "request_delay": 0.5,
         "auto_stop_on_error": False,
@@ -413,8 +413,10 @@ class ScraperScheduler:
                 adapter_ids = raw_sources
 
             # Roles and Keywords
-            roles = params.get("keywords") or params.get("roles") or None
-            limit = int(params.get("max_jobs_per_run") or 50)
+            roles = params.get("keywords") or params.get("roles") or [
+                "Data Analyst", "Junior Data Analyst", "Business Analyst", "Power BI Developer", "Tableau Developer", "SQL Analyst"
+            ]
+            limit = int(params.get("max_jobs_per_run") or params.get("limit_per_source") or 30)
 
             # Smart Controls configuration
             smart_controls = {
@@ -423,7 +425,9 @@ class ScraperScheduler:
                 "refresh_expired": params.get("refresh_expired", False),
                 "update_existing": params.get("update_existing", True),
                 "deduplication": params.get("deduplication", True),
-                "portal_priority": params.get("portal_priority") or [],
+                "portal_priority": params.get("portal_priority") or [
+                    "internshala", "himalayas", "remotive", "remoteok", "jobicy", "weworkremotely", "company_careers", "arbeitnow", "linkedin_feed", "linkedin_india", "indeed_india", "naukri", "real_market_seed"
+                ],
                 "retry_count": int(params.get("retry_count", 2)),
                 "request_delay": float(params.get("request_delay", 0.5)),
                 "auto_stop_on_error": bool(params.get("auto_stop_on_error", False)),
@@ -440,8 +444,8 @@ class ScraperScheduler:
                 rem = info.get("adapters_remaining", 0)
                 self.live_monitor["estimated_remaining_tasks"] = f"{rem} portal{'s' if rem != 1 else ''} remaining"
 
-            cities = params.get("cities") or ["Pune", "Nagpur", "Hyderabad", "Aurangabad", "Bengaluru"]
-            work_modes = params.get("work_modes") or ["On-Site", "Hybrid"]
+            cities = params.get("cities") or ["Pune", "Nagpur", "Hyderabad", "Aurangabad", "Bengaluru", "Mumbai", "Delhi", "Pan-India"]
+            work_modes = params.get("work_modes") or ["On-Site", "Hybrid", "Remote"]
 
             # Execute the core scrape engine
             run_result: ScrapeRun = self.engine.run(
@@ -545,7 +549,16 @@ class ScraperScheduler:
                 "errors": errors_list
             })
 
-            return {"success": True, "run_id": run_id, "status": final_status, "log": log_record}
+            return {
+                "success": True,
+                "run_id": run_id,
+                "status": final_status,
+                "jobs_scanned": jobs_scanned,
+                "jobs_added": jobs_added,
+                "duplicates_skipped": duplicates_skipped,
+                "errors_count": len(errors_list),
+                "log": log_record
+            }
 
         except Exception as ex:
             duration = round(time.time() - start_mono, 2)

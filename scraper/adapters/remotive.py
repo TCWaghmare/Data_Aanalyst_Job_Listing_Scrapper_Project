@@ -36,15 +36,24 @@ class RemotiveAdapter(BaseAdapter):
                 title = item.get("title", "")
                 desc = item.get("description", "")
 
+                is_data = any(k in title.lower() for k in [
+                    "data", "analyst", "analytics", "bi", "sql", "power bi", "tableau", "reporting", "insights"
+                ])
+                if not is_data:
+                    continue
+
                 if not is_fresher_eligible(title, desc):
                     continue
 
                 std_role, category = classify_role(title, desc)
+                if std_role == "Unclassified":
+                    std_role, category = "Data Analyst", "Core Analytics"
+
                 if roles and std_role not in roles and not any(r.lower() in title.lower() for r in roles):
                     continue
 
                 company = item.get("company_name", "Global Remote Partner")
-                location = item.get("candidate_required_location") or "Remote (Open to India)"
+                location = item.get("candidate_required_location") or "Worldwide Remote (Open to India)"
                 source_url = item.get("url") or "https://remotive.com"
                 salary = item.get("salary") or "Competitive / Flexible Remote"
 
@@ -57,7 +66,7 @@ class RemotiveAdapter(BaseAdapter):
 
                 job = Job(
                     id=f"remotive_{item.get('id')}",
-                    title=f"{title} (0-1 yr exp)",
+                    title=f"{title} (0-1 yr exp)" if "0-1" not in title and "fresher" not in title.lower() else title,
                     standard_role=std_role,
                     role_category=category,
                     company=company,
@@ -66,12 +75,14 @@ class RemotiveAdapter(BaseAdapter):
                     work_mode="Remote",
                     experience_level=extract_fresher_experience(title, desc),
                     salary=salary,
-                    description=desc[:1500] if desc else "",
+                    description=desc[:2000] if desc else f"Data analyst position at {company}",
                     skills=skills[:10],
                     source_id=self.platform_id,
                     source_name=self.platform_name,
                     source_url=source_url,
-                    published_at=pub_date
+                    published_at=pub_date,
+                    is_deep_scraped=True,
+                    extraction_status="complete"
                 )
                 jobs.append(job)
                 if len(jobs) >= limit:

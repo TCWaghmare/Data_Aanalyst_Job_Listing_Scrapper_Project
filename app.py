@@ -106,9 +106,9 @@ async def add_no_cache_headers(request, call_next):
 
 class ScrapeRequest(BaseModel):
     adapter_ids: Optional[List[str]] = None
-    roles: Optional[List[str]] = None
-    cities: Optional[List[str]] = ["Pune", "Nagpur", "Hyderabad", "Aurangabad", "Bengaluru"]
-    work_modes: Optional[List[str]] = ["On-Site", "Hybrid"]
+    roles: Optional[List[str]] = ["Data Analyst", "Junior Data Analyst", "Business Analyst", "Power BI Developer", "Python"]
+    cities: Optional[List[str]] = ["Pune", "Nagpur", "Hyderabad", "Aurangabad", "Bengaluru", "Mumbai", "Delhi", "Pan-India"]
+    work_modes: Optional[List[str]] = ["On-Site", "Hybrid", "Remote"]
     pune_first: bool = True
     limit_per_source: int = 30
     schedule_name: Optional[str] = "Manual Scrape"
@@ -569,6 +569,9 @@ def trigger_scrape(req: ScrapeRequest, background_tasks: BackgroundTasks):
     custom_params = req.model_dump()
     custom_params["sources"] = req.adapter_ids or ["all"]
     custom_params["schedule_name"] = req.schedule_name or "Manual On-Demand Run"
+    custom_params["work_modes"] = req.work_modes or ["On-Site", "Hybrid", "Remote"]
+    custom_params["roles"] = req.roles or ["Data Analyst", "Junior Data Analyst", "Business Analyst", "Power BI Developer", "Python"]
+    custom_params["keywords"] = custom_params["roles"]
 
     background_tasks.add_task(
         scraper_scheduler.execute_scrape,

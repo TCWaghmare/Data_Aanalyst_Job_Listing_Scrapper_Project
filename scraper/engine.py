@@ -15,6 +15,7 @@ from scraper.adapters.remoteok import RemoteOKAdapter
 from scraper.adapters.remotive import RemotiveAdapter
 from scraper.adapters.jobicy import JobicyAdapter
 from scraper.adapters.arbeitnow import ArbeitnowAdapter
+from scraper.adapters.himalayas import HimalayasAdapter
 from scraper.adapters.weworkremotely import WeWorkRemotelyAdapter
 from scraper.adapters.company_boards import CompanyBoardsAdapter
 from scraper.adapters.internshala import InternshalaAdapter
@@ -24,7 +25,7 @@ from scraper.adapters.apify_linkedin import ApifyLinkedInAdapter
 from scraper.adapters.apify_indeed import ApifyIndeedAdapter
 from scraper.adapters.apify_naukri import ApifyNaukriAdapter
 from scraper.deep_scraper import deep_job_scraper
-from scraper.taxonomy import analyze_job_fresher_eligibility
+from scraper.taxonomy import analyze_job_fresher_eligibility, CORE_ANALYTICS_ROLES
 from scraper.database import Database
 from scraper.models import Job, ScrapeRun
 from scraper.registry import PlatformRegistry
@@ -42,22 +43,26 @@ class ScraperEngine:
         apify_li = ApifyLinkedInAdapter()
         apify_indeed = ApifyIndeedAdapter()
         apify_naukri = ApifyNaukriAdapter()
+        arbeitnow = ArbeitnowAdapter()
 
         self.adapters: Dict[str, BaseAdapter] = {
-            "real_market_seed": RealMarketSeedAdapter(),
+            "internshala": InternshalaAdapter(),
+            "himalayas": HimalayasAdapter(),
+            "remotive": RemotiveAdapter(),
+            "remoteok": RemoteOKAdapter(),
+            "jobicy": JobicyAdapter(),
+            "weworkremotely": WeWorkRemotelyAdapter(),
+            "company_careers": CompanyBoardsAdapter(),
+            "arbeitnow": arbeitnow,
+            "stepstone_germany": arbeitnow,
+            "linkedin_feed": LinkedInRecruiterFeedAdapter(),
             "linkedin_india": apify_li,
             "apify_linkedin": apify_li,
             "indeed_india": apify_indeed,
             "apify_indeed": apify_indeed,
             "naukri": apify_naukri,
             "apify_naukri": apify_naukri,
-            "linkedin_feed": LinkedInRecruiterFeedAdapter(),
-            "internshala": InternshalaAdapter(),
-            "remotive": RemotiveAdapter(),
-            "remoteok": RemoteOKAdapter(),
-            "jobicy": JobicyAdapter(),
-            "weworkremotely": WeWorkRemotelyAdapter(),
-            "company_careers": CompanyBoardsAdapter(),
+            "real_market_seed": RealMarketSeedAdapter(),
         }
 
     def run_adapter(
@@ -129,8 +134,8 @@ class ScraperEngine:
         controls = smart_controls or {}
 
         # Location sequence priority & work mode constraints
-        effective_cities = cities or controls.get("cities") or ["Pune", "Nagpur", "Hyderabad", "Aurangabad", "Bengaluru"]
-        effective_work_modes = work_modes or controls.get("work_modes") or ["On-Site", "Hybrid"]
+        effective_cities = cities or controls.get("cities") or ["Pune", "Nagpur", "Hyderabad", "Aurangabad", "Bengaluru", "Mumbai", "Delhi", "Pan-India"]
+        effective_work_modes = work_modes or controls.get("work_modes") or ["On-Site", "Hybrid", "Remote"]
 
         retry_count = int(controls.get("retry_count", 2))
         request_delay = float(controls.get("request_delay", 0.5))
@@ -149,6 +154,15 @@ class ScraperEngine:
                     target_adapters.append(self.adapters[aid])
         else:
             target_adapters = list(self.adapters.values())
+
+        # Deduplicate adapter instances while strictly preserving priority order
+        unique_adapters = []
+        seen_instances = set()
+        for a in target_adapters:
+            if a not in seen_instances:
+                seen_instances.add(a)
+                unique_adapters.append(a)
+        target_adapters = unique_adapters
 
         # Sort adapters by portal priority if specified
         if portal_priority:
@@ -214,7 +228,17 @@ class ScraperEngine:
                     request_delay=request_delay
                 )
 
-                allowed_modes_lower = [m.lower() for m in effective_work_modes] if effective_work_modes else ["on-site", "hybrid"]
+                allowed_modes_lower = [m.lower() for m in effective_work_modes] if effective_work_modes else ["on-site", "hybrid", "remote"]
+                normalized_allowed = set()
+                for am in allowed_modes_lower:
+                    clean_m = am.replace("-", "").replace(" ", "").lower()
+                    normalized_allowed.add(clean_m)
+                    if "remote" in clean_m:
+                        normalized_allowed.add("remote")
+                    if "onsite" in clean_m or "on-site" in am:
+                        normalized_allowed.add("onsite")
+                    if "hybrid" in clean_m:
+                        normalized_allowed.add("hybrid")
 
                 for job in scraped_jobs:
                     total_scanned += 1
@@ -229,19 +253,29 @@ class ScraperEngine:
                         logger.info(f"Engine gatekeeper filtered out non-fresher job '{job.title}' @ '{job.company}' -> {reject_reason}")
                         continue
 
-                    # 2. Strictly enforce On-Site / Hybrid work mode (skip Remote / WFH)
-                    if allowed_modes_lower and "remote" not in allowed_modes_lower:
-                        if (job.work_mode or "").lower() == "remote":
-                            logger.info(f"Engine filtered out Remote job '{job.title}' at '{job.company}' - strictly On-Site & Hybrid.")
-                            continue
+                    # 2. Enforce Work Mode filter (only filter out if specific work mode is explicitly excluded)
+                    job_mode_clean = (job.work_mode or "remote").lower().replace("-", "").replace(" ", "")
+                    if normalized_allowed and "remote" not in normalized_allowed and job_mode_clean == "remote":
+                        logger.info(f"Engine filtered out Remote job '{job.title}' at '{job.company}'")
+                        continue
+                    if normalized_allowed and "onsite" not in normalized_allowed and job_mode_clean == "onsite":
+                        logger.info(f"Engine filtered out On-Site job '{job.title}' at '{job.company}'")
+                        continue
+                    if normalized_allowed and "hybrid" not in normalized_allowed and job_mode_clean == "hybrid":
+                        logger.info(f"Engine filtered out Hybrid job '{job.title}' at '{job.company}'")
+                        continue
 
                     adapter_scanned += 1
 
                     # Data Validation & Deep Scraping Layer
-                    if not job.is_deep_scraped and job.source_url and not job.source_url.startswith("#"):
+                    # If adapter already delivered rich JD (>= 250 chars), skip redundant HTTP deep scraping!
+                    if job.description and len(job.description.strip()) >= 250:
+                        job.is_deep_scraped = True
+                        job.extraction_status = "complete"
+                    elif not job.is_deep_scraped and job.source_url and not job.source_url.startswith("#"):
                         try:
                             deep_res = deep_job_scraper.scrape_url(job.source_url, fallback_title=job.title, fallback_company=job.company)
-                            if deep_res.get("success") and len(deep_res.get("description", "")) >= 250:
+                            if deep_res.get("success") and len(deep_res.get("description", "")) >= 150:
                                 is_valid, reason = deep_job_scraper.validate_job_quality(deep_res)
                                 new_desc = deep_res.get("description") or job.description
                                 new_title = deep_res.get("title") or job.title

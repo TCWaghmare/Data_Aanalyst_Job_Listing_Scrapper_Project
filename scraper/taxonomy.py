@@ -42,7 +42,8 @@ ALL_ROLES = CORE_ANALYTICS_ROLES + RELATED_ROLES
 
 ROLE_PATTERNS = [
     # Core roles
-    ("Junior Data Analyst", re.compile(r"\b(jr\.?|junior|trainee|entry[- ]level|associate|intern|fresher)\s+(data\s+analyst|analytics\s+analyst)\b", re.I)),
+    ("Junior Data Analyst", re.compile(r"\b(jr\.?|junior|trainee|entry[- ]level|associate|intern|fresher)\s+(data\s+analyst|data\s+analytics|analytics\s+analyst)\b", re.I)),
+    ("Junior Data Analyst", re.compile(r"\b(fresher|entry[- ]level|trainee|junior)\s+data\s+analyst\b", re.I)),
     ("Associate Data Analyst", re.compile(r"\bassociate\s+data\s+analyst\b", re.I)),
     ("Business Data Analyst", re.compile(r"\bbusiness\s+data\s+analyst\b", re.I)),
     ("Data Visualization Analyst", re.compile(r"\b(data\s+visuali[sz]ation\s+analyst|visuali[sz]ation\s+analyst|dashboard\s+analyst)\b", re.I)),
@@ -54,7 +55,7 @@ ROLE_PATTERNS = [
     ("BI Analyst", re.compile(r"\bbi\s+(analyst|developer|consultant|specialist)\b", re.I)),
     ("Reporting Analyst", re.compile(r"\b(reporting\s+analyst|reports\s+analyst|bi\s+reporting)\b", re.I)),
     ("Business Analyst", re.compile(r"\bbusiness\s+analyst\b", re.I)),
-    ("Data Analyst", re.compile(r"\b(data\s+analyst|analytics\s+specialist|data\s+analytics\s+associate|lead\s+data\s+analyst|senior\s+data\s+analyst|sr\.?\s+data\s+analyst)\b", re.I)),
+    ("Data Analyst", re.compile(r"\b(data\s+analyst|data\s+analytics(\s+(intern|trainee|fresher|consultant|associate|specialist|lead))?|data\s+analysis|analytics\s+specialist|data\s+analytics\s+associate|lead\s+data\s+analyst|senior\s+data\s+analyst|sr\.?\s+data\s+analyst)\b", re.I)),
 
     # Related roles
     ("Junior Data Scientist", re.compile(r"\b(jr\.?|junior|trainee|associate|intern|entry[- ]level|fresher)\s+data\s+scientist\b", re.I)),
@@ -80,19 +81,26 @@ SKILL_KEYWORDS = [
 ]
 
 def classify_role(title: str, description: str = "") -> Tuple[str, str]:
-    cleaned_title = title.lower()
+    cleaned_title = (title or "").lower().strip()
     for role_name, pattern in ROLE_PATTERNS:
         if pattern.search(cleaned_title):
             category = "Core Analytics" if role_name in CORE_ANALYTICS_ROLES else "Related"
             return role_name, category
 
-    if "analyst" in cleaned_title or "analytics" in cleaned_title:
+    if "analyst" in cleaned_title or "analytics" in cleaned_title or "data" in cleaned_title:
+        desc_clean = (description or "")[:500].lower()
         for role_name, pattern in ROLE_PATTERNS:
-            if pattern.search(description[:400].lower()):
+            if pattern.search(desc_clean):
                 category = "Core Analytics" if role_name in CORE_ANALYTICS_ROLES else "Related"
                 return role_name, category
+        if "data" in cleaned_title and ("analyst" in cleaned_title or "analytics" in cleaned_title):
+            return "Data Analyst", "Core Analytics"
+        elif "business" in cleaned_title and "analyst" in cleaned_title:
+            return "Business Analyst", "Core Analytics"
+        elif "analyst" in cleaned_title:
+            return "Data Analyst", "Core Analytics"
 
-    return "Data Analyst", "Core Analytics"
+    return "Unclassified", "Other"
 
 def analyze_job_fresher_eligibility(title: str, text: str = "", raw_fields: dict = None) -> Tuple[bool, str, int, int]:
     """

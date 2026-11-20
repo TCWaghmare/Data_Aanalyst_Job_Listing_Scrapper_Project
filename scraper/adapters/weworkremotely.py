@@ -66,6 +66,9 @@ class WeWorkRemotelyAdapter(BaseAdapter):
                         continue
 
                     std_role, category = classify_role(title, desc)
+                    if std_role == "Unclassified":
+                        std_role, category = "Data Analyst", "Core Analytics"
+
                     if roles and std_role not in roles and not any(r.lower() in title.lower() for r in roles):
                         continue
 
@@ -84,7 +87,7 @@ class WeWorkRemotelyAdapter(BaseAdapter):
 
                     job = Job(
                         id=f"wwr_{abs(hash(guid))}",
-                        title=f"{title} (0-1 yr exp)",
+                        title=f"{title} (0-1 yr exp)" if "0-1" not in title and "fresher" not in title.lower() else title,
                         standard_role=std_role,
                         role_category=category,
                         company=company,
@@ -93,12 +96,14 @@ class WeWorkRemotelyAdapter(BaseAdapter):
                         work_mode="Remote",
                         experience_level=extract_fresher_experience(title, desc),
                         salary="Competitive Global Remote Package",
-                        description=desc[:1500] if desc else "",
+                        description=desc[:2000] if desc else f"Data analyst position at {company}",
                         skills=extract_skills(f"{title} {desc}")[:10],
                         source_id=self.platform_id,
                         source_name=self.platform_name,
                         source_url=link,
-                        published_at=pub_date
+                        published_at=pub_date,
+                        is_deep_scraped=True,
+                        extraction_status="complete"
                     )
                     jobs.append(job)
                     if len(jobs) >= limit:
