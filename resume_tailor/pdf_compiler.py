@@ -81,8 +81,9 @@ class PDFCompiler:
         email = contact.get("email") or ""
         linkedin = contact.get("linkedin") or ""
         github = contact.get("github") or ""
+        portfolio = contact.get("portfolio") or "tejaswaghmare.me"
 
-        contact_parts = [p for p in [phone, email, linkedin, github] if p and "not available" not in str(p).lower()]
+        contact_parts = [p for p in [phone, email, linkedin, github, portfolio] if p and "not available" not in str(p).lower()]
         contact_line = " | ".join(contact_parts)
 
         ops = []
@@ -114,7 +115,59 @@ class PDFCompiler:
                 ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(line)}) Tj ET")
                 y -= 11
 
-        # 4. Technical Skills
+        # 4. Professional Experience
+        experience = data.get("experience", [])
+        if experience:
+            y = draw_section_header("PROFESSIONAL EXPERIENCE", y)
+            for exp in experience[:3]:
+                title = exp.get("title", "Role")
+                company = exp.get("company", "Company")
+                dates = exp.get("dates", "")
+                loc = exp.get("location", "")
+
+                header_left = f"{title}"
+                header_right = f"{dates}"
+                ops.append(f"BT /F1 9 Tf {left_x} {y} Td ({self._escape_pdf_text(header_left)}) Tj ET")
+                ops.append(f"BT /F2 8.5 Tf {right_x - len(header_right)*5} {y} Td ({self._escape_pdf_text(header_right)}) Tj ET")
+                y -= 11
+
+                sub_left = f"{company}"
+                sub_right = f"{loc}" if loc else ""
+                ops.append(f"BT /F3 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(sub_left)}) Tj ET")
+                if sub_right:
+                    ops.append(f"BT /F3 8.5 Tf {right_x - len(sub_right)*5} {y} Td ({self._escape_pdf_text(sub_right)}) Tj ET")
+                y -= 10
+
+                for b in exp.get("bullets", [])[:2]:
+                    for idx, line in enumerate(self._wrap_text(b, 98)):
+                        prefix = "* " if idx == 0 else "  "
+                        ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(prefix + line)}) Tj ET")
+                        y -= 10.5
+                y -= 1
+
+        # 5. Projects
+        projects = data.get("projects", [])
+        if projects:
+            y = draw_section_header("PROJECTS", y)
+            for proj in projects[:3]:
+                p_title = proj.get("title", "Project")
+                tools = proj.get("tools", "")
+                link_text = proj.get("link_text") or "View Project"
+                link_url = proj.get("link_url") or ""
+                p_header = f"{p_title}" + (f" | {link_text}" if link_url else "")
+                ops.append(f"BT /F1 9 Tf {left_x} {y} Td ({self._escape_pdf_text(p_header)}) Tj ET")
+                y -= 10.5
+                if tools:
+                    ops.append(f"BT /F3 8.2 Tf {left_x} {y} Td ({self._escape_pdf_text(tools)}) Tj ET")
+                    y -= 10
+                for b in proj.get("bullets", [])[:2]:
+                    for idx, line in enumerate(self._wrap_text(b, 98)):
+                        prefix = "* " if idx == 0 else "  "
+                        ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(prefix + line)}) Tj ET")
+                        y -= 10.5
+                y -= 1
+
+        # 6. Technical Skills
         skills = data.get("skills", {})
         tech_tools = data.get("technical_tools", [])
         if skills or tech_tools:
@@ -125,52 +178,12 @@ class PDFCompiler:
                     line_str = f"{cat_name}: {', '.join(items[:8])}"
                     for line in self._wrap_text(line_str, 100):
                         ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(line)}) Tj ET")
-                        y -= 11
+                        y -= 10.5
             elif tech_tools:
                 line_str = f"Core Competencies: {', '.join(tech_tools[:18])}"
                 for line in self._wrap_text(line_str, 100):
                     ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(line)}) Tj ET")
-                    y -= 11
-
-        # 5. Work Experience
-        experience = data.get("experience", [])
-        if experience:
-            y = draw_section_header("WORK EXPERIENCE", y)
-            for exp in experience[:2]:
-                title = exp.get("title", "Role")
-                company = exp.get("company", "Company")
-                dates = exp.get("dates", "")
-                loc = exp.get("location", "")
-
-                header_left = f"{title} - {company}"
-                header_right = f"{dates} ({loc})" if loc else dates
-                ops.append(f"BT /F1 9 Tf {left_x} {y} Td ({self._escape_pdf_text(header_left)}) Tj ET")
-                ops.append(f"BT /F2 8.5 Tf {right_x - len(header_right)*5} {y} Td ({self._escape_pdf_text(header_right)}) Tj ET")
-                y -= 11
-
-                for b in exp.get("bullets", [])[:2]:
-                    for idx, line in enumerate(self._wrap_text(b, 98)):
-                        prefix = "* " if idx == 0 else "  "
-                        ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(prefix + line)}) Tj ET")
-                        y -= 11
-                y -= 2
-
-        # 6. Projects
-        projects = data.get("projects", [])
-        if projects:
-            y = draw_section_header("KEY PROJECTS", y)
-            for proj in projects[:2]:
-                p_title = proj.get("title", "Project")
-                tools = proj.get("tools", "")
-                p_header = f"{p_title}" + (f" | {tools}" if tools else "")
-                ops.append(f"BT /F1 9 Tf {left_x} {y} Td ({self._escape_pdf_text(p_header)}) Tj ET")
-                y -= 11
-                for b in proj.get("bullets", [])[:2]:
-                    for idx, line in enumerate(self._wrap_text(b, 98)):
-                        prefix = "* " if idx == 0 else "  "
-                        ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(prefix + line)}) Tj ET")
-                        y -= 11
-                y -= 2
+                    y -= 10.5
 
         # 7. Education
         education = data.get("education", [])
@@ -179,22 +192,27 @@ class PDFCompiler:
             for edu in education[:2]:
                 deg = edu.get("degree", "Degree")
                 inst = edu.get("institution", "Institution")
-                yr = edu.get("year", "")
-                edu_left = f"{deg} - {inst}"
+                yr = edu.get("dates") or edu.get("year", "")
+                edu_left = f"{inst}"
                 ops.append(f"BT /F1 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(edu_left)}) Tj ET")
                 if yr:
-                    ops.append(f"BT /F2 8.5 Tf {right_x - len(str(yr))*6} {y} Td ({self._escape_pdf_text(str(yr))}) Tj ET")
-                y -= 11
+                    ops.append(f"BT /F2 8.5 Tf {right_x - len(str(yr))*5} {y} Td ({self._escape_pdf_text(str(yr))}) Tj ET")
+                y -= 10
+                if deg:
+                    ops.append(f"BT /F3 8.2 Tf {left_x} {y} Td ({self._escape_pdf_text(deg)}) Tj ET")
+                    y -= 10
 
         # 8. Certifications
         certs = data.get("certifications", [])
         if certs:
             y = draw_section_header("CERTIFICATIONS", y)
-            cert_names = [c.get("name") if isinstance(c, dict) else str(c) for c in certs[:4]]
-            line_str = " | ".join(cert_names)
-            for line in self._wrap_text(line_str, 100):
-                ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(line)}) Tj ET")
-                y -= 11
+            for c in certs[:4]:
+                c_name = c.get("name") if isinstance(c, dict) else str(c)
+                c_link = c.get("link", "Credential Link") if isinstance(c, dict) else "Credential Link"
+                ops.append(f"BT /F2 8.5 Tf {left_x} {y} Td ({self._escape_pdf_text(c_name)}) Tj ET")
+                if isinstance(c, dict) and c.get("url") and c.get("url") != "#":
+                    ops.append(f"BT /F2 8.2 Tf {right_x - len(c_link)*5} {y} Td ({self._escape_pdf_text(c_link)}) Tj ET")
+                y -= 10.5
 
         # Assemble PDF stream
         stream_content = "\n".join(ops).encode('latin1', errors='replace')
@@ -309,17 +327,21 @@ class PDFCompiler:
         linkedin_url = contact.get("linkedin_url") or (f"https://{linkedin}" if linkedin else "")
         github = contact.get("github") or ""
         github_url = contact.get("github_url") or (f"https://{github}" if github else "")
+        portfolio = contact.get("portfolio") or "tejaswaghmare.me"
+        portfolio_url = contact.get("portfolio_url") or "https://www.tejaswaghmare.me/"
 
-        # Dynamic header links
+        # Dynamic header links matching Overleaf LaTeX
         header_parts = []
         if phone and "not available" not in phone.lower():
             header_parts.append(phone)
         if email and "not available" not in email.lower():
             header_parts.append(f'<a href="mailto:{email}">{email}</a>')
         if linkedin:
-            header_parts.append(f'<a href="{linkedin_url}">{linkedin}</a>')
+            header_parts.append(f'<a href="{linkedin_url}" target="_blank">{linkedin}</a>')
         if github:
-            header_parts.append(f'<a href="{github_url}">{github}</a>')
+            header_parts.append(f'<a href="{github_url}" target="_blank">{github}</a>')
+        if portfolio and portfolio_url:
+            header_parts.append(f'<a href="{portfolio_url}" target="_blank">{portfolio}</a>')
         header_links = " | ".join(header_parts) if header_parts else "Information Not Available in Uploaded Documents"
 
         summary = data.get("summary") or "Information Not Available in Uploaded Documents"
@@ -327,8 +349,8 @@ class PDFCompiler:
         # Calibrated strict 1-page spacing variables
         body_font = "8.7pt" if tight else "9.1pt"
         line_height = "1.26" if tight else "1.28"
-        sec_margin_top = "6px" if tight else "7px"
-        item_margin_bottom = "3px" if tight else "4px"
+        sec_margin_top = "5px" if tight else "6px"
+        item_margin_bottom = "2.5px" if tight else "3.5px"
 
         # Experience HTML
         exp_html = ""
@@ -362,15 +384,15 @@ class PDFCompiler:
                 bullets = "".join([f"<li>{b}</li>" for b in proj.get("bullets", [])]) if proj.get("bullets") else "<li>Executed key project milestones.</li>"
                 link_url = proj.get("link_url") or ""
                 link_text = proj.get("link_text") or "View Project"
-                link_html = f'<a href="{link_url}" style="text-decoration: underline; color: inherit;">{link_text}</a>' if link_url and link_url != "#" else ""
+                link_html = f' | <a href="{link_url}" target="_blank" style="text-decoration: underline; color: #000;">{link_text}</a>' if link_url and link_url != "#" else ""
                 tools_line = f'<div class="item-tools" style="margin-bottom: 2px;"><em>{proj.get("tools")}</em></div>' if proj.get("tools") else ""
                 proj_html += f"""
                 <div class="resume-item" style="margin-bottom: {item_margin_bottom};">
                   <div class="item-header">
                     <span class="item-title">
-                      <strong>{proj.get('title', 'Project')}</strong>
+                      <strong>{proj.get('title', 'Project')}</strong>{link_html}
                     </span>
-                    <span class="item-date">{link_html}</span>
+                    <span class="item-date"></span>
                   </div>
                   {tools_line}
                   <ul class="bullets">
@@ -387,6 +409,10 @@ class PDFCompiler:
         for cat_k, items in skills.items():
             if items:
                 label = cat_k.replace("_", " ").title()
+                if label == "Bi Visualization":
+                    label = "BI & Visualization"
+                elif label == "Data Analytics":
+                    label = "Data & Analytics"
                 skills_lines.append(f'<strong>{label}:</strong> {", ".join(items)}')
         if not skills_lines:
             all_t = data.get("technical_tools", [])
@@ -403,7 +429,7 @@ class PDFCompiler:
             <div class="resume-item" style="margin-bottom: 2px;">
               <div class="item-header">
                 <span class="item-title"><strong>{edu.get('institution')}</strong></span>
-                <span class="item-date">{edu.get('dates')}</span>
+                <span class="item-date">{edu.get('dates') or edu.get('year', '')}</span>
               </div>
               <div class="item-subheader">
                 <span class="item-org"><em>{edu.get('degree')}</em></span>
@@ -414,10 +440,17 @@ class PDFCompiler:
         # Certifications HTML
         cert_html = ""
         for cert in data.get("certifications", []):
+            c_name = cert.get("name") if isinstance(cert, dict) else str(cert)
+            c_link = cert.get("link", "Credential Link") if isinstance(cert, dict) else "Credential Link"
+            c_url = cert.get("url", "") if isinstance(cert, dict) else ""
+            if c_url and c_url != "#":
+                link_tag = f'<a href="{c_url}" target="_blank" style="text-decoration: underline; color: #000;">{c_link}</a>'
+            else:
+                link_tag = f'<span>{c_link}</span>'
             cert_html += f"""
-            <div class="cert-item" style="display: flex; justify-content: space-between; margin-bottom: 1.5px;">
-              <span>{cert.get('name')}</span>
-              <a href="{cert.get('url', '#')}" style="text-decoration: underline; color: inherit;">{cert.get('link', 'Credential Link')}</a>
+            <div class="cert-item" style="display: flex; justify-content: space-between; margin-bottom: 1.5px; font-size: 8.6pt;">
+              <span>{c_name}</span>
+              {link_tag}
             </div>
             """
 
@@ -426,6 +459,7 @@ class PDFCompiler:
 <head>
   <meta charset="utf-8">
   <title>{name} - Resume</title>
+  <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/computer-modern">
   <style>
     @page {{
       size: letter;
@@ -437,7 +471,7 @@ class PDFCompiler:
       padding: 0;
     }}
     body {{
-      font-family: "Computer Modern Roman", "Latin Modern Roman", "Times New Roman", Times, serif;
+      font-family: 'CMU Serif', 'Computer Modern Roman', 'Latin Modern Roman', 'Times New Roman', Times, serif;
       font-size: {body_font};
       line-height: {line_height};
       color: #000;
@@ -449,10 +483,11 @@ class PDFCompiler:
     }}
     .header h1 {{
       font-size: 19pt;
-      font-weight: normal;
+      font-weight: bold;
       font-variant: small-caps;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.6px;
       margin-bottom: 2px;
+      color: #000;
     }}
     .header .contact {{
       font-size: 8.5pt;
@@ -469,10 +504,10 @@ class PDFCompiler:
       font-size: 10.5pt;
       font-variant: small-caps;
       font-weight: bold;
-      border-bottom: 1px solid #000;
+      border-bottom: 0.8px solid #000;
       padding-bottom: 1px;
       margin-bottom: 3px;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
     }}
     .item-header {{
       display: flex;
@@ -492,23 +527,28 @@ class PDFCompiler:
       margin-bottom: 1px;
     }}
     .bullets {{
-      margin-left: 15px;
+      margin-left: 14px;
       list-style-type: disc;
     }}
     .bullets li {{
       font-size: 8.6pt;
       margin-bottom: 1px;
       line-height: 1.25;
+      text-align: justify;
     }}
     .skills-block {{
       font-size: 8.6pt;
-      line-height: 1.28;
+      line-height: 1.30;
     }}
     .skills-row {{
       margin-bottom: 1px;
     }}
     .cert-item {{
       font-size: 8.6pt;
+    }}
+    .cert-item a {{
+      color: #000;
+      text-decoration: underline;
     }}
   </style>
 </head>
@@ -537,7 +577,7 @@ class PDFCompiler:
 
   <div class="section">
     <div class="section-title">Technical Skills</div>
-    <div class="skills-block" style="font-size: 8.7pt; line-height: 1.35;">
+    <div class="skills-block" style="font-size: 8.7pt; line-height: 1.32;">
       {skills_html}
     </div>
   </div>

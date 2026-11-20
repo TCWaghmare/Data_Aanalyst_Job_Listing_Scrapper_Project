@@ -37,6 +37,9 @@ class TxtBuilder:
             contact_parts.append(f"LinkedIn: {contact['linkedin']}")
         if contact.get("github"):
             contact_parts.append(f"GitHub: {contact['github']}")
+        portfolio_url = contact.get("portfolio_url") or "https://www.tejaswaghmare.me/"
+        if portfolio_url:
+            contact_parts.append(f"Portfolio: {portfolio_url}")
         contact_line = " | ".join(contact_parts)
 
         lines = [
@@ -75,7 +78,9 @@ class TxtBuilder:
             "-" * 70
         ])
         for p in data.get("projects", []):
-            lines.append(f"{p.get('title', p.get('name'))} [Tools: {p.get('tools', '')}]")
+            link_info = f" [Link: {p['link_url']}]" if p.get("link_url") else ""
+            tools_info = f" [Tools: {p['tools']}]" if p.get("tools") else ""
+            lines.append(f"{p.get('title', p.get('name'))}{link_info}{tools_info}")
             for b in p.get("bullets", []):
                 lines.append(f"  • {b}")
             lines.append("")
@@ -85,7 +90,7 @@ class TxtBuilder:
             "-" * 70
         ])
         for edu in data.get("education", []):
-            lines.append(f"• {edu.get('degree')} — {edu.get('institution')} ({edu.get('dates', '')})")
+            lines.append(f"• {edu.get('degree')} — {edu.get('institution')} ({edu.get('dates') or edu.get('year', '')})")
 
         lines.extend([
             "",
@@ -94,7 +99,9 @@ class TxtBuilder:
         ])
         for cert in data.get("certifications", []):
             cname = cert.get("name", str(cert)) if isinstance(cert, dict) else str(cert)
-            lines.append(f"• {cname}")
+            curl = cert.get("url") if isinstance(cert, dict) else None
+            link_str = f" [Link: {curl}]" if curl and curl != "#" else ""
+            lines.append(f"• {cname}{link_str}")
 
         text = "\n".join(lines)
         with open(file_path, "w", encoding="utf-8") as f:

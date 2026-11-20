@@ -158,6 +158,8 @@ class LaTeXBuilder:
         linkedin_url = contact.get("linkedin_url") or (f"https://{linkedin}" if linkedin else "")
         github = contact.get("github") or ""
         github_url = contact.get("github_url") or (f"https://{github}" if github else "")
+        portfolio = contact.get("portfolio") or "tejaswaghmare.me"
+        portfolio_url = contact.get("portfolio_url") or "https://www.tejaswaghmare.me/"
 
         # Dynamic contact line
         contact_parts = []
@@ -169,6 +171,8 @@ class LaTeXBuilder:
             contact_parts.append(f"\\href{{{linkedin_url}}}{{\\underline{{{escape_latex(linkedin)}}}}}")
         if github:
             contact_parts.append(f"\\href{{{github_url}}}{{\\underline{{{escape_latex(github)}}}}}")
+        if portfolio and portfolio_url:
+            contact_parts.append(f"\\href{{{portfolio_url}}}{{\\underline{{{escape_latex(portfolio)}}}}}")
         contact_line = " $|$ ".join(contact_parts) if contact_parts else "Information Not Available in Uploaded Documents"
 
         summary = escape_latex(tailored_data.get("summary") or "Information Not Available in Uploaded Documents")

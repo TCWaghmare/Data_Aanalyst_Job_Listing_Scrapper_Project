@@ -706,6 +706,8 @@ class CareerKnowledgeBase:
                 "linkedin_url": "",
                 "github": "",
                 "github_url": "",
+                "portfolio": "",
+                "portfolio_url": "",
                 "location": ""
             },
             "summary": "",
@@ -751,7 +753,7 @@ class CareerKnowledgeBase:
             # Merge Contact
             contact = data.get("contact", {})
             if isinstance(contact, dict):
-                for k in ["email", "phone", "linkedin", "linkedin_url", "github", "github_url", "location"]:
+                for k in ["email", "phone", "linkedin", "linkedin_url", "github", "github_url", "portfolio", "portfolio_url", "location"]:
                     val = contact.get(k)
                     if val and val != NOT_AVAILABLE and not profile["contact"].get(k):
                         profile["contact"][k] = val
@@ -798,22 +800,44 @@ class CareerKnowledgeBase:
                         profile["evidence_map"]["experience"][f"{title} - {company}"] = filename
 
             # Merge Projects
+            known_proj_map = {
+                "airbnb": ("View Project", "https://github.com/TCWaghmare/NYC-Airbnb-Marketplace-Intelligence-Dashboard"),
+                "bakery": ("View Project", "https://github.com/TCWaghmare/Bakery_Data_Analysis_Project_by_Excel"),
+                "amazon": ("View Project", "https://github.com/TCWaghmare/amazon-sales-data-analysis-dashboard_project")
+            }
             for proj in data.get("projects", []):
                 if isinstance(proj, dict):
                     ptitle = proj.get("title", proj.get("name", ""))
                     if ptitle and ptitle.lower() not in known_proj_titles:
                         p_entry = dict(proj)
                         p_entry["source_file"] = filename
+                        if not p_entry.get("link_url"):
+                            for k, (ltext, lurl) in known_proj_map.items():
+                                if k in ptitle.lower():
+                                    p_entry["link_text"] = ltext
+                                    p_entry["link_url"] = lurl
+                                    break
                         profile["projects"].append(p_entry)
                         known_proj_titles.add(ptitle.lower())
                         profile["evidence_map"]["projects"][ptitle] = filename
 
             # Merge Certifications
+            known_cert_map = {
+                "pl-300": ("Credential Link", "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/data-analyst-associate?tab=credentials-tab"),
+                "dp-600": ("Credential Link", "https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a?ref=https%3A%2F%2Fwww.linkedin.com%2F"),
+                "dp-700": ("Credential Link", "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/fabric-data-engineer-associate?tab=credentials-tab")
+            }
             for cert in data.get("certifications", []):
                 cname = cert.get("name", "") if isinstance(cert, dict) else str(cert)
                 if cname and cname.lower() not in known_cert_names:
                     c_entry = dict(cert) if isinstance(cert, dict) else {"name": cname, "link": "Credential Link", "url": "#"}
                     c_entry["source_file"] = filename
+                    if not c_entry.get("url") or c_entry.get("url") == "#":
+                        for k, (clink, curl) in known_cert_map.items():
+                            if k in cname.lower():
+                                c_entry["link"] = clink
+                                c_entry["url"] = curl
+                                break
                     profile["certifications"].append(c_entry)
                     known_cert_names.add(cname.lower())
                     profile["evidence_map"]["certifications"][cname] = filename
@@ -852,6 +876,10 @@ class CareerKnowledgeBase:
         for k in ["email", "phone", "location"]:
             if not profile["contact"].get(k):
                 profile["contact"][k] = NOT_AVAILABLE
+
+        if not profile["contact"].get("portfolio") and "tejas" in profile["name"].lower():
+            profile["contact"]["portfolio"] = "tejaswaghmare.me"
+            profile["contact"]["portfolio_url"] = "https://www.tejaswaghmare.me/"
 
         self.unified_profile = profile
         return profile

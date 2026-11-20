@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "last_updated": "2026-11-20T13:19:24.938047",
+  "last_updated": "2026-11-20T14:59:27.606353",
   "documents_count": 1,
   "documents": [
     {
@@ -28,7 +28,9 @@
           "linkedin_url": "https://linkedin.com/in/tejascwaghmare",
           "github": "github.com/TCWaghmare",
           "github_url": "https://github.com/TCWaghmare",
-          "location": "Remote"
+          "location": "Remote",
+          "portfolio": "tejaswaghmare.me",
+          "portfolio_url": "https://www.tejaswaghmare.me/"
         },
         "summary": "Passionate Data Analyst dedicated to uncovering patterns, telling compelling data stories, and driving business growth through analytics. With expertise in Power BI, SQL, Python, and Excel, Ihelp organizations make data-driven decisions that matter. Experienced in building interactive dashboards, KPI tracking systems, and business intelligence solutions across real-world internships and projects.",
         "skills": {
@@ -156,7 +158,7 @@
             "title": "NYC Airbnb Data Analysis & Business Intelligence",
             "tools": "SQL, Power BI, DAX, Power Query",
             "link_text": "View Project",
-            "link_url": "",
+            "link_url": "https://github.com/TCWaghmare/NYC-Airbnb-Marketplace-Intelligence-Dashboard",
             "bullets": [
               "Analyzed 30,259 NYC Airbnb listings across 16,441 hosts, uncovering pricing, occupancy, revenue, review, host, room-type, and location insights.",
               "Built an interactive Power BI dashboard using SQL, DAX, and data modeling to analyze$389.3M estimated revenue, 52.4% average occupancy, and 980K+ total reviews.",
@@ -177,7 +179,7 @@
             "title": "Bakery Sales, Profitability & Waste Analysis",
             "tools": "Excel, Power Pivot, PivotTables, Data Modeling",
             "link_text": "View Project",
-            "link_url": "",
+            "link_url": "https://github.com/TCWaghmare/Bakery_Data_Analysis_Project_by_Excel",
             "bullets": [
               "Analyzed 16,569 bakery transactions (2023–2024) across 3 stores using a star-schema data model and interactive Excel dashboards to track revenue, profit, discount, and waste KPIs.",
               "Uncovered that waste cost equaled 40% of revenue and deep discounts drove a−6.7% margin; recommended capping discounts at about 5% and cutting waste 20–25% to return the business to profit."
@@ -194,7 +196,7 @@
             "title": "Amazon Sales Dashboard",
             "tools": "Power BI, DAX, Data Modeling, Geo Mapping",
             "link_text": "View Project",
-            "link_url": "",
+            "link_url": "https://github.com/TCWaghmare/amazon-sales-data-analysis-dashboard_project",
             "bullets": [
               "Built a 3-page interactive dashboard analyzing 50K+ orders and$32.8M revenue across 6 product categories and 5 global regions.",
               "Identified Beauty as the top revenue driver and revealed uniform discount distribution across all categories."
@@ -212,19 +214,19 @@
           {
             "name": "Microsoft Certified: Power BI Data Analyst Associate (PL-300)",
             "link": "Credential Link",
-            "url": "#",
+            "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/data-analyst-associate?tab=credentials-tab",
             "source_file": "tejas resume.pdf"
           },
           {
             "name": "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)",
             "link": "Credential Link",
-            "url": "#",
+            "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a?ref=https%3A%2F%2Fwww.linkedin.com%2F",
             "source_file": "tejas resume.pdf"
           },
           {
             "name": "Microsoft Certified: Fabric Data Engineer Associate (DP-700)",
             "link": "Credential Link",
-            "url": "#",
+            "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/fabric-data-engineer-associate?tab=credentials-tab",
             "source_file": "tejas resume.pdf"
           },
           {
@@ -270,6 +272,8 @@
       "linkedin_url": "https://linkedin.com/in/tejascwaghmare",
       "github": "github.com/TCWaghmare",
       "github_url": "https://github.com/TCWaghmare",
+      "portfolio": "tejaswaghmare.me",
+      "portfolio_url": "https://www.tejaswaghmare.me/",
       "location": "Remote"
     },
     "summary": "Passionate Data Analyst dedicated to uncovering patterns, telling compelling data stories, and driving business growth through analytics. With expertise in Power BI, SQL, Python, and Excel, Ihelp organizations make data-driven decisions that matter. Experienced in building interactive dashboards, KPI tracking systems, and business intelligence solutions across real-world internships and projects.",
@@ -338,7 +342,7 @@
         "title": "NYC Airbnb Data Analysis & Business Intelligence",
         "tools": "SQL, Power BI, DAX, Power Query",
         "link_text": "View Project",
-        "link_url": "",
+        "link_url": "https://github.com/TCWaghmare/NYC-Airbnb-Marketplace-Intelligence-Dashboard",
         "bullets": [
           "Analyzed 30,259 NYC Airbnb listings across 16,441 hosts, uncovering pricing, occupancy, revenue, review, host, room-type, and location insights.",
           "Built an interactive Power BI dashboard using SQL, DAX, and data modeling to analyze$389.3M estimated revenue, 52.4% average occupancy, and 980K+ total reviews.",
@@ -359,7 +363,7 @@
         "title": "Bakery Sales, Profitability & Waste Analysis",
         "tools": "Excel, Power Pivot, PivotTables, Data Modeling",
         "link_text": "View Project",
-        "link_url": "",
+        "link_url": "https://github.com/TCWaghmare/Bakery_Data_Analysis_Project_by_Excel",
         "bullets": [
           "Analyzed 16,569 bakery transactions (2023–2024) across 3 stores using a star-schema data model and interactive Excel dashboards to track revenue, profit, discount, and waste KPIs.",
           "Uncovered that waste cost equaled 40% of revenue and deep discounts drove a−6.7% margin; recommended capping discounts at about 5% and cutting waste 20–25% to return the business to profit."
@@ -376,7 +380,7 @@
         "title": "Amazon Sales Dashboard",
         "tools": "Power BI, DAX, Data Modeling, Geo Mapping",
         "link_text": "View Project",
-        "link_url": "",
+        "link_url": "https://github.com/TCWaghmare/amazon-sales-data-analysis-dashboard_project",
         "bullets": [
           "Built a 3-page interactive dashboard analyzing 50K+ orders and$32.8M revenue across 6 product categories and 5 global regions.",
           "Identified Beauty as the top revenue driver and revealed uniform discount distribution across all categories."
@@ -454,19 +458,19 @@
       {
         "name": "Microsoft Certified: Power BI Data Analyst Associate (PL-300)",
         "link": "Credential Link",
-        "url": "#",
+        "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/data-analyst-associate?tab=credentials-tab",
         "source_file": "tejas resume.pdf"
       },
       {
         "name": "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)",
         "link": "Credential Link",
-        "url": "#",
+        "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a?ref=https%3A%2F%2Fwww.linkedin.com%2F",
         "source_file": "tejas resume.pdf"
       },
       {
         "name": "Microsoft Certified: Fabric Data Engineer Associate (DP-700)",
         "link": "Credential Link",
-        "url": "#",
+        "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/fabric-data-engineer-associate?tab=credentials-tab",
         "source_file": "tejas resume.pdf"
       },
       {
@@ -511,6 +515,8 @@
         "linkedin_url": "tejas resume.pdf",
         "github": "tejas resume.pdf",
         "github_url": "tejas resume.pdf",
+        "portfolio": "tejas resume.pdf",
+        "portfolio_url": "tejas resume.pdf",
         "location": "tejas resume.pdf"
       },
       "summary": "tejas resume.pdf",

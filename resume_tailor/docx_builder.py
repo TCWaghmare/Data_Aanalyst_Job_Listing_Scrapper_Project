@@ -82,25 +82,38 @@ class DocxBuilder:
         p_contact.paragraph_format.space_before = Pt(0)
         p_contact.paragraph_format.space_after = Pt(4)
 
-        contact_items = []
+        contact_entries = []
         if contact.get("phone"):
-            contact_items.append(contact["phone"])
+            contact_entries.append((contact["phone"], None))
         if contact.get("email"):
-            contact_items.append(contact["email"])
+            contact_entries.append((contact["email"], f"mailto:{contact['email']}"))
         if contact.get("linkedin"):
             clean_li = contact["linkedin"].replace("https://", "").replace("www.", "")
-            contact_items.append(clean_li)
+            li_url = contact.get("linkedin_url") or f"https://{contact['linkedin']}"
+            contact_entries.append((clean_li, li_url))
         if contact.get("github"):
             clean_gh = contact["github"].replace("https://", "").replace("www.", "")
-            contact_items.append(clean_gh)
-        if data.get("location"):
-            contact_items.append(data["location"])
+            gh_url = contact.get("github_url") or f"https://{contact['github']}"
+            contact_entries.append((clean_gh, gh_url))
+        portfolio = contact.get("portfolio") or "tejaswaghmare.me"
+        portfolio_url = contact.get("portfolio_url") or "https://www.tejaswaghmare.me/"
+        if portfolio and portfolio_url:
+            clean_port = portfolio.replace("https://", "").replace("www.", "")
+            contact_entries.append((clean_port, portfolio_url))
 
-        contact_text = "  |  ".join(contact_items)
-        r_contact = p_contact.add_run(contact_text)
-        r_contact.font.name = FONT_SERIF
-        r_contact.font.size = Pt(8.5)
-        r_contact.font.color.rgb = COLOR_DARK
+        for idx, (disp_text, link_url) in enumerate(contact_entries):
+            if idx > 0:
+                r_sep = p_contact.add_run("  |  ")
+                r_sep.font.name = FONT_SERIF
+                r_sep.font.size = Pt(8.5)
+                r_sep.font.color.rgb = COLOR_MUTED
+            if link_url:
+                self._add_hyperlink(p_contact, link_url, disp_text, font_size_pt=8.5, underline=True)
+            else:
+                r_c = p_contact.add_run(disp_text)
+                r_c.font.name = FONT_SERIF
+                r_c.font.size = Pt(8.5)
+                r_c.font.color.rgb = COLOR_DARK
 
         # 3. Professional Summary
         if summary:
@@ -224,11 +237,16 @@ class DocxBuilder:
                 p1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
                 p1.paragraph_format.space_before = Pt(2)
                 p1.paragraph_format.space_after = Pt(0)
-                r_link = p1.add_run(proj.get("link_text", "View Project"))
-                r_link.font.name = FONT_SERIF
-                r_link.font.size = Pt(8.5)
-                r_link.font.underline = True
-                r_link.font.color.rgb = COLOR_BLACK
+                link_url = proj.get("link_url") or "#"
+                link_text = proj.get("link_text", "View Project")
+                if link_url and link_url != "#":
+                    self._add_hyperlink(p1, link_url, link_text, font_size_pt=8.5, underline=True)
+                else:
+                    r_link = p1.add_run(link_text)
+                    r_link.font.name = FONT_SERIF
+                    r_link.font.size = Pt(8.5)
+                    r_link.font.underline = True
+                    r_link.font.color.rgb = COLOR_BLACK
 
                 for bullet in proj.get("bullets", []):
                     p_b = doc.add_paragraph(style="List Bullet")
@@ -340,15 +358,61 @@ class DocxBuilder:
                     r_sp.font.size = Pt(8)
                     r_sp.font.color.rgb = COLOR_MUTED
 
-                    r_clink = p_c.add_run(cert.get("link", "Credential Link"))
-                    r_clink.font.name = FONT_SERIF
-                    r_clink.font.size = Pt(8)
-                    r_clink.font.underline = True
-                    r_clink.font.color.rgb = COLOR_BLACK
+                    c_url = cert.get("url") or "#"
+                    c_link = cert.get("link", "Credential Link")
+                    if c_url and c_url != "#":
+                        self._add_hyperlink(p_c, c_url, c_link, font_size_pt=8, underline=True)
+                    else:
+                        r_clink = p_c.add_run(c_link)
+                        r_clink.font.name = FONT_SERIF
+                        r_clink.font.size = Pt(8)
+                        r_clink.font.underline = True
+                        r_clink.font.color.rgb = COLOR_BLACK
 
         # Save document
         doc.save(file_path)
         return os.path.abspath(file_path)
+
+    def _add_hyperlink(self, paragraph, url: str, text: str, font_name: str = FONT_SERIF, font_size_pt: float = 8.5, is_bold: bool = False, is_italic: bool = False, underline: bool = True, color_rgb: RGBColor = COLOR_BLACK):
+        """Adds a clickable hyperlink to a python-docx paragraph."""
+        if not url or url == "#":
+            run = paragraph.add_run(text)
+            run.font.name = font_name
+            run.font.size = Pt(font_size_pt)
+            run.font.bold = is_bold
+            run.font.italic = is_italic
+            run.font.underline = underline
+            run.font.color.rgb = color_rgb
+            return run
+
+        try:
+            part = paragraph.part
+            r_id = part.relate_to(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", is_external=True)
+            hyperlink = parse_xml(f'<w:hyperlink xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="{r_id}"/>')
+            rPr_parts = [
+                f'<w:rFonts w:ascii="{font_name}" w:hAnsi="{font_name}"/>',
+                f'<w:sz w:val="{int(font_size_pt * 2)}"/>',
+                '<w:color w:val="000000"/>'
+            ]
+            if is_bold:
+                rPr_parts.append('<w:b/>')
+            if is_italic:
+                rPr_parts.append('<w:i/>')
+            if underline:
+                rPr_parts.append('<w:u w:val="single"/>')
+            rPr_str = "".join(rPr_parts)
+            r_xml = f'<w:r xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:rPr>{rPr_str}</w:rPr><w:t>{text}</w:t></w:r>'
+            r = parse_xml(r_xml)
+            hyperlink.append(r)
+            paragraph._p.append(hyperlink)
+        except Exception:
+            run = paragraph.add_run(text)
+            run.font.name = font_name
+            run.font.size = Pt(font_size_pt)
+            run.font.bold = is_bold
+            run.font.italic = is_italic
+            run.font.underline = underline
+            run.font.color.rgb = color_rgb
 
     def _add_heading(self, doc: Document, title: str):
         """Adds a professional small-caps heading with an underline/bottom border matching Overleaf."""

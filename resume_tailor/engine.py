@@ -115,7 +115,11 @@ class ResumeTailorEngine:
         tailored_education = self._prioritize_education(profile.get("education", []))
 
         candidate_name = profile.get("name") or NOT_AVAILABLE
-        contact_info = profile.get("contact", {})
+        contact_info = dict(profile.get("contact", {}))
+        if not contact_info.get("portfolio"):
+            contact_info["portfolio"] = "tejaswaghmare.me"
+        if not contact_info.get("portfolio_url"):
+            contact_info["portfolio_url"] = "https://www.tejaswaghmare.me/"
 
         tailored_resume = {
             "name": candidate_name,
@@ -305,7 +309,7 @@ class ResumeTailorEngine:
 
         sorted_projs = sorted(all_projects, key=score_project)
         selected_projs = []
-        for p in sorted_projs[:2]:
+        for p in sorted_projs[:3]:
             p_copy = dict(p)
             bullets = p.get("bullets", [])
             p_copy["bullets"] = bullets[:2] if len(bullets) > 2 else bullets

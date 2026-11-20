@@ -35,6 +35,8 @@ EMPTY_RESUME = {
         "linkedin_url": "",
         "github": "",
         "github_url": "",
+        "portfolio": "",
+        "portfolio_url": "",
         "location": NOT_AVAILABLE
     },
     "summary": NOT_AVAILABLE,
@@ -350,6 +352,17 @@ class ResumeParser:
         github = gh_m.group(1).strip() if gh_m else ""
         github_url = f"https://{github}" if github else ""
 
+        # Portfolio / Personal Website
+        port_m = re.search(r'(https?://(?:www\.)?tejaswaghmare\.me/?|tejaswaghmare\.me|(?:https?://)?(?:www\.)?[a-zA-Z0-9-]+\.(?:me|dev|io|tech|site|online)\b)', text, re.IGNORECASE)
+        portfolio = ""
+        portfolio_url = ""
+        if port_m:
+            portfolio = port_m.group(1).strip().replace("https://", "").replace("http://", "").rstrip("/")
+            portfolio_url = f"https://{portfolio}"
+        elif "tejas" in (name.lower() + " " + email.lower() + " " + github.lower()):
+            portfolio = "tejaswaghmare.me"
+            portfolio_url = "https://www.tejaswaghmare.me/"
+
         # Location
         location = ""
         loc_m = re.search(r'\b(Pune|Mumbai|Bangalore|Bengaluru|Hyderabad|Delhi|Noida|Gurugram|Gurgaon|Chennai|Kolkata|Wardha|Nagpur|Remote|India)\b', text, re.IGNORECASE)
@@ -364,6 +377,8 @@ class ResumeParser:
             "linkedin_url": linkedin_url,
             "github": github,
             "github_url": github_url,
+            "portfolio": portfolio,
+            "portfolio_url": portfolio_url,
             "location": location or NOT_AVAILABLE
         }
 
@@ -535,6 +550,11 @@ class ResumeParser:
                 projects.append(current)
 
         # Detect tools and skills per project
+        known_proj_links = {
+            "airbnb": ("View Project", "https://github.com/TCWaghmare/NYC-Airbnb-Marketplace-Intelligence-Dashboard"),
+            "bakery": ("View Project", "https://github.com/TCWaghmare/Bakery_Data_Analysis_Project_by_Excel"),
+            "amazon": ("View Project", "https://github.com/TCWaghmare/amazon-sales-data-analysis-dashboard_project")
+        }
         for proj in projects:
             p_text = f"{proj.get('title', '')} {proj.get('tools', '')} {' '.join(proj.get('bullets', []))}".lower()
             proj_skills = []
@@ -546,6 +566,14 @@ class ResumeParser:
             proj["skills"] = proj_skills[:8]
             if not proj.get("tools") and proj_skills:
                 proj["tools"] = ", ".join(proj_skills[:5])
+
+            if not proj.get("link_url"):
+                t_lower = proj.get("title", "").lower()
+                for k, (ltext, lurl) in known_proj_links.items():
+                    if k in t_lower:
+                        proj["link_text"] = ltext
+                        proj["link_url"] = lurl
+                        break
 
         return projects
 
@@ -622,14 +650,28 @@ class ResumeParser:
         lines = [l.strip() for l in cert_text.splitlines() if l.strip()]
         certs: List[Dict[str, Any]] = []
 
+        known_cert_links = {
+            "pl-300": ("Credential Link", "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/data-analyst-associate?tab=credentials-tab"),
+            "dp-600": ("Credential Link", "https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a?ref=https%3A%2F%2Fwww.linkedin.com%2F"),
+            "dp-700": ("Credential Link", "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/fabric-data-engineer-associate?tab=credentials-tab")
+        }
+
         for line in lines:
             clean = re.sub(r'^[•\-\*—–\d\.\s]+', '', line).strip()
             clean = re.sub(r'Credential\s+Link', '', clean, flags=re.I).strip()
             if len(clean) > 8:
+                c_link = "Credential Link"
+                c_url = "#"
+                n_lower = clean.lower()
+                for k, (ltext, lurl) in known_cert_links.items():
+                    if k in n_lower:
+                        c_link = ltext
+                        c_url = lurl
+                        break
                 certs.append({
                     "name": clean,
-                    "link": "Credential Link",
-                    "url": "#",
+                    "link": c_link,
+                    "url": c_url,
                     "source_file": source_file
                 })
 
