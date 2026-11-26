@@ -714,6 +714,7 @@ class CareerKnowledgeBase:
             "experience": [],
             "projects": [],
             "skills": {},
+            "skills_lines": [],
             "technical_tools": [],
             "certifications": [],
             "education": [],
@@ -784,6 +785,9 @@ class CareerKnowledgeBase:
                     profile["technical_tools"].append(tool)
                     known_tool_set.add(tool.lower())
                     profile["evidence_map"]["skills"][tool] = filename
+
+            if "skills_lines" in data and not profile.get("skills_lines"):
+                profile["skills_lines"] = data["skills_lines"]
 
             # Merge Experience
             exp_list = data.get("experience", []) or data.get("experiences", [])

@@ -57,13 +57,39 @@ class TxtBuilder:
         ]
 
         skills = data.get("skills", {})
-        for cat, items in skills.items():
-            if items:
-                cat_title = cat.replace("_", " ").title()
-                lines.append(f"• {cat_title}: {', '.join(items)}")
+        skills_lines_data = data.get("skills_lines", [])
+        if skills_lines_data:
+            for sl in skills_lines_data:
+                lines.append(f"• {sl.get('category')}: {sl.get('content')}")
+        elif skills:
+            for cat, items in skills.items():
+                if items:
+                    cat_title = cat.replace("_", " ").title()
+                    if cat_title == "Bi Visualization":
+                        cat_title = "BI & Visualization"
+                    elif cat_title == "Databases Sql":
+                        cat_title = "Databases & SQL"
+                    elif cat_title == "Analytics Statistics":
+                        cat_title = "Analytics & Statistics"
+                    elif cat_title == "Ai Tools":
+                        cat_title = "AI & Tools"
+                    items_str = ", ".join(items) if isinstance(items, list) else str(items)
+                    lines.append(f"• {cat_title}: {items_str}")
 
         lines.extend([
             "",
+            "PROJECTS",
+            "-" * 70
+        ])
+        for p in data.get("projects", []):
+            link_info = f" [GitHub: {p['link_url']}]" if p.get("link_url") else ""
+            tools_info = f" | Tools: {p['tools']}" if p.get("tools") else ""
+            lines.append(f"{p.get('title', p.get('name'))}{tools_info}{link_info}")
+            for b in p.get("bullets", []):
+                lines.append(f"  • {b}")
+            lines.append("")
+
+        lines.extend([
             "PROFESSIONAL EXPERIENCE",
             "-" * 70
         ])
@@ -74,27 +100,7 @@ class TxtBuilder:
             lines.append("")
 
         lines.extend([
-            "KEY PROJECTS & PORTFOLIO",
-            "-" * 70
-        ])
-        for p in data.get("projects", []):
-            link_info = f" [Link: {p['link_url']}]" if p.get("link_url") else ""
-            tools_info = f" [Tools: {p['tools']}]" if p.get("tools") else ""
-            lines.append(f"{p.get('title', p.get('name'))}{link_info}{tools_info}")
-            for b in p.get("bullets", []):
-                lines.append(f"  • {b}")
-            lines.append("")
-
-        lines.extend([
-            "EDUCATION",
-            "-" * 70
-        ])
-        for edu in data.get("education", []):
-            lines.append(f"• {edu.get('degree')} — {edu.get('institution')} ({edu.get('dates') or edu.get('year', '')})")
-
-        lines.extend([
-            "",
-            "CERTIFICATIONS & CREDENTIALS",
+            "CERTIFICATIONS",
             "-" * 70
         ])
         for cert in data.get("certifications", []):
@@ -102,6 +108,27 @@ class TxtBuilder:
             curl = cert.get("url") if isinstance(cert, dict) else None
             link_str = f" [Link: {curl}]" if curl and curl != "#" else ""
             lines.append(f"• {cname}{link_str}")
+
+        achievements = data.get("achievements", [])
+        if achievements:
+            lines.extend([
+                "",
+                "ACHIEVEMENTS",
+                "-" * 70
+            ])
+            for ach in achievements:
+                if isinstance(ach, dict):
+                    lines.append(f"• {ach.get('title')}: {ach.get('description')}")
+                else:
+                    lines.append(f"• {ach}")
+
+        lines.extend([
+            "",
+            "EDUCATION",
+            "-" * 70
+        ])
+        for edu in data.get("education", []):
+            lines.append(f"• {edu.get('degree')} | {edu.get('institution')} ({edu.get('dates') or edu.get('year', '')})")
 
         text = "\n".join(lines)
         with open(file_path, "w", encoding="utf-8") as f:

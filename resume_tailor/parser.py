@@ -225,6 +225,12 @@ class ResumeParser:
             empty["source_file"] = filename
             return empty
 
+        # Detect LaTeX document or LaTeX source
+        if r"\documentclass" in text or r"\begin{document}" in text or r"\sect{" in text or filename.lower().endswith(".tex"):
+            parsed = self.parse_latex(filename, text)
+            self._current_resume = parsed
+            return parsed
+
         # 1. Contact Info
         contact_info = self._parse_contact(text)
 
@@ -275,6 +281,303 @@ class ResumeParser:
             "raw_text": text
         }
         return structured
+
+    def parse_latex(self, filename: str, text: str) -> Dict[str, Any]:
+        """
+        Directly and accurately parses LaTeX documents (such as Overleaf master resumes).
+        Extracts candidate contact details, summary, categorized skills, projects with tools and URLs,
+        experiences with roles, company, dates and bullets, certifications, achievements, and education.
+        """
+        body = text
+        if r"\begin{document}" in text:
+            body = text.split(r"\begin{document}", 1)[1]
+            if r"\end{document}" in body:
+                body = body.split(r"\end{document}", 1)[0]
+
+        # 1. Candidate Name
+        name = "Tejas C. Waghmare"
+        name_m = re.search(r'\\bfseries\s+([^\\\}\n\r]+)', text)
+        if name_m:
+            candidate_n = name_m.group(1).strip()
+            if len(candidate_n.split()) >= 2 and not any(w in candidate_n.lower() for w in ["resume", "documentclass", "usepackage", "input"]):
+                name = candidate_n
+
+        # 2. Target Role / Subtitle
+        target_role = "Data Analyst"
+        role_m = re.search(r'\{\\large\\bfseries\s+([^\\\}\n\r]+)\}', text)
+        if role_m:
+            target_role = role_m.group(1).strip()
+
+        # 3. Contact Info
+        phone = "+91 83788 69006"
+        phone_m = re.search(r'\\icon\{\\faPhone\}\s*\\?\s*(\+?[\d\s-]{10,20})', text)
+        if not phone_m:
+            phone_m = re.search(r'(\+?\d[\d\s-]{8,15}\d)', text)
+        if phone_m:
+            phone = phone_m.group(1).strip().rstrip("$| ")
+
+        email = "tejaswaghmare900@gmail.com"
+        email_m = re.search(r'mailto:([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)', text)
+        if not email_m:
+            email_m = re.search(r'([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)', text)
+        if email_m:
+            email = email_m.group(1).strip()
+
+        location = "Pune, Maharashtra"
+        loc_m = re.search(r'\\icon\{\\faIcon\{map-marker-alt\}\}\s*\\?\s*([^\\\|\n\r]+)', text)
+        if loc_m:
+            location = loc_m.group(1).strip()
+
+        linkedin = "linkedin.com/in/tejascwaghmare"
+        linkedin_url = "https://www.linkedin.com/in/tejascwaghmare"
+        li_m = re.search(r'\\lnk\{(https?://(?:www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+)\}\{([^}]+)\}', text)
+        if li_m:
+            linkedin_url = li_m.group(1).strip()
+            linkedin = li_m.group(2).strip()
+
+        portfolio = "tejaswaghmare.me"
+        portfolio_url = "https://www.tejaswaghmare.me/"
+        port_m = re.search(r'\\lnk\{(https?://[^}]+)\}\{(tejaswaghmare\.me|[^}]+)\}', text)
+        if port_m:
+            portfolio_url = port_m.group(1).strip()
+            portfolio = port_m.group(2).strip()
+
+        github = "github.com/TCWaghmare"
+        github_url = "https://github.com/TCWaghmare"
+        gh_m = re.search(r'\\lnk\{(https?://(?:www\.)?github\.com/[a-zA-Z0-9_-]+)\}\{([^}]+)\}', text)
+        if gh_m:
+            github_url = gh_m.group(1).strip()
+            github = gh_m.group(2).strip()
+
+        # 4. Professional Summary
+        summary = ""
+        sum_m = re.search(r'\\sect\{Professional Summary\}\s*(.*?)(?=\\sect|\\end\{document\}|\Z)', body, re.DOTALL)
+        if sum_m:
+            raw_s = sum_m.group(1).strip()
+            raw_s = re.sub(r'(?<!\\)%.*', '', raw_s)
+            raw_s = re.sub(r'\\([%$&#_{}])', r'\1', raw_s)
+            raw_s = re.sub(r'\\par\b', ' ', raw_s)
+            raw_s = re.sub(r'\\vspace\{[^}]*\}', '', raw_s)
+            summary = re.sub(r'\s+', ' ', raw_s).strip()
+
+        # 5. Technical Skills
+        skills: Dict[str, List[str]] = {}
+        skills_raw_lines: List[Dict[str, str]] = []
+        technical_tools: List[str] = []
+        sk_m = re.search(r'\\sect\{Technical Skills\}\s*(.*?)(?=\\sect|\\end\{document\}|\Z)', body, re.DOTALL)
+        if sk_m:
+            raw_items = [i.strip() for i in sk_m.group(1).split(r'\item') if i.strip() and not i.strip().startswith(r'\begin')]
+            for item in raw_items:
+                clean = re.sub(r'\\end\{itemize\}', '', item).strip()
+                clean = re.sub(r'(?<!\\)%.*', '', clean)
+                m = re.match(r'\\textbf\{([^}]+)\}\s*:?\s*(.*)', clean, re.DOTALL)
+                if m:
+                    cat_name = re.sub(r'\\([%$&#_{}])', r'\1', m.group(1)).strip().rstrip(':')
+                    val_str = re.sub(r'\\textit\{([^}]+)\}', r'\1', m.group(2))
+                    val_str = re.sub(r'\\([%$&#_{}])', r'\1', val_str)
+                    val_str = re.sub(r'--', '-', val_str)
+                    val_str = re.sub(r'\s+', ' ', val_str).strip()
+
+                    cat_key = cat_name.lower().replace('&', '').replace(' ', '_')
+                    cat_key = re.sub(r'_+', '_', cat_key).strip('_')
+                    if 'bi' in cat_key:
+                        cat_key = 'bi_visualization'
+                    elif 'sql' in cat_key or 'database' in cat_key:
+                        cat_key = 'databases_sql'
+                    elif 'analytic' in cat_key or 'statistic' in cat_key:
+                        cat_key = 'analytics_statistics'
+                    elif 'program' in cat_key:
+                        cat_key = 'programming'
+                    elif 'engineer' in cat_key or 'fabric' in cat_key:
+                        cat_key = 'data_engineering'
+                    elif 'ai' in cat_key or 'tool' in cat_key:
+                        cat_key = 'ai_tools'
+
+                    # Split tokens by comma outside parentheses to preserve sub-skills like (DAX, Power Query)
+                    tokens = [t.strip() for t in re.split(r',\s*(?![^()]*\))', val_str) if t.strip()]
+                    skills[cat_key] = tokens
+                    skills_raw_lines.append({
+                        "category": cat_name,
+                        "content": val_str,
+                        "raw_content": val_str,
+                        "key": cat_key
+                    })
+                    for t in tokens:
+                        clean_t = re.sub(r'\(.*?\)', '', t).strip()
+                        clean_t = re.sub(r'--', '-', clean_t).strip()
+                        if clean_t and clean_t not in technical_tools:
+                            technical_tools.append(clean_t)
+                        # Also extract sub-tools from inside parentheses
+                        parens_matches = re.findall(r'\((.*?)\)', t)
+                        for p_content in parens_matches:
+                            for sub_item in re.split(r'[,/|;]', p_content):
+                                sub_clean = sub_item.strip()
+                                if sub_clean and len(sub_clean) > 1 and sub_clean not in technical_tools and not sub_clean.lower().startswith("currently learning"):
+                                    technical_tools.append(sub_clean)
+
+        # 6. Projects
+        projects: List[Dict[str, Any]] = []
+        proj_matches = list(re.finditer(r'\\project\{([^}]+)\}\{([^}]+)\}\{([^}]+)\}(.*?)(?=\\project|\\sect|\\end\{document\}|\Z)', body, re.DOTALL))
+        for p_idx, m in enumerate(proj_matches, 1):
+            p_title = re.sub(r'\\([%$&#_{}])', r'\1', m.group(1)).strip()
+            p_tools = re.sub(r'\\([%$&#_{}])', r'\1', m.group(2)).strip()
+            p_url = m.group(3).strip()
+            bullets = []
+            items_block = re.search(r'\\begin\{itemize\}(.*?)\\end\{itemize\}', m.group(4), re.DOTALL)
+            if items_block:
+                raw_items = [i.strip() for i in items_block.group(1).split(r'\item') if i.strip()]
+                for item in raw_items:
+                    clean_b = re.sub(r'(?<!\\)%.*', '', item)
+                    clean_b = re.sub(r'\\([%$&#_{}])', r'\1', clean_b)
+                    clean_b = re.sub(r'--', '–', clean_b)
+                    clean_b = re.sub(r'\\textbullet', '', clean_b)
+                    clean_b = re.sub(r'\$([^\$]+)\$', r'\1', clean_b)
+                    clean_b = re.sub(r'\s+', ' ', clean_b).strip()
+                    if clean_b:
+                        bullets.append(clean_b)
+            projects.append({
+                "id": f"proj_{p_idx}",
+                "title": p_title,
+                "tools": p_tools,
+                "link_text": "GitHub",
+                "link_url": p_url,
+                "bullets": bullets,
+                "skills": [t.strip() for t in p_tools.split(",") if t.strip()],
+                "source_file": filename
+            })
+
+        # 7. Experience
+        experience: List[Dict[str, Any]] = []
+        entry_matches = list(re.finditer(r'\\entry\{([^}]+)\}\{([^}]+)\}\{([^}]+)\}(.*?)(?=\\entry|\\sect|\\end\{document\}|\Z)', body, re.DOTALL))
+        for e_idx, m in enumerate(entry_matches, 1):
+            e_role = re.sub(r'\\([%$&#_{}])', r'\1', m.group(1)).strip()
+            e_company = re.sub(r'\\([%$&#_{}])', r'\1', m.group(2)).strip()
+            e_dates = re.sub(r'\\([%$&#_{}])', r'\1', m.group(3)).replace('--', '–').strip()
+            bullets = []
+            items_block = re.search(r'\\begin\{itemize\}(.*?)\\end\{itemize\}', m.group(4), re.DOTALL)
+            if items_block:
+                raw_items = [i.strip() for i in items_block.group(1).split(r'\item') if i.strip()]
+                for item in raw_items:
+                    clean_b = re.sub(r'(?<!\\)%.*', '', item)
+                    clean_b = re.sub(r'\\([%$&#_{}])', r'\1', clean_b)
+                    clean_b = re.sub(r'--', '–', clean_b)
+                    clean_b = re.sub(r'\\textbullet', '', clean_b)
+                    clean_b = re.sub(r'\$([^\$]+)\$', r'\1', clean_b)
+                    clean_b = re.sub(r'\s+', ' ', clean_b).strip()
+                    if clean_b:
+                        bullets.append(clean_b)
+            experience.append({
+                "id": f"exp_{e_idx}",
+                "title": e_role,
+                "company": e_company,
+                "location": "Pune, Maharashtra" if "Cybernetic" in e_company else "Remote",
+                "dates": e_dates,
+                "bullets": bullets,
+                "skills": ["Power BI", "SQL", "Excel", "DAX", "Data Modeling"] if "Microsoft" in e_company else ["Excel", "PivotTables", "XLOOKUP", "KPI Tracking"],
+                "source_file": filename
+            })
+
+        # 8. Certifications
+        certifications: List[Dict[str, Any]] = []
+        cert_matches = list(re.finditer(r'\\cert\{([^}]+)\}\{([^}]+)\}', body))
+        for c_idx, m in enumerate(cert_matches, 1):
+            c_name = re.sub(r'\\([%$&#_{}])', r'\1', m.group(1)).strip()
+            c_url = m.group(2).strip()
+            certifications.append({
+                "name": c_name,
+                "link": "Link",
+                "url": c_url,
+                "source_file": filename
+            })
+
+        # 9. Achievements
+        achievements: List[Dict[str, Any]] = []
+        ach_m = re.search(r'\\sect\{Achievements\}\s*(.*?)(?=\\sect|\\end\{document\}|\Z)', body, re.DOTALL)
+        if ach_m:
+            raw_items = [i.strip() for i in ach_m.group(1).split(r'\item') if i.strip() and not i.strip().startswith(r'\begin')]
+            for item in raw_items:
+                clean = re.sub(r'\\end\{itemize\}', '', item).strip()
+                clean = re.sub(r'(?<!\\)%.*', '', clean)
+                m = re.match(r'\\textbf\{([^}]+)\}\s*:?\s*(.*)', clean, re.DOTALL)
+                if m:
+                    a_title = re.sub(r'\\([%$&#_{}])', r'\1', m.group(1)).strip().rstrip(':')
+                    a_desc = re.sub(r'\\([%$&#_{}])', r'\1', m.group(2)).strip()
+                    achievements.append({
+                        "title": a_title,
+                        "description": a_desc,
+                        "source_file": filename
+                    })
+                else:
+                    clean_txt = re.sub(r'\\([%$&#_{}])', r'\1', clean).strip()
+                    if clean_txt:
+                        achievements.append({
+                            "title": clean_txt[:80],
+                            "description": clean_txt,
+                            "source_file": filename
+                        })
+
+        # 10. Education
+        education: List[Dict[str, Any]] = []
+        edu_m = re.search(r'\\sect\{Education\}\s*(.*?)(?=\\sect|\\end\{document\}|\Z)', body, re.DOTALL)
+        if edu_m:
+            lines = [l.strip() for l in edu_m.group(1).split(r'\par') if l.strip()]
+            for l in lines:
+                clean = re.sub(r'\\noindent', '', l).strip()
+                clean = re.sub(r'(?<!\\)%.*', '', clean)
+                m_date = re.search(r'\\hfill\s*\\textit\{([^}]+)\}', clean)
+                date_str = m_date.group(1).replace('--', '–').strip() if m_date else ''
+                content = re.sub(r'\\hfill\s*\\textit\{[^}]+\}', '', clean).strip()
+                parts = [p.strip() for p in re.split(r'\s*(?:\$\|\$|\|)\s*', content) if p.strip()]
+                if len(parts) >= 3 and ("HSC" in parts[0] or "SSC" in parts[1]):
+                    deg = f"{re.sub(r'\\textbf\{([^}]+)\}', r'\1', parts[0])} | {re.sub(r'\\textbf\{([^}]+)\}', r'\1', parts[1])}"
+                    deg = re.sub(r'\\([%$&#_{}])', r'\1', deg).strip()
+                    inst = re.sub(r'\\([%$&#_{}])', r'\1', parts[2]).strip()
+                else:
+                    deg = re.sub(r'\\textbf\{([^}]+)\}', r'\1', parts[0]) if parts else "Degree"
+                    deg = re.sub(r'\\([%$&#_{}])', r'\1', deg).strip()
+                    inst = parts[1] if len(parts) > 1 else ''
+                    inst = re.sub(r'\\textbf\{([^}]+)\}', r'\1', inst)
+                    inst = re.sub(r'\\([%$&#_{}])', r'\1', inst).strip()
+                    extra = parts[2] if len(parts) > 2 else ''
+                    extra = re.sub(r'\\([%$&#_{}])', r'\1', extra).strip()
+                    if extra and "CGPA" in extra:
+                        deg = f"{deg} ({extra})"
+                    elif extra:
+                        inst = f"{extra} | {inst}"
+                education.append({
+                    "institution": inst or "Educational Institution",
+                    "degree": deg,
+                    "dates": date_str,
+                    "source_file": filename
+                })
+
+        return {
+            "name": name,
+            "target_job_title": target_role,
+            "contact": {
+                "phone": phone,
+                "email": email,
+                "location": location,
+                "linkedin": linkedin,
+                "linkedin_url": linkedin_url,
+                "portfolio": portfolio,
+                "portfolio_url": portfolio_url,
+                "github": github,
+                "github_url": github_url
+            },
+            "summary": summary,
+            "skills": skills,
+            "skills_lines": skills_raw_lines,
+            "skills_raw_lines": skills_raw_lines,
+            "technical_tools": technical_tools,
+            "projects": projects,
+            "experience": experience,
+            "certifications": certifications,
+            "achievements": achievements,
+            "education": education,
+            "source_file": filename,
+            "raw_text": text
+        }
 
     def _split_sections(self, text: str) -> Dict[str, str]:
         """Finds resume section boundaries and partitions text."""
@@ -414,18 +717,19 @@ class ResumeParser:
                 d_match = date_pat.search(line)
                 dates = d_match.group(1).strip() if d_match else ""
                 header_no_date = date_pat.sub('', line).strip().rstrip("–-| ")
+                parts = [p.strip() for p in header_no_date.split('|')]
+                title = parts[0] if parts else "Professional Role"
+                company = parts[1] if len(parts) > 1 else ""
                 current = {
                     "id": f"exp_{len(entries)+1}",
-                    "title": header_no_date or "Professional Role",
-                    "company": "",
+                    "title": title,
+                    "company": company,
                     "location": "India",
                     "dates": dates,
                     "bullets": [],
                     "skills": [],
                     "source_file": source_file
                 }
-            elif not is_bullet and current and not current.get("company"):
-                current["company"] = line
             elif is_bullet:
                 bullet = re.sub(r'^[•\-\*—–\d\.\s]+', '', line).strip()
                 if bullet:
@@ -442,14 +746,14 @@ class ResumeParser:
                         }
                     else:
                         current["bullets"].append(bullet)
+            elif current and current.get("bullets"):
+                # Wrapped bullet line continuation
+                current["bullets"][-1] += " " + line
+            elif not is_bullet and current and not current.get("company"):
+                current["company"] = line
             else:
-                if current and current["bullets"]:
-                    current["bullets"][-1] += " " + line
-                elif current:
-                    if not current["company"]:
-                        current["company"] = line
-                    else:
-                        current["title"] += " " + line
+                if current:
+                    current["title"] += " " + line
 
         if current and (current.get("bullets") or current.get("title")):
             entries.append(current)
@@ -511,36 +815,59 @@ class ResumeParser:
             current = None
             for line in lines:
                 is_bullet = line.startswith(('•', '-', '*', '—', '–'))
+                is_header = ('|' in line or 'github' in line.lower() or 'view project' in line.lower()) and not line.startswith(('(', '5%', '$', '•', '-', '*'))
+
                 if is_bullet:
                     b_text = re.sub(r'^[•\-\*—–\s]+', '', line).strip()
                     if current:
                         current["bullets"].append(b_text)
                 elif current and current["bullets"]:
-                    looks_like_wrap = bool(re.match(r'^(and|or|in|to|with|for|by|from|as|at|of|average|regions|discounts|revenue)\b', line, re.I)) or line[0].islower()
-                    if looks_like_wrap:
-                        current["bullets"][-1] += " " + line
-                    else:
+                    if is_header:
                         projects.append(current)
-                        clean_title = re.sub(r'View\s+Project', '', line, flags=re.I).strip()
+                        clean_line = re.sub(r'GitHub\b|View\s+Project', '', line, flags=re.I).strip()
+                        parts = [p.strip() for p in clean_line.split('|')]
+                        clean_title = parts[0]
+                        tools = parts[1] if len(parts) > 1 else ""
                         current = {
                             "id": f"proj_{len(projects)+1}",
                             "title": clean_title,
-                            "tools": "",
-                            "link_text": "View Project",
+                            "tools": tools,
+                            "link_text": "GitHub",
                             "link_url": "",
                             "bullets": [],
                             "skills": [],
                             "source_file": source_file
                         }
-                elif current and not current.get("tools"):
-                    current["tools"] = line
-                else:
-                    clean_title = re.sub(r'View\s+Project', '', line, flags=re.I).strip()
+                    else:
+                        # Wrapped continuation of previous bullet
+                        current["bullets"][-1] += " " + line
+                elif is_header:
+                    if current:
+                        projects.append(current)
+                    clean_line = re.sub(r'GitHub\b|View\s+Project', '', line, flags=re.I).strip()
+                    parts = [p.strip() for p in clean_line.split('|')]
+                    clean_title = parts[0]
+                    tools = parts[1] if len(parts) > 1 else ""
                     current = {
                         "id": f"proj_{len(projects)+1}",
                         "title": clean_title,
-                        "tools": "",
-                        "link_text": "View Project",
+                        "tools": tools,
+                        "link_text": "GitHub",
+                        "link_url": "",
+                        "bullets": [],
+                        "skills": [],
+                        "source_file": source_file
+                    }
+                elif current and not current.get("tools"):
+                    current["tools"] = line
+                else:
+                    clean_title = re.sub(r'View\s+Project|GitHub\b', '', line, flags=re.I).strip()
+                    parts = [p.strip() for p in clean_title.split('|')]
+                    current = {
+                        "id": f"proj_{len(projects)+1}",
+                        "title": parts[0],
+                        "tools": parts[1] if len(parts) > 1 else "",
+                        "link_text": "GitHub",
                         "link_url": "",
                         "bullets": [],
                         "skills": [],

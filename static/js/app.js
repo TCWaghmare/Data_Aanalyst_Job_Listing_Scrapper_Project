@@ -89,30 +89,103 @@ function getStandardDocFilename(candidateName, role, company, docType, extension
 function renderLatexResumePreviewHtml(tailoredResume) {
   const res = tailoredResume || {};
   const name = escapeHtml(res.name || (state.masterProfile && state.masterProfile.name) || 'Tejas C. Waghmare');
+  const targetRole = escapeHtml(res.target_job_title || 'Data Analyst');
   const contact = res.contact || (state.masterProfile && state.masterProfile.contact) || {};
 
-  const contactParts = [];
-  if (contact.phone && !contact.phone.toLowerCase().includes('not available')) {
-    contactParts.push(escapeHtml(contact.phone));
+  // Contact Line 1: Phone, Email, Location
+  const c1Parts = [];
+  const phone = contact.phone || '+91 83788 69006';
+  if (phone && !phone.toLowerCase().includes('not available')) {
+    c1Parts.push(`<i class="fas fa-phone"></i> ${escapeHtml(phone)}`);
   }
-  if (contact.email && !contact.email.toLowerCase().includes('not available')) {
-    contactParts.push(`<a href="mailto:${escapeHtml(contact.email)}" style="color: #000; text-decoration: underline;">${escapeHtml(contact.email)}</a>`);
+  const email = contact.email || 'tejaswaghmare900@gmail.com';
+  if (email && !email.toLowerCase().includes('not available')) {
+    c1Parts.push(`<a href="mailto:${escapeHtml(email)}" style="color: #0B5CD5; text-decoration: underline;"><i class="fas fa-envelope"></i> ${escapeHtml(email)}</a>`);
   }
-  if (contact.linkedin) {
-    const cleanLi = contact.linkedin.replace(/^https?:\/\//, '').replace(/^www\./, '');
-    const liUrl = contact.linkedin_url || `https://${cleanLi}`;
-    contactParts.push(`<a href="${escapeHtml(liUrl)}" target="_blank" rel="noopener noreferrer" style="color: #000; text-decoration: underline;">${escapeHtml(cleanLi)}</a>`);
+  const location = contact.location || 'Pune, Maharashtra';
+  if (location && !location.toLowerCase().includes('not available')) {
+    c1Parts.push(`<i class="fas fa-map-marker-alt"></i> ${escapeHtml(location)}`);
   }
-  if (contact.github) {
-    const cleanGh = contact.github.replace(/^https?:\/\//, '').replace(/^www\./, '');
-    const ghUrl = contact.github_url || `https://${cleanGh}`;
-    contactParts.push(`<a href="${escapeHtml(ghUrl)}" target="_blank" rel="noopener noreferrer" style="color: #000; text-decoration: underline;">${escapeHtml(cleanGh)}</a>`);
-  }
-  const contactLine = contactParts.length > 0 ? contactParts.join(' | ') : 'Information Not Available in Uploaded Documents';
+  const contactLine1 = c1Parts.join(' | ');
 
-  const summary = escapeHtml(res.summary || 'Information Not Available in Uploaded Documents');
+  // Contact Line 2: LinkedIn, Portfolio, GitHub
+  const c2Parts = [];
+  const linkedin = contact.linkedin || 'linkedin.com/in/tejascwaghmare';
+  const cleanLi = linkedin.replace(/^https?:\/\//, '').replace(/^www\./, '');
+  const liUrl = contact.linkedin_url || `https://${cleanLi}`;
+  c2Parts.push(`<a href="${escapeHtml(liUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0B5CD5; text-decoration: underline;"><i class="fab fa-linkedin"></i> ${escapeHtml(cleanLi)}</a>`);
 
-  // Experience
+  const portfolio = contact.portfolio || 'tejaswaghmare.me';
+  const cleanPf = portfolio.replace(/^https?:\/\//, '').replace(/^www\./, '');
+  const pfUrl = contact.portfolio_url || `https://${cleanPf}`;
+  c2Parts.push(`<a href="${escapeHtml(pfUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0B5CD5; text-decoration: underline;"><i class="fas fa-globe"></i> ${escapeHtml(cleanPf)}</a>`);
+
+  const github = contact.github || 'github.com/TCWaghmare';
+  const cleanGh = github.replace(/^https?:\/\//, '').replace(/^www\./, '');
+  const ghUrl = contact.github_url || `https://${cleanGh}`;
+  c2Parts.push(`<a href="${escapeHtml(ghUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0B5CD5; text-decoration: underline;"><i class="fab fa-github"></i> ${escapeHtml(cleanGh)}</a>`);
+  const contactLine2 = c2Parts.join(' | ');
+
+  const summary = escapeHtml(res.summary || 'Data Analyst with hands-on experience in business intelligence, SQL data modeling, and automated KPI reporting.');
+
+  // 1. Technical Skills
+  let skillsHtml = '';
+  if (res.skills_lines && res.skills_lines.length > 0) {
+    skillsHtml = res.skills_lines.map(sl => {
+      let content = escapeHtml(sl.content || '');
+      content = content.replace(/currently learning, basic level/g, '<em>currently learning, basic level</em>');
+      return `<div style="margin-bottom: 1.5px;"><strong>${escapeHtml(sl.category)}:</strong> ${content}</div>`;
+    }).join('');
+  } else {
+    const skills = res.skills || {};
+    const catLabels = {
+      bi_visualization: 'BI & Visualization',
+      databases_sql: 'Databases & SQL',
+      analytics_statistics: 'Analytics & Statistics',
+      programming: 'Programming',
+      data_engineering: 'Data Engineering',
+      ai_tools: 'AI & Tools'
+    };
+    const skillsLines = [];
+    for (const [catKey, items] of Object.entries(skills)) {
+      if (!items || items.length === 0) continue;
+      const label = catLabels[catKey] || catKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      let itemsStr = Array.isArray(items) ? items.join(', ') : String(items);
+      let content = escapeHtml(itemsStr);
+      content = content.replace(/currently learning, basic level/g, '<em>currently learning, basic level</em>');
+      skillsLines.push(`<div style="margin-bottom: 1.5px;"><strong>${escapeHtml(label)}:</strong> ${content}</div>`);
+    }
+    skillsHtml = skillsLines.length > 0 ? skillsLines.join('') : '<em>Information Not Available in Uploaded Documents</em>';
+  }
+
+  // 2. Projects
+  let projHtml = '';
+  const projItems = res.projects || [];
+  if (projItems.length > 0) {
+    projHtml = projItems.map(proj => {
+      const bullets = (proj.bullets && proj.bullets.length > 0)
+        ? proj.bullets.map(b => `<li style="font-size: 8.6pt; margin-bottom: 1.5px; line-height: 1.25;">${escapeHtml(b)}</li>`).join('')
+        : '<li style="font-size: 8.6pt; margin-bottom: 1.5px; line-height: 1.25;">Executed key project milestones.</li>';
+      const linkUrl = proj.link_url || 'https://github.com/TCWaghmare';
+      const linkText = proj.link_text || 'GitHub';
+      const toolsPart = proj.tools ? ` | <em>${escapeHtml(proj.tools)}</em>` : '';
+      return `
+        <div style="margin-bottom: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt;">
+            <span><strong>${escapeHtml(proj.title || 'Project')}</strong>${toolsPart}</span>
+            <span><a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0B5CD5; text-decoration: underline; font-size: 8.5pt;">${escapeHtml(linkText)}</a></span>
+          </div>
+          <ul style="margin: 2px 0 3px 18px; padding: 0; list-style-type: disc;">
+            ${bullets}
+          </ul>
+        </div>
+      `;
+    }).join('');
+  } else {
+    projHtml = '<div style="font-size: 8.5pt; font-style: italic; color: #555;">Information Not Available in Uploaded Documents</div>';
+  }
+
+  // 3. Experience
   let expHtml = '';
   const expItems = res.experience || [];
   if (expItems.length > 0) {
@@ -120,15 +193,12 @@ function renderLatexResumePreviewHtml(tailoredResume) {
       const bullets = (exp.bullets && exp.bullets.length > 0)
         ? exp.bullets.map(b => `<li style="font-size: 8.6pt; margin-bottom: 1.5px; line-height: 1.25;">${escapeHtml(b)}</li>`).join('')
         : '<li style="font-size: 8.6pt; margin-bottom: 1.5px; line-height: 1.25;">Contributed to operational and technical deliverables.</li>';
+      const dates = (exp.dates || exp.duration || '').replace(/--/g, '–');
       return `
         <div style="margin-bottom: 4px;">
           <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt;">
-            <span><strong>${escapeHtml(exp.title || 'Role')}</strong></span>
-            <span style="font-size: 8.5pt;">${escapeHtml(exp.dates || exp.duration || '')}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 8.7pt; margin-bottom: 1px;">
-            <span><em>${escapeHtml(exp.company || '')}</em></span>
-            <span style="font-size: 8.5pt;"><em>${escapeHtml(exp.location || 'Remote')}</em></span>
+            <span><strong>${escapeHtml(exp.title || 'Role')}</strong> | <em>${escapeHtml(exp.company || '')}</em></span>
+            <span style="font-size: 8.5pt;"><em>${escapeHtml(dates)}</em></span>
           </div>
           <ul style="margin: 2px 0 3px 18px; padding: 0; list-style-type: disc;">
             ${bullets}
@@ -140,85 +210,16 @@ function renderLatexResumePreviewHtml(tailoredResume) {
     expHtml = '<div style="font-size: 8.5pt; font-style: italic; color: #555;">Information Not Available in Uploaded Documents</div>';
   }
 
-  // Projects
-  let projHtml = '';
-  const projItems = res.projects || [];
-  if (projItems.length > 0) {
-    projHtml = projItems.map(proj => {
-      const bullets = (proj.bullets && proj.bullets.length > 0)
-        ? proj.bullets.map(b => `<li style="font-size: 8.6pt; margin-bottom: 1.5px; line-height: 1.25;">${escapeHtml(b)}</li>`).join('')
-        : '<li style="font-size: 8.6pt; margin-bottom: 1.5px; line-height: 1.25;">Executed key project milestones.</li>';
-      const linkUrl = proj.link_url || '#';
-      const linkText = proj.link_text || 'View Project';
-      const linkHtml = (linkUrl && linkUrl !== '#')
-        ? `<a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; color: #000; font-size: 8.5pt;">${escapeHtml(linkText)}</a>`
-        : `<span style="text-decoration: underline; font-size: 8.5pt;">${escapeHtml(linkText)}</span>`;
-      const toolsLine = proj.tools
-        ? `<div style="font-size: 8.2pt; margin-bottom: 1px;"><em>${escapeHtml(proj.tools)}</em></div>`
-        : '';
-      return `
-        <div style="margin-bottom: 4px;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt;">
-            <span><strong>${escapeHtml(proj.title || 'Project')}</strong></span>
-            <span>${linkHtml}</span>
-          </div>
-          ${toolsLine}
-          <ul style="margin: 2px 0 3px 18px; padding: 0; list-style-type: disc;">
-            ${bullets}
-          </ul>
-        </div>
-      `;
-    }).join('');
-  } else {
-    projHtml = '<div style="font-size: 8.5pt; font-style: italic; color: #555;">Information Not Available in Uploaded Documents</div>';
-  }
-
-  // Skills
-  const skills = res.skills || {};
-  const skillsLines = [];
-  const catOrder = ['bi_visualization', 'data_analytics', 'programming', 'machine_learning', 'domains', 'tools_workflows'];
-  const allCats = Object.keys(skills);
-  const orderedCats = [...new Set([...catOrder.filter(c => allCats.includes(c)), ...allCats])];
-  for (const cat of orderedCats) {
-    const items = skills[cat];
-    if (items && items.length > 0) {
-      let label = cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      if (label === 'Bi Visualization') label = 'BI & Visualization';
-      if (label === 'Data Analytics') label = 'Data & Analytics';
-      skillsLines.push(`<div><strong>${escapeHtml(label)}:</strong> ${escapeHtml(Array.isArray(items) ? items.join(', ') : items)}</div>`);
-    }
-  }
-  const skillsHtml = skillsLines.length > 0 ? skillsLines.join('') : '<em>Information Not Available in Uploaded Documents</em>';
-
-  // Education
-  let eduHtml = '';
-  const eduItems = res.education || [];
-  if (eduItems.length > 0) {
-    eduHtml = eduItems.map(edu => `
-      <div style="margin-bottom: 3px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt;">
-          <span><strong>${escapeHtml(edu.institution || 'Institution')}</strong></span>
-          <span style="font-size: 8.5pt;">${escapeHtml(edu.dates || '')}</span>
-        </div>
-        <div style="font-size: 8.7pt;">
-          <em>${escapeHtml(edu.degree || '')}</em>
-        </div>
-      </div>
-    `).join('');
-  } else {
-    eduHtml = '<div style="font-size: 8.5pt; font-style: italic; color: #555;">Information Not Available in Uploaded Documents</div>';
-  }
-
-  // Certifications
+  // 4. Certifications
   let certHtml = '';
   const certItems = res.certifications || [];
   if (certItems.length > 0) {
     certHtml = certItems.map(cert => {
       const cName = escapeHtml(typeof cert === 'object' ? cert.name || '' : String(cert));
-      const cLink = escapeHtml(typeof cert === 'object' ? cert.link || 'Credential Link' : 'Credential Link');
+      const cLink = escapeHtml(typeof cert === 'object' ? cert.link || 'Link' : 'Link');
       const cUrl = (typeof cert === 'object' && cert.url && cert.url !== '#') ? cert.url : null;
       const linkElem = cUrl
-        ? `<a href="${escapeHtml(cUrl)}" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; color: #000;">${cLink}</a>`
+        ? `<a href="${escapeHtml(cUrl)}" target="_blank" rel="noopener noreferrer" style="color: #0B5CD5; text-decoration: underline;">${cLink}</a>`
         : `<span style="text-decoration: underline;">${cLink}</span>`;
       return `
         <div style="display: flex; justify-content: space-between; font-size: 8.6pt; margin-bottom: 2px;">
@@ -231,52 +232,99 @@ function renderLatexResumePreviewHtml(tailoredResume) {
     certHtml = '<div style="font-size: 8.5pt; font-style: italic; color: #555;">Information Not Available in Uploaded Documents</div>';
   }
 
+  // 5. Achievements
+  let achHtml = '';
+  const achItems = res.achievements || [];
+  const defaultAch = [{
+    title: 'McKinsey.org Forward Program (2026)',
+    description: 'Strengthened structured problem-solving, critical thinking, communication, and analytical decision-making, with exposure to digital and AI essentials.'
+  }];
+  const activeAchs = achItems.length > 0 ? achItems : defaultAch;
+  achHtml = activeAchs.map(ach => {
+    let text = '';
+    if (typeof ach === 'object') {
+      const t = ach.title || '';
+      const d = ach.description || '';
+      text = (t && d && !d.includes(t)) ? `<strong>${escapeHtml(t)}:</strong> ${escapeHtml(d)}` : escapeHtml(d || t);
+    } else {
+      text = escapeHtml(String(ach));
+    }
+    return `<li style="font-size: 8.6pt; margin-bottom: 1.5px; line-height: 1.25;">${text}</li>`;
+  }).join('');
+
+  // 6. Education
+  let eduHtml = '';
+  const eduItems = res.education || [];
+  if (eduItems.length > 0) {
+    eduHtml = eduItems.map(edu => {
+      const dates = (edu.dates || '').replace(/--/g, '–');
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 8.8pt; margin-bottom: 2px;">
+          <span><strong>${escapeHtml(edu.degree || '')}</strong> | ${escapeHtml(edu.institution || '')}</span>
+          <span style="font-size: 8.5pt;"><em>${escapeHtml(dates)}</em></span>
+        </div>
+      `;
+    }).join('');
+  } else {
+    eduHtml = '<div style="font-size: 8.5pt; font-style: italic; color: #555;">Information Not Available in Uploaded Documents</div>';
+  }
+
   return `
-    <div class="latex-paper-sheet" style="background: #ffffff; color: #000000; font-family: 'Computer Modern Roman', 'Latin Modern Roman', 'Times New Roman', Times, serif; font-size: 9.1pt; line-height: 1.28; padding: 2.25rem 2.75rem; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #d1d5db; max-width: 860px; margin: 0 auto; text-align: left;">
+    <div class="latex-paper-sheet" style="background: #ffffff; color: #000000; font-family: 'CMU Serif', 'Computer Modern Roman', 'Latin Modern Roman', 'Times New Roman', Times, serif; font-size: 9.0pt; line-height: 1.28; padding: 2.25rem 2.75rem; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #d1d5db; max-width: 860px; margin: 0 auto; text-align: left;">
       <!-- Header -->
-      <div style="text-align: center; margin-bottom: 6px;">
-        <h1 style="font-size: 20pt; font-weight: normal; font-variant: small-caps; letter-spacing: 0.5px; margin: 0 0 3px 0; color: #000000;">${name}</h1>
-        <div style="font-size: 8.5pt; color: #111111;">
-          ${contactLine}
+      <div style="text-align: center; margin-bottom: 5px;">
+        <h1 style="font-size: 21pt; font-weight: bold; letter-spacing: 0.3px; margin: 0 0 1px 0; color: #000000;">${name}</h1>
+        <div style="font-size: 12.5pt; font-weight: bold; margin-bottom: 3px; color: #111111;">${targetRole}</div>
+        <div style="font-size: 8.4pt; color: #222222; line-height: 1.35;">
+          <div>${contactLine1}</div>
+          <div>${contactLine2}</div>
         </div>
       </div>
 
       <!-- Professional Summary -->
-      <div style="margin-top: 8px;">
-        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 1px solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Professional Summary</div>
+      <div style="margin-top: 5px;">
+        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 0.5pt solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Professional Summary</div>
         <div style="font-size: 8.7pt; text-align: justify; line-height: 1.28; color: #000000;">${summary}</div>
       </div>
 
-      <!-- Professional Experience -->
-      <div style="margin-top: 8px;">
-        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 1px solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Professional Experience</div>
-        ${expHtml}
-      </div>
-
-      <!-- Projects -->
-      <div style="margin-top: 8px;">
-        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 1px solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Projects</div>
-        ${projHtml}
-      </div>
-
       <!-- Technical Skills -->
-      <div style="margin-top: 8px;">
-        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 1px solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Technical Skills</div>
-        <div style="font-size: 8.7pt; line-height: 1.35; color: #000000;">
+      <div style="margin-top: 5px;">
+        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 0.5pt solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Technical Skills</div>
+        <div style="font-size: 8.7pt; line-height: 1.32; color: #000000;">
           ${skillsHtml}
         </div>
       </div>
 
-      <!-- Education -->
-      <div style="margin-top: 8px;">
-        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 1px solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Education</div>
-        ${eduHtml}
+      <!-- Projects -->
+      <div style="margin-top: 5px;">
+        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 0.5pt solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Projects</div>
+        ${projHtml}
+      </div>
+
+      <!-- Experience -->
+      <div style="margin-top: 5px;">
+        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 0.5pt solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Experience</div>
+        ${expHtml}
       </div>
 
       <!-- Certifications -->
-      <div style="margin-top: 8px;">
-        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 1px solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Certifications</div>
+      <div style="margin-top: 5px;">
+        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 0.5pt solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Certifications</div>
         ${certHtml}
+      </div>
+
+      <!-- Achievements -->
+      <div style="margin-top: 5px;">
+        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 0.5pt solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Achievements</div>
+        <ul style="margin: 2px 0 3px 18px; padding: 0; list-style-type: disc;">
+          ${achHtml}
+        </ul>
+      </div>
+
+      <!-- Education -->
+      <div style="margin-top: 5px;">
+        <div style="font-size: 10.5pt; font-variant: small-caps; font-weight: bold; border-bottom: 0.5pt solid #000000; padding-bottom: 1px; margin-bottom: 3px; letter-spacing: 0.3px; color: #000000;">Education</div>
+        ${eduHtml}
       </div>
     </div>
   `;

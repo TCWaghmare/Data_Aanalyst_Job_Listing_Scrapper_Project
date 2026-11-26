@@ -127,75 +127,62 @@ class DocxBuilder:
             r_sum.font.size = Pt(9)
             r_sum.font.color.rgb = COLOR_DARK
 
-        # 4. Professional Experience
-        if experience:
-            self._add_heading(doc, "Professional Experience")
-            for exp in experience:
-                # 2-column borderless table for title (left) and dates (right)
-                table = doc.add_table(rows=2, cols=2)
-                table.alignment = WD_TABLE_ALIGNMENT.CENTER
-                self._remove_table_borders(table)
-                table.autofit = False
+        # 4. Technical Skills
+        skills_lines_data = data.get("skills_lines", [])
+        if skills_lines_data or skills:
+            self._add_heading(doc, "Technical Skills")
+            if skills_lines_data:
+                for sl in skills_lines_data:
+                    p_skill = doc.add_paragraph()
+                    p_skill.paragraph_format.space_before = Pt(0)
+                    p_skill.paragraph_format.space_after = Pt(1.5)
+                    p_skill.paragraph_format.line_spacing = 1.12
 
-                # Row 0: Title & Dates
-                cell_00 = table.cell(0, 0)
-                cell_01 = table.cell(0, 1)
-                cell_00.width = Inches(5.2)
-                cell_01.width = Inches(2.3)
+                    r_lbl = p_skill.add_run(f"{sl.get('category')}: ")
+                    r_lbl.font.name = FONT_SERIF
+                    r_lbl.font.size = Pt(8.5)
+                    r_lbl.font.bold = True
+                    r_lbl.font.color.rgb = COLOR_BLACK
 
-                p00 = cell_00.paragraphs[0]
-                p00.paragraph_format.space_before = Pt(2)
-                p00.paragraph_format.space_after = Pt(0)
-                r00 = p00.add_run(exp.get("title", ""))
-                r00.font.name = FONT_SERIF
-                r00.font.size = Pt(9.5)
-                r00.font.bold = True
-                r00.font.color.rgb = COLOR_BLACK
+                    r_val = p_skill.add_run(sl.get("content", ""))
+                    r_val.font.name = FONT_SERIF
+                    r_val.font.size = Pt(8.5)
+                    r_val.font.color.rgb = COLOR_DARK
+            else:
+                cat_labels = {
+                    "bi_visualization": "BI & Visualization",
+                    "databases_sql": "Databases & SQL",
+                    "analytics_statistics": "Analytics & Statistics",
+                    "programming": "Programming",
+                    "data_engineering": "Data Engineering",
+                    "ai_tools": "AI & Tools",
+                    "data_analytics": "Data Analytics",
+                    "cloud_database": "Cloud & Database",
+                    "machine_learning": "Machine Learning",
+                    "domains": "Domains",
+                    "tools_workflows": "Tools & Workflows"
+                }
 
-                p01 = cell_01.paragraphs[0]
-                p01.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                p01.paragraph_format.space_before = Pt(2)
-                p01.paragraph_format.space_after = Pt(0)
-                r01 = p01.add_run(exp.get("dates") or exp.get("period", ""))
-                r01.font.name = FONT_SERIF
-                r01.font.size = Pt(8.5)
-                r01.font.color.rgb = COLOR_MUTED
+                for cat_key, items in skills.items():
+                    if not items:
+                        continue
+                    label = cat_labels.get(cat_key, cat_key.replace("_", " ").title())
+                    p_skill = doc.add_paragraph()
+                    p_skill.paragraph_format.space_before = Pt(0)
+                    p_skill.paragraph_format.space_after = Pt(1.5)
+                    p_skill.paragraph_format.line_spacing = 1.12
 
-                # Row 1: Company & Location
-                cell_10 = table.cell(1, 0)
-                cell_11 = table.cell(1, 1)
-                cell_10.width = Inches(5.2)
-                cell_11.width = Inches(2.3)
+                    r_lbl = p_skill.add_run(f"{label}: ")
+                    r_lbl.font.name = FONT_SERIF
+                    r_lbl.font.size = Pt(8.5)
+                    r_lbl.font.bold = True
+                    r_lbl.font.color.rgb = COLOR_BLACK
 
-                p10 = cell_10.paragraphs[0]
-                p10.paragraph_format.space_before = Pt(0)
-                p10.paragraph_format.space_after = Pt(1)
-                r10 = p10.add_run(exp.get("company", ""))
-                r10.font.name = FONT_SERIF
-                r10.font.size = Pt(9)
-                r10.font.italic = True
-                r10.font.color.rgb = COLOR_DARK
-
-                p11 = cell_11.paragraphs[0]
-                p11.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                p11.paragraph_format.space_before = Pt(0)
-                p11.paragraph_format.space_after = Pt(1)
-                r11 = p11.add_run(exp.get("location", ""))
-                r11.font.name = FONT_SERIF
-                r11.font.size = Pt(8.5)
-                r11.font.italic = True
-                r11.font.color.rgb = COLOR_MUTED
-
-                # Bullets
-                for bullet in exp.get("bullets", []):
-                    p_b = doc.add_paragraph(style="List Bullet")
-                    p_b.paragraph_format.space_before = Pt(0)
-                    p_b.paragraph_format.space_after = Pt(1)
-                    p_b.paragraph_format.line_spacing = 1.12
-                    r_b = p_b.add_run(bullet)
-                    r_b.font.name = FONT_SERIF
-                    r_b.font.size = Pt(8.5)
-                    r_b.font.color.rgb = COLOR_DARK
+                    items_text = ", ".join(items) if isinstance(items, list) else str(items)
+                    r_val = p_skill.add_run(items_text)
+                    r_val.font.name = FONT_SERIF
+                    r_val.font.size = Pt(8.5)
+                    r_val.font.color.rgb = COLOR_DARK
 
         # 5. Projects
         if projects:
@@ -238,7 +225,7 @@ class DocxBuilder:
                 p1.paragraph_format.space_before = Pt(2)
                 p1.paragraph_format.space_after = Pt(0)
                 link_url = proj.get("link_url") or "#"
-                link_text = proj.get("link_text", "View Project")
+                link_text = proj.get("link_text", "GitHub")
                 if link_url and link_url != "#":
                     self._add_hyperlink(p1, link_url, link_text, font_size_pt=8.5, underline=True)
                 else:
@@ -258,45 +245,129 @@ class DocxBuilder:
                     r_b.font.size = Pt(8.5)
                     r_b.font.color.rgb = COLOR_DARK
 
-        # 6. Technical Skills
-        if skills:
-            self._add_heading(doc, "Technical Skills")
-            cat_labels = {
-                "bi_visualization": "BI & Visualization",
-                "data_analytics": "Data Analytics",
-                "programming": "Programming",
-                "machine_learning": "Machine Learning",
-                "domains": "Domains",
-                "tools_workflows": "Tools & Workflows",
-                "languages": "Languages",
-                "bi_tools": "BI Tools",
-                "databases": "Databases",
-                "frameworks_and_tools": "Frameworks & Tools",
-                "core_competencies": "Core Competencies"
-            }
+        # 6. Professional Experience
+        if experience:
+            self._add_heading(doc, "Experience")
+            for exp in experience:
+                table = doc.add_table(rows=1, cols=2)
+                table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                self._remove_table_borders(table)
+                table.autofit = False
 
-            for cat_key, items in skills.items():
-                if not items:
-                    continue
-                label = cat_labels.get(cat_key, cat_key.replace("_", " ").title())
-                p_skill = doc.add_paragraph()
-                p_skill.paragraph_format.space_before = Pt(0)
-                p_skill.paragraph_format.space_after = Pt(1.5)
-                p_skill.paragraph_format.line_spacing = 1.12
+                cell_00 = table.cell(0, 0)
+                cell_01 = table.cell(0, 1)
+                cell_00.width = Inches(5.2)
+                cell_01.width = Inches(2.3)
 
-                r_lbl = p_skill.add_run(f"{label}: ")
-                r_lbl.font.name = FONT_SERIF
-                r_lbl.font.size = Pt(8.5)
-                r_lbl.font.bold = True
-                r_lbl.font.color.rgb = COLOR_BLACK
+                p00 = cell_00.paragraphs[0]
+                p00.paragraph_format.space_before = Pt(2)
+                p00.paragraph_format.space_after = Pt(0)
+                r00 = p00.add_run(exp.get("title", ""))
+                r00.font.name = FONT_SERIF
+                r00.font.size = Pt(9.5)
+                r00.font.bold = True
+                r00.font.color.rgb = COLOR_BLACK
 
-                items_text = ", ".join(items) if isinstance(items, list) else str(items)
-                r_val = p_skill.add_run(items_text)
-                r_val.font.name = FONT_SERIF
-                r_val.font.size = Pt(8.5)
-                r_val.font.color.rgb = COLOR_DARK
+                if exp.get("company"):
+                    r_c_sep = p00.add_run("  |  ")
+                    r_c_sep.font.name = FONT_SERIF
+                    r_c_sep.font.size = Pt(8.5)
+                    r_c_sep.font.color.rgb = COLOR_MUTED
 
-        # 7. Education
+                    r_comp = p00.add_run(exp.get("company", ""))
+                    r_comp.font.name = FONT_SERIF
+                    r_comp.font.size = Pt(9)
+                    r_comp.font.italic = True
+                    r_comp.font.color.rgb = COLOR_DARK
+
+                p01 = cell_01.paragraphs[0]
+                p01.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                p01.paragraph_format.space_before = Pt(2)
+                p01.paragraph_format.space_after = Pt(0)
+                dates = (exp.get("dates") or exp.get("period", "")).replace("--", "–")
+                r01 = p01.add_run(dates)
+                r01.font.name = FONT_SERIF
+                r01.font.size = Pt(8.5)
+                r01.font.italic = True
+                r01.font.color.rgb = COLOR_MUTED
+
+                for bullet in exp.get("bullets", []):
+                    p_b = doc.add_paragraph(style="List Bullet")
+                    p_b.paragraph_format.space_before = Pt(0)
+                    p_b.paragraph_format.space_after = Pt(1)
+                    p_b.paragraph_format.line_spacing = 1.12
+                    r_b = p_b.add_run(bullet)
+                    r_b.font.name = FONT_SERIF
+                    r_b.font.size = Pt(8.5)
+                    r_b.font.color.rgb = COLOR_DARK
+
+        # 7. Certifications
+        if certifications:
+            self._add_heading(doc, "Certifications")
+            for cert in certifications:
+                c_name = cert.get("name") if isinstance(cert, dict) else str(cert)
+                c_url = cert.get("url") if isinstance(cert, dict) else None
+
+                table = doc.add_table(rows=1, cols=2)
+                table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                self._remove_table_borders(table)
+                table.autofit = False
+
+                c0 = table.cell(0, 0)
+                c1 = table.cell(0, 1)
+                c0.width = Inches(6.0)
+                c1.width = Inches(1.5)
+
+                p0 = c0.paragraphs[0]
+                p0.paragraph_format.space_before = Pt(1)
+                p0.paragraph_format.space_after = Pt(1)
+                r0 = p0.add_run(c_name)
+                r0.font.name = FONT_SERIF
+                r0.font.size = Pt(8.5)
+                r0.font.color.rgb = COLOR_DARK
+
+                p1 = c1.paragraphs[0]
+                p1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                p1.paragraph_format.space_before = Pt(1)
+                p1.paragraph_format.space_after = Pt(1)
+                if c_url and c_url != "#":
+                    self._add_hyperlink(p1, c_url, "Link", font_size_pt=8.5, underline=True)
+                else:
+                    r1 = p1.add_run("Link")
+                    r1.font.name = FONT_SERIF
+                    r1.font.size = Pt(8.5)
+                    r1.font.color.rgb = COLOR_MUTED
+
+        # 8. Achievements
+        achievements = data.get("achievements", [])
+        if achievements:
+            self._add_heading(doc, "Achievements")
+            for ach in achievements:
+                p_a = doc.add_paragraph(style="List Bullet")
+                p_a.paragraph_format.space_before = Pt(0)
+                p_a.paragraph_format.space_after = Pt(1)
+                p_a.paragraph_format.line_spacing = 1.12
+                if isinstance(ach, dict):
+                    a_title = ach.get("title", "")
+                    a_desc = ach.get("description", "")
+                    if a_title and a_desc and a_title not in a_desc:
+                        r_t = p_a.add_run(f"{a_title}: ")
+                        r_t.font.bold = True
+                        r_t.font.name = FONT_SERIF
+                        r_t.font.size = Pt(8.5)
+                        r_d = p_a.add_run(a_desc)
+                        r_d.font.name = FONT_SERIF
+                        r_d.font.size = Pt(8.5)
+                    else:
+                        r_d = p_a.add_run(a_desc or a_title)
+                        r_d.font.name = FONT_SERIF
+                        r_d.font.size = Pt(8.5)
+                else:
+                    r_d = p_a.add_run(str(ach))
+                    r_d.font.name = FONT_SERIF
+                    r_d.font.size = Pt(8.5)
+
+        # 9. Education
         if education:
             self._add_heading(doc, "Education")
             for edu in education:
@@ -313,19 +384,32 @@ class DocxBuilder:
                 p0 = c0.paragraphs[0]
                 p0.paragraph_format.space_before = Pt(1)
                 p0.paragraph_format.space_after = Pt(0)
-                r0 = p0.add_run(edu.get("institution", ""))
+                r0 = p0.add_run(edu.get("degree", ""))
                 r0.font.name = FONT_SERIF
                 r0.font.size = Pt(9)
                 r0.font.bold = True
                 r0.font.color.rgb = COLOR_BLACK
 
+                if edu.get("institution"):
+                    r_pipe = p0.add_run("  |  ")
+                    r_pipe.font.name = FONT_SERIF
+                    r_pipe.font.size = Pt(8.5)
+                    r_pipe.font.color.rgb = COLOR_MUTED
+
+                    r_inst = p0.add_run(edu.get("institution", ""))
+                    r_inst.font.name = FONT_SERIF
+                    r_inst.font.size = Pt(8.5)
+                    r_inst.font.color.rgb = COLOR_DARK
+
                 p1 = c1.paragraphs[0]
                 p1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
                 p1.paragraph_format.space_before = Pt(1)
                 p1.paragraph_format.space_after = Pt(0)
-                r1 = p1.add_run(edu.get("dates") or edu.get("year", ""))
+                dates = (edu.get("dates") or edu.get("year", "")).replace("--", "–")
+                r1 = p1.add_run(dates)
                 r1.font.name = FONT_SERIF
                 r1.font.size = Pt(8.5)
+                r1.font.italic = True
                 r1.font.color.rgb = COLOR_MUTED
 
                 degree = edu.get("degree", "")
@@ -338,36 +422,6 @@ class DocxBuilder:
                     r_deg.font.size = Pt(8.5)
                     r_deg.font.italic = True
                     r_deg.font.color.rgb = COLOR_DARK
-
-        # 8. Certifications
-        if certifications:
-            self._add_heading(doc, "Certifications")
-            for cert in certifications:
-                p_c = doc.add_paragraph(style="List Bullet")
-                p_c.paragraph_format.space_before = Pt(0)
-                p_c.paragraph_format.space_after = Pt(1)
-                c_name = cert.get("name") if isinstance(cert, dict) else str(cert)
-                r_c = p_c.add_run(c_name)
-                r_c.font.name = FONT_SERIF
-                r_c.font.size = Pt(8.5)
-                r_c.font.color.rgb = COLOR_DARK
-
-                if isinstance(cert, dict) and cert.get("link"):
-                    r_sp = p_c.add_run("  —  ")
-                    r_sp.font.name = FONT_SERIF
-                    r_sp.font.size = Pt(8)
-                    r_sp.font.color.rgb = COLOR_MUTED
-
-                    c_url = cert.get("url") or "#"
-                    c_link = cert.get("link", "Credential Link")
-                    if c_url and c_url != "#":
-                        self._add_hyperlink(p_c, c_url, c_link, font_size_pt=8, underline=True)
-                    else:
-                        r_clink = p_c.add_run(c_link)
-                        r_clink.font.name = FONT_SERIF
-                        r_clink.font.size = Pt(8)
-                        r_clink.font.underline = True
-                        r_clink.font.color.rgb = COLOR_BLACK
 
         # Save document
         doc.save(file_path)

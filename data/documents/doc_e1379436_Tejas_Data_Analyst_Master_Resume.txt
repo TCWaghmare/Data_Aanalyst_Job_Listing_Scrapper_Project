@@ -1,0 +1,150 @@
+\documentclass[10pt,a4paper]{article}
+ 
+% ---------- PACKAGES ----------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[top=0.3in,bottom=0.25in,left=0.5in,right=0.5in,nohead,nofoot]{geometry}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+\usepackage{accsupp}
+\usepackage{microtype}
+ 
+\input{glyphtounicode}
+\pdfgentounicode=1
+ 
+% ---------- PAGE SETUP ----------
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\raggedright
+\renewcommand{\baselinestretch}{1.0}
+ 
+% ---------- LINKS (always blue) ----------
+\definecolor{linkblue}{HTML}{0B5CD5}
+\newcommand{\lnk}[2]{\href{#1}{\textcolor{linkblue}{#2}}}
+ 
+% Icons are hidden from text extraction so ATS parsers do not read junk characters
+\newcommand{\icon}[1]{\BeginAccSupp{ActualText={}}#1\EndAccSupp{}}
+ 
+% ---------- LIST STYLE ----------
+\setlist[itemize]{leftmargin=0.17in, itemsep=0pt, topsep=1pt, parsep=0pt, partopsep=0pt, label=\textbullet}
+ 
+% ---------- SECTION HEADING ----------
+\newcommand{\sect}[1]{%
+  \par\vspace{6pt}%
+  \noindent{\bfseries\large\scshape #1}\par
+  \vspace{3pt}\hrule height 0.5pt\vspace{4.5pt}%
+}
+ 
+% \entry{Role}{Company}{Date}
+\newcommand{\entry}[3]{%
+  \vspace{1.5pt}\noindent\textbf{#1} $|$ \textit{#2}\hfill\textit{#3}\par\vspace{1pt}%
+}
+ 
+% \project{Name}{Tools}{GitHub URL}
+\newcommand{\project}[3]{%
+  \vspace{1.5pt}\noindent\textbf{#1} $|$ \textit{#2}\hfill\lnk{#3}{GitHub}\par\vspace{1pt}%
+}
+ 
+% \cert{Title}{URL}
+\newcommand{\cert}[2]{%
+  \noindent#1\hfill\lnk{#2}{Link}\par%
+}
+ 
+\begin{document}
+\fontsize{9.5}{11}\selectfont
+ 
+% ---------- HEADER ----------
+\begin{center}
+  {\fontsize{22}{26}\selectfont\bfseries Tejas C. Waghmare}\\[2pt]
+  {\large\bfseries Data Analyst}\\[3pt]
+  \small
+  \icon{\faPhone}\ +91 83788 69006 $|$
+  \href{mailto:tejaswaghmare900@gmail.com}{\icon{\faEnvelope}}\ \lnk{mailto:tejaswaghmare900@gmail.com}{tejaswaghmare900@gmail.com} $|$
+  \icon{\faIcon{map-marker-alt}}\ Pune, Maharashtra\\[1pt]
+  \href{https://www.linkedin.com/in/tejascwaghmare}{\icon{\faLinkedin}}\ \lnk{https://www.linkedin.com/in/tejascwaghmare}{linkedin.com/in/tejascwaghmare} $|$
+  \href{https://www.tejaswaghmare.me/}{\icon{\faGlobe}}\ \lnk{https://www.tejaswaghmare.me/}{tejaswaghmare.me} $|$
+  \href{https://github.com/TCWaghmare}{\icon{\faGithub}}\ \lnk{https://github.com/TCWaghmare}{github.com/TCWaghmare}
+\end{center}
+\vspace{-6pt}
+ 
+% ---------- SUMMARY ----------
+\sect{Professional Summary}
+Data Analyst with hands-on experience in SQL, Power BI, Advanced Excel, and Python, backed by Microsoft certifications (PL-300, DP-600). Skilled in data cleaning, modeling, and building interactive dashboards that turn raw data into clear, actionable business insights. Engineering background with project work across pricing, sales, and profitability analysis, ready to add value in any industry.
+ 
+% ---------- SKILLS ----------
+\sect{Technical Skills}
+\begin{itemize}[label={}, leftmargin=0pt, itemsep=1pt]
+  \item \textbf{BI \& Visualization:} Power BI (DAX, Power Query, Dashboard Design, KPIs), Advanced Excel (Pivot Tables, Power Pivot, XLOOKUP), Google Sheets
+  \item \textbf{Databases \& SQL:} SQL (Joins, CTEs, Window Functions, Subqueries, DDL/DML), MS SQL Server, PostgreSQL, Star Schema Data Modeling
+  \item \textbf{Analytics \& Statistics:} EDA, Data Cleaning \& Transformation, KPI Reporting, Descriptive Statistics, Correlation, Hypothesis Testing, A/B Testing Basics, Outlier Detection
+  \item \textbf{Programming:} Python (\textit{currently learning, basic level}) -- Pandas, NumPy
+  \item \textbf{Data Engineering:} Microsoft Fabric (Lakehouse, Data Warehouse, Dataflows Gen2), Medallion Architecture, ETL
+  \item \textbf{AI \& Tools:} Prompt Engineering, ChatGPT, Claude, GitHub Copilot, Git/GitHub, VS Code
+\end{itemize}
+ 
+% ---------- PROJECTS ----------
+\sect{Projects}
+ 
+\project{NYC Airbnb Data Analysis \& Business Intelligence}{SQL, Power BI, DAX, Power Query}{https://github.com/TCWaghmare/NYC-Airbnb-Marketplace-Intelligence-Dashboard}
+\begin{itemize}
+  \item Analyzed 30,259 listings across 16,441 hosts using SQL and Power Query to uncover borough-level pricing, occupancy, and revenue drivers across \$389.3M in estimated market value.
+  \item Built an interactive Power BI dashboard (custom DAX measures, data model) showing Manhattan led with \$205M revenue (52.7\% of total) and the highest average daily rate (\$366), giving hosts and property managers pricing benchmarks.
+\end{itemize}
+ 
+\project{Bakery Sales, Profitability \& Waste Analysis}{Excel, Power Pivot, PivotTables, Data Modeling}{https://github.com/TCWaghmare/Bakery_Data_Analysis_Project_by_Excel}
+\begin{itemize}
+  \item Analyzed 16,569 transactions (2023--2024) across 3 stores using a star-schema model and Excel dashboards to track revenue, profit, discount, and waste KPIs.
+  \item Found waste cost equaled 40\% of revenue and deep discounts drove a $-$6.7\% margin; recommended capping discounts near 5\% and cutting waste 20--25\% to return to profit.
+\end{itemize}
+ 
+\project{Amazon Sales Performance Dashboard}{Power BI, DAX, Data Modeling, Geo Mapping}{https://github.com/TCWaghmare/amazon-sales-data-analysis-dashboard_project}
+\begin{itemize}
+  \item Developed a 3-page interactive dashboard analyzing 50K+ orders and \$32.8M revenue across 6 categories and 5 global regions.
+  \item Identified Beauty as the top revenue category and found discounts were spread evenly across categories, indicating scope for a targeted, category-level discount strategy.
+\end{itemize}
+ 
+% ---------- EXPERIENCE ----------
+\sect{Experience}
+ 
+\entry{Data Analyst Intern}{Microsoft Elevate}{Feb 2026 -- Mar 2026}
+\begin{itemize}
+  \item Cleaned, transformed, and prepared datasets to ensure data quality before analysis and reporting.
+  \item Built interactive Power BI dashboards using data modeling, DAX measures, and KPIs to surface trends and insights.
+  \item Applied this training to the NYC Airbnb Data Analysis \& Business Intelligence project: cleaned and modeled 30,259 listings (SQL, Power Query) and delivered a Power BI dashboard on borough-level pricing, occupancy, and revenue.
+\end{itemize}
+ 
+\entry{Project Engineer}{Cybernetic India}{Sep 2025 -- Dec 2025}
+\begin{itemize}
+  \item Supported onsite project execution, monitored work progress, and coordinated activities to ensure alignment with project requirements and timelines.
+  \item Utilized advanced Microsoft Excel (PivotTables, XLOOKUP, data cleaning, data validation, and KPI tracking) to organize project data, maintain trackers, analyze operational information, and support reporting.
+\end{itemize}
+ 
+\entry{Graduate Trainee Engineer}{Bajaj Engineering Skills Training Centre (BEST)}{Jan 2025 -- Aug 2025}
+\begin{itemize}
+  \item Gained hands-on experience in industrial sensors, PLC programming, robotics, and automation systems, including sensor data acquisition and industrial process monitoring.
+  \item Collected and analyzed sensor data using Excel to identify trends and support data-driven decisions, while gaining exposure to AI/ML concepts and predictive analytics in smart manufacturing.
+\end{itemize}
+ 
+% ---------- CERTIFICATIONS ----------
+\sect{Certifications}
+\cert{Microsoft Certified: Power BI Data Analyst Associate (PL-300)}{https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/100f220a9cc6e75}
+\cert{Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)}{https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a}
+\cert{Introduction to Python, DataCamp}{https://www.datacamp.com/statement-of-accomplishment/course/271c74e9f18f1b7b10e026a104ecd0d3c2b976a1?raw=1}
+ 
+% ---------- ACHIEVEMENTS ----------
+\sect{Achievements}
+\begin{itemize}
+  \item \textbf{McKinsey.org Forward Program (2026):} Strengthened structured problem-solving, critical thinking, communication, and analytical decision-making, with exposure to digital and AI essentials.
+\end{itemize}
+ 
+% ---------- EDUCATION ----------
+\sect{Education}
+\noindent\textbf{B.Tech, Mechanical Engineering} $|$ Bajaj Institute of Technology, Wardha $|$ CGPA: 8.04/10 \hfill \textit{2020 -- 2024}\par
+\noindent \textbf{HSC (Information Technology)}, 66.62\%  $|$ \textbf{SSC}, 81.80\% $|$ Maharashtra State Board \hfill \textit{2018 -- 2020}\par
+ 
+\end{document}
+ 
