@@ -19,7 +19,7 @@ def test_linkedin_adapter_scraping():
     first_job = jobs[0]
     assert first_job.source_id == "linkedin_feed"
     assert "LinkedIn" in first_job.source_name
-    assert first_job.experience_level == "Fresher (0-1 yr)"
+    assert first_job.experience_level in ("fresher", "Fresher (0-1 yr)")
     assert first_job.recruiter_name is not None
     assert first_job.recruiter_email is not None
     assert "@" in first_job.recruiter_email
@@ -93,7 +93,9 @@ def test_api_linkedin_sync_endpoint():
 
 
 def test_api_linkedin_settings():
-    """Test GET and POST for LinkedIn feed settings."""
+    """Test GET and POST for LinkedIn feed settings ensuring li_at is never stored on disk."""
+    from scraper.adapters.linkedin_recruiter import linkedin_adapter
+
     # POST settings
     post_res = client.post("/api/scraper/linkedin/settings", json={
         "li_at": "AQEDATestCookie123456",
@@ -102,11 +104,20 @@ def test_api_linkedin_settings():
     })
     assert post_res.status_code == 200
     assert post_res.json()["success"] is True
+    assert post_res.json()["settings"]["li_at_configured"] is True
+    assert "li_at" not in post_res.json()["settings"]
 
-    # GET settings
+    # Verify disk file never stores li_at
+    with open(linkedin_adapter.settings_file, "r", encoding="utf-8") as f:
+        disk_content = f.read()
+        assert "AQEDATestCookie123456" not in disk_content
+        assert '"li_at"' not in disk_content
+
+    # GET settings returns li_at_configured boolean, never plaintext cookie
     get_res = client.get("/api/scraper/linkedin/settings")
     assert get_res.status_code == 200
-    assert get_res.json()["li_at"] == "AQEDATestCookie123456"
+    assert get_res.json()["li_at_configured"] is True
+    assert "li_at" not in get_res.json()
 
 
 def test_linkedin_intelligence_agent_criteria():

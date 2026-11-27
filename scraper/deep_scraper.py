@@ -17,6 +17,8 @@ import requests
 from typing import Dict, List, Any, Optional, Tuple
 from bs4 import BeautifulSoup
 
+from scraper.safe_fetch import safe_fetch, validate_url, SSRFError
+
 from scraper.session import ResilientSession, get_random_headers
 from scraper.taxonomy import (
     classify_role, extract_skills, detect_work_mode, extract_fresher_experience, normalize_country
@@ -61,12 +63,18 @@ class DeepJobScraper:
         if not url or url.startswith("#") or "javascript:" in url:
             return self._empty_result(fallback_title, fallback_company, "Invalid or missing URL")
 
+        # SSRF validation: Ensure scheme is allowed and target resolves to public IP
+        try:
+            validate_url(url)
+        except SSRFError as se:
+            return self._empty_result(fallback_title, fallback_company, f"SSRF Protection: {se}")
+
         url_lower = url.lower()
 
         # Unshorten redirect / short URLs if needed (e.g. lnkd.in, bit.ly)
         if any(s in url_lower for s in ["lnkd.in", "bit.ly", "tinyurl.com", "t.co", "goo.gl"]):
             try:
-                head_resp = requests.head(url, allow_redirects=True, timeout=8)
+                head_resp = safe_fetch(url, timeout=8)
                 if head_resp.url and head_resp.url != url:
                     url = head_resp.url
                     url_lower = url.lower()
@@ -325,7 +333,7 @@ class DeepJobScraper:
                 "Referer": "https://www.google.com/"
             }
             try:
-                resp = requests.get(api_url, headers=headers, timeout=12)
+                resp = safe_fetch(api_url, headers=headers, timeout=12)
                 if resp.status_code == 200 and len(resp.text) > 400:
                     soup = BeautifulSoup(resp.text, "html.parser")
             except Exception as e:
@@ -1332,7 +1340,7 @@ class DeepJobScraper:
                     "Accept-Language": "en-US,en;q=0.9",
                     "Referer": "https://www.google.com/"
                 }
-                resp = requests.get(url, headers=headers, timeout=14, verify=False)
+                resp = safe_fetch(url, headers=headers, timeout=14)
             except Exception as e:
                 logger.warning(f"Tier 2 mobile scrape request failed for {url}: {e}")
 

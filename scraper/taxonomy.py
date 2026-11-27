@@ -198,17 +198,16 @@ def is_fresher_eligible(title: str, text: str = "", raw_fields: dict = None) -> 
 
 def extract_fresher_experience(title: str, text: str) -> str:
     """
-    Assigns granular 0 to 1 year experience category:
-    - Fresher (0 Years)
-    - 0 - 1 Year (Junior / Entry-Level)
-    - Internship / Trainee
+    Assigns standard experience category:
+    - fresher
+    - 0-1
     """
     combo = f"{title} {text}".lower()
     if re.search(r"\b(intern|internship|trainee|apprentice|student|campus)\b", combo):
-        return "Internship / Trainee (0 Years)"
+        return "fresher"
     if re.search(r"\b(fresher|freshers|0\s*years?|no\s+experience|recent\s+graduate|entry[- ]level)\b", combo):
-        return "Fresher (0 Years)"
-    return "0 - 1 Year (Junior / Entry-Level)"
+        return "fresher"
+    return "0-1"
 
 # Compatibility alias
 extract_experience_level = extract_fresher_experience

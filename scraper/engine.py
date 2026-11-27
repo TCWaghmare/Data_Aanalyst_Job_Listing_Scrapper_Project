@@ -26,6 +26,7 @@ from scraper.adapters.apify_indeed import ApifyIndeedAdapter
 from scraper.adapters.apify_naukri import ApifyNaukriAdapter
 from scraper.deep_scraper import deep_job_scraper
 from scraper.taxonomy import analyze_job_fresher_eligibility, CORE_ANALYTICS_ROLES
+from scraper.relevance import score_job, get_min_relevance
 from scraper.database import Database
 from scraper.models import Job, ScrapeRun
 from scraper.registry import PlatformRegistry
@@ -122,7 +123,8 @@ class ScraperEngine:
         run_id: Optional[str] = None,
         schedule_name: Optional[str] = None,
         trigger_source: str = "manual",
-        triggered_by: str = "User (Manual)"
+        triggered_by: str = "User (Manual)",
+        adapter_timeout: float = 60.0
     ) -> ScrapeRun:
         """
         Executes scraping across all or selected adapters with real-time progress callbacks,
@@ -183,6 +185,9 @@ class ScraperEngine:
         errors: List[str] = []
         total_adapters = len(target_adapters)
         completed_adapters = 0
+        adapter_summaries: Dict[str, Dict[str, Any]] = {}
+        run_start_mono = time.time()
+        effective_adapter_timeout = float(controls.get("adapter_timeout") or adapter_timeout or 60.0)
 
         if progress_callback:
             progress_callback({
@@ -216,17 +221,22 @@ class ScraperEngine:
             adapter_scanned = 0
             adapter_added = 0
             adapter_dups = 0
+            adapter_start_time = time.time()
 
             try:
-                scraped_jobs = self.run_adapter(
-                    adapter,
-                    roles=roles,
-                    limit_per_source=limit_per_source,
-                    cities=effective_cities,
-                    work_modes=effective_work_modes,
-                    retry_count=retry_count,
-                    request_delay=request_delay
-                )
+                # Per-adapter timeout (default 60s) with thread executor and failure isolation
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(
+                        self.run_adapter,
+                        adapter,
+                        roles=roles,
+                        limit_per_source=limit_per_source,
+                        cities=effective_cities,
+                        work_modes=effective_work_modes,
+                        retry_count=retry_count,
+                        request_delay=request_delay
+                    )
+                    scraped_jobs = future.result(timeout=effective_adapter_timeout)
 
                 allowed_modes_lower = [m.lower() for m in effective_work_modes] if effective_work_modes else ["on-site", "hybrid", "remote"]
                 normalized_allowed = set()
@@ -313,7 +323,14 @@ class ScraperEngine:
                             logger.warning(f"Engine deep scrape error for {job.source_url}: {d_err}")
                             job.extraction_status = "incomplete_extraction"
 
-                    is_new = self.db.save_job(job, update_existing=update_existing)
+                    # Relevance scoring: reject irrelevant jobs at ingest
+                    rel_score = score_job(job)
+                    job.relevance_score = rel_score
+                    if rel_score < get_min_relevance():
+                        logger.info(f"Engine ingest filtered out job '{job.title}' (relevance: {rel_score} < {get_min_relevance()})")
+                        continue
+
+                    is_new = self.db.save_job(job, update_existing=update_existing, enforce_relevance=True)
                     if is_new:
                         adapter_added += 1
                         total_added += 1
@@ -321,15 +338,51 @@ class ScraperEngine:
                         adapter_dups += 1
                         total_dups += 1
 
+                duration_sec = round(time.time() - adapter_start_time, 2)
                 status_str = "success" if scraped_jobs else "zero_results"
                 self.db.update_source_status(adapter.platform_id, status_str, adapter_added)
                 completed_adapters += 1
+                adapter_summaries[adapter.platform_id] = {
+                    "name": adapter.platform_name,
+                    "status": status_str,
+                    "jobs_scanned": adapter_scanned,
+                    "jobs_added": adapter_added,
+                    "duration_seconds": duration_sec,
+                    "error": None
+                }
+
+            except concurrent.futures.TimeoutError:
+                duration_sec = round(time.time() - adapter_start_time, 2)
+                err_msg = f"{adapter.platform_name} ({adapter.platform_id}): Timed out after {effective_adapter_timeout}s"
+                errors.append(err_msg)
+                logger.error(err_msg)
+                self.db.update_source_status(adapter.platform_id, "error", 0)
+                adapter_summaries[adapter.platform_id] = {
+                    "name": adapter.platform_name,
+                    "status": "timeout",
+                    "jobs_scanned": 0,
+                    "jobs_added": 0,
+                    "duration_seconds": duration_sec,
+                    "error": f"Timed out after {effective_adapter_timeout}s"
+                }
+                if auto_stop_on_error:
+                    logger.warning("auto_stop_on_error is enabled. Halting further adapter execution.")
+                    break
 
             except Exception as e:
+                duration_sec = round(time.time() - adapter_start_time, 2)
                 err_msg = f"{adapter.platform_name} ({adapter.platform_id}): {str(e)}"
                 errors.append(err_msg)
                 logger.error(f"Error handling results from {adapter.platform_id}: {e}")
                 self.db.update_source_status(adapter.platform_id, "error", 0)
+                adapter_summaries[adapter.platform_id] = {
+                    "name": adapter.platform_name,
+                    "status": "error",
+                    "jobs_scanned": 0,
+                    "jobs_added": 0,
+                    "duration_seconds": duration_sec,
+                    "error": str(e)
+                }
                 if auto_stop_on_error:
                     logger.warning("auto_stop_on_error is enabled. Halting further adapter execution.")
                     break
@@ -337,6 +390,7 @@ class ScraperEngine:
             if request_delay > 0:
                 time.sleep(request_delay)
 
+        run_duration = round(time.time() - run_start_mono, 2)
         run.finished_at = datetime.utcnow().isoformat()
         if not errors:
             run.status = "completed"
@@ -350,7 +404,34 @@ class ScraperEngine:
         run.duplicates_skipped = total_dups
         run.errors_count = len(errors)
         run.error_messages = errors
+        run.adapter_summaries = adapter_summaries
 
         self.db.save_scrape_run(run)
+
+        # Log final summary to run_logs table (persisted to SQLite or Postgres)
+        try:
+            self.db.save_run_log({
+                "run_id": run_id,
+                "schedule_id": schedule_name if schedule_name != "Manual Run" else None,
+                "schedule_name": schedule_name or "Manual Run",
+                "trigger_source": trigger_source,
+                "triggered_by": triggered_by,
+                "status": run.status,
+                "started_at": started_at,
+                "finished_at": run.finished_at,
+                "duration_seconds": run_duration,
+                "adapters_scanned": [a.platform_id for a in target_adapters],
+                "jobs_scanned": total_scanned,
+                "jobs_added": total_added,
+                "duplicates_skipped": total_dups,
+                "errors_count": len(errors),
+                "error_messages": errors,
+                "adapter_summaries": adapter_summaries,
+                "created_at": started_at,
+                "updated_at": run.finished_at
+            })
+        except Exception as log_err:
+            logger.warning(f"Failed to record run_logs entry: {log_err}")
+
         logger.info(f"Scrape run {run_id} complete. Added: {total_added}, Dups: {total_dups}, Scanned: {total_scanned}, Status: {run.status}")
         return run

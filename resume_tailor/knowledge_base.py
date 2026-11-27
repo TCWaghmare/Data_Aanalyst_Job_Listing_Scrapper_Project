@@ -39,6 +39,7 @@ from resume_tailor.parser import (
     EMPTY_RESUME,
     TECH_SKILLS_TAXONOMY
 )
+from scraper.database import Database
 
 is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 if is_serverless:
@@ -90,9 +91,10 @@ class CareerKnowledgeBase:
     Strictly grounded in user-uploaded documents.
     """
 
-    def __init__(self, kb_file: str = KB_FILE, docs_dir: str = DOCUMENTS_DIR):
+    def __init__(self, kb_file: str = KB_FILE, docs_dir: str = DOCUMENTS_DIR, db: Optional[Any] = None):
         self.kb_file = kb_file
         self.docs_dir = docs_dir
+        self.db = db or Database()
         try:
             if self.docs_dir:
                 os.makedirs(self.docs_dir, exist_ok=True)
@@ -108,7 +110,20 @@ class CareerKnowledgeBase:
     def _load_or_initialize(self):
         """Loads repository metadata without any seeded or fake documents."""
         loaded = False
-        if os.path.exists(self.kb_file):
+
+        # 1. First check persistent database
+        try:
+            db_docs = self.db.get_kb_documents()
+            db_prof = self.db.get_kb_profile()
+            if db_docs:
+                self.documents = db_docs
+                self.unified_profile = db_prof or {}
+                loaded = True
+        except Exception as e:
+            logger.warning(f"[KB] Could not load from database: {e}")
+
+        # 2. If database is fresh, fallback to disk kb_file
+        if not loaded and os.path.exists(self.kb_file):
             try:
                 with open(self.kb_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -121,7 +136,7 @@ class CareerKnowledgeBase:
                 self.documents = []
                 self.unified_profile = {}
 
-        # Fallback to bundled knowledge base if serverless /tmp was newly initialized or empty
+        # 3. Fallback to bundled knowledge base if serverless /tmp was newly initialized or empty
         if not loaded:
             bundled_kb = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "knowledge_base.json")
             if os.path.exists(bundled_kb) and os.path.abspath(bundled_kb) != os.path.abspath(self.kb_file):
@@ -130,6 +145,8 @@ class CareerKnowledgeBase:
                         data = json.load(f)
                         self.documents = data.get("documents", [])
                         self.unified_profile = data.get("unified_profile", {})
+                        if self.documents:
+                            loaded = True
                 except Exception as e:
                     logger.error(f"[KB] Error loading bundled KB fallback: {e}")
 
@@ -146,6 +163,15 @@ class CareerKnowledgeBase:
 
         # Rebuild profile strictly from loaded documents
         self.rebuild_unified_profile()
+
+        # Seed into database if loaded from disk
+        if loaded:
+            try:
+                self.db.save_kb_documents(self.documents)
+                if self.unified_profile:
+                    self.db.save_kb_profile(self.unified_profile)
+            except Exception:
+                pass
 
     def get_summary_stats(self) -> Dict[str, Any]:
         """Returns transparency summary stats of the master resume document repository."""
@@ -169,16 +195,28 @@ class CareerKnowledgeBase:
         }
 
     def _save(self):
-        """Persists documents and unified profile to disk."""
-        data = {
-            "version": "3.0",
-            "last_updated": datetime.now().isoformat(),
-            "documents_count": len(self.documents),
-            "documents": self.documents,
-            "unified_profile": self.unified_profile
-        }
-        with open(self.kb_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        """Persists documents and unified profile to database and disk."""
+        # 1. Save to persistent database
+        try:
+            self.db.save_kb_documents(self.documents)
+            if self.unified_profile:
+                self.db.save_kb_profile(self.unified_profile)
+        except Exception as e:
+            logger.warning(f"[KB] Error saving KB to database: {e}")
+
+        # 2. Save to local disk if writable
+        try:
+            data = {
+                "version": "3.0",
+                "last_updated": datetime.now().isoformat(),
+                "documents_count": len(self.documents),
+                "documents": self.documents,
+                "unified_profile": self.unified_profile
+            }
+            with open(self.kb_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"[KB] Error saving KB to disk: {e}")
 
     @staticmethod
     def _format_size(num_bytes: int) -> str:
@@ -422,20 +460,22 @@ class CareerKnowledgeBase:
     ) -> Dict[str, Any]:
         """Saves, processes, indexes an uploaded career document, and rebuilds unified profile."""
         doc_id = "doc_" + uuid.uuid4().hex[:8]
-        safe_name = re.sub(r"[^\w\-.]", "_", filename)
+        clean_base = os.path.basename(filename.replace("\\", "/"))
+        clean_display = os.path.basename((display_name or filename).replace("\\", "/"))
+        safe_name = re.sub(r"[^\w\-.]", "_", clean_base)
         save_path = os.path.join(self.docs_dir, f"{doc_id}_{safe_name}")
 
         with open(save_path, "wb") as f:
             f.write(file_bytes)
 
         file_size = len(file_bytes)
-        file_ext = os.path.splitext(filename)[1].lower().lstrip(".")
+        file_ext = os.path.splitext(clean_base)[1].lower().lstrip(".")
 
         now_iso = datetime.now().isoformat()
         doc_record = {
             "id": doc_id,
-            "filename": filename,
-            "display_name": display_name or filename,
+            "filename": clean_base,
+            "display_name": clean_display,
             "category": category or "other",
             "file_type": file_ext.upper(),
             "file_size": file_size,
@@ -453,14 +493,16 @@ class CareerKnowledgeBase:
 
         try:
             # 1. Extract text
-            raw_text, meta = self.extract_text_from_file(filename, file_bytes)
+            raw_text, meta = self.extract_text_from_file(clean_base, file_bytes)
+            if not raw_text or not raw_text.strip():
+                raise ValueError(f"No extractable text found in '{clean_base}'.")
 
             # 2. Category auto-detect
             if not category or category == "auto":
-                doc_record["category"] = self.detect_category(filename, raw_text)
+                doc_record["category"] = self.detect_category(clean_base, raw_text)
 
             # 3. Parse structured data
-            extracted = self.parse_extracted_data(filename, raw_text, doc_record["category"])
+            extracted = self.parse_extracted_data(clean_base, raw_text, doc_record["category"])
             doc_record["extracted_data"] = extracted
 
             # 4. Summary counts
@@ -488,12 +530,27 @@ class CareerKnowledgeBase:
             doc_record["last_processed_at"] = datetime.now().isoformat()
 
         except Exception as e:
-            logger.error(f"Error extracting {filename}: {e}")
-            doc_record["status"] = "Error"
-            doc_record["extraction_status"] = "Error"
-            doc_record["last_processed_at"] = datetime.now().isoformat()
-            doc_record["error_message"] = str(e)
-            doc_record["extracted_summary"] = f"Extraction error: {str(e)}"
+            if os.path.exists(save_path):
+                try:
+                    os.remove(save_path)
+                except OSError:
+                    pass
+            logger.error(f"Error extracting {clean_base}: {e}")
+            raise ValueError(f"Failed to extract and index content from {clean_base}: {str(e)}")
+
+        # Store physical file into persistent database
+        try:
+            ctype = "application/octet-stream"
+            if file_ext == "pdf":
+                ctype = "application/pdf"
+            elif file_ext == "docx":
+                ctype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif file_ext in ["txt", "md"]:
+                ctype = "text/plain; charset=utf-8"
+            self.db.save_file(doc_id, clean_base, file_bytes, content_type=ctype, file_type=file_ext)
+            self.db.save_file(f"doc_{clean_base}", clean_base, file_bytes, content_type=ctype, file_type=file_ext)
+        except Exception as e:
+            logger.warning(f"Error persisting file {clean_base} into DB: {e}")
 
         self.documents.append(doc_record)
         self.rebuild_unified_profile()
@@ -501,20 +558,37 @@ class CareerKnowledgeBase:
         return doc_record
 
     def reprocess_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
-        """Re-reads the physical file from disk, re-extracts text, and updates indexing."""
+        """Re-reads the physical file from disk or database, re-extracts text, and updates indexing."""
         for doc in self.documents:
             if doc["id"] == doc_id:
                 fp = doc.get("file_path", "")
-                if not fp or not os.path.exists(fp):
+                file_bytes = None
+                if fp and os.path.exists(fp):
+                    try:
+                        with open(fp, "rb") as f:
+                            file_bytes = f.read()
+                    except Exception:
+                        file_bytes = None
+
+                if not file_bytes:
+                    stored = self.db.get_file(doc_id) or self.db.get_file(f"doc_{doc.get('filename')}")
+                    if stored and stored.get("file_data"):
+                        file_bytes = stored["file_data"]
+                        if fp:
+                            try:
+                                os.makedirs(os.path.dirname(fp), exist_ok=True)
+                                with open(fp, "wb") as f:
+                                    f.write(file_bytes)
+                            except Exception:
+                                pass
+
+                if not file_bytes:
                     doc["status"] = "Error"
                     doc["error_message"] = "Physical file missing on server."
                     self._save()
                     return doc
 
                 try:
-                    with open(fp, "rb") as f:
-                        file_bytes = f.read()
-
                     raw_text, meta = self.extract_text_from_file(doc["filename"], file_bytes)
                     if doc.get("category") in ["other", "auto", None]:
                         doc["category"] = self.detect_category(doc["filename"], raw_text)
@@ -600,8 +674,22 @@ class CareerKnowledgeBase:
                 doc["file_size_formatted"] = self._format_size(len(file_bytes))
                 doc["file_path"] = new_path
                 doc["uploaded_at"] = datetime.now().isoformat()
-                doc["file_type"] = os.path.splitext(filename)[1].lower().lstrip(".")
+                file_ext = os.path.splitext(filename)[1].lower().lstrip(".")
+                doc["file_type"] = file_ext.upper()
                 doc["status"] = "Processing"
+
+                # Update in persistent database
+                try:
+                    ctype = "application/octet-stream"
+                    if file_ext == "pdf":
+                        ctype = "application/pdf"
+                    elif file_ext == "docx":
+                        ctype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    elif file_ext in ["txt", "md"]:
+                        ctype = "text/plain; charset=utf-8"
+                    self.db.save_file(doc_id, filename, file_bytes, content_type=ctype, file_type=file_ext)
+                except Exception as e:
+                    logger.warning(f"Error updating file {filename} in DB: {e}")
 
                 self.reprocess_document(doc_id)
                 return doc
@@ -624,6 +712,11 @@ class CareerKnowledgeBase:
                 new_docs.append(doc)
 
         if found:
+            try:
+                self.db.delete_kb_document(doc_id)
+                self.db.delete_file(doc_id)
+            except Exception as e:
+                logger.warning(f"Error deleting doc {doc_id} from DB: {e}")
             self.documents = new_docs
             self.rebuild_unified_profile()
             self._save()

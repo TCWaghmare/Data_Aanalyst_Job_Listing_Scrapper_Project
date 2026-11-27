@@ -4,6 +4,127 @@
  * Supports multi-role selection, date recency, split-screen ATS resume tailor, and cover letter builder.
  */
 
+// ==========================================================================
+// API KEY AUTHENTICATION & FETCH INTERCEPTOR
+// ==========================================================================
+
+function getStoredApiKey() {
+  try {
+    return sessionStorage.getItem('api_key') || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function setStoredApiKey(key) {
+  try {
+    sessionStorage.setItem('api_key', key);
+  } catch (e) {}
+}
+
+function showApiKeyModal(errorMsg = '') {
+  const modal = document.getElementById('api-key-modal');
+  const errEl = document.getElementById('api-key-error');
+  const inputEl = document.getElementById('api-key-input');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+  if (errEl) {
+    if (errorMsg) {
+      errEl.textContent = errorMsg;
+      errEl.style.display = 'block';
+    } else {
+      errEl.style.display = 'none';
+    }
+  }
+  if (inputEl) {
+    inputEl.focus();
+  }
+}
+
+function hideApiKeyModal() {
+  const modal = document.getElementById('api-key-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+async function handleApiKeySubmit(e) {
+  if (e) e.preventDefault();
+  const inputEl = document.getElementById('api-key-input');
+  const submitBtn = document.getElementById('api-key-submit-btn');
+  const key = inputEl ? inputEl.value.trim() : '';
+  if (!key) return;
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Verifying...';
+  }
+
+  try {
+    const res = await window._origFetch('/api/stats', {
+      headers: { 'X-API-Key': key }
+    });
+    if (res.status === 401) {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Authenticate & Enter';
+      }
+      showApiKeyModal('Invalid API Key. Please verify and try again.');
+      return;
+    }
+    setStoredApiKey(key);
+    hideApiKeyModal();
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Authenticate & Enter';
+    }
+    window.location.reload();
+  } catch (err) {
+    setStoredApiKey(key);
+    hideApiKeyModal();
+    window.location.reload();
+  }
+}
+
+// Global fetch interceptor: attaches X-API-Key to all /api/* requests
+(function() {
+  const _fetch = window.fetch;
+  window._origFetch = _fetch;
+  window.fetch = async function(resource, init) {
+    init = init || {};
+    const url = typeof resource === 'string' ? resource : (resource ? resource.url : '');
+
+    if (url && (url.startsWith('/api/') || url.includes('/api/')) && !url.includes('/api/health')) {
+      const apiKey = getStoredApiKey();
+      if (apiKey) {
+        if (init.headers instanceof Headers) {
+          if (!init.headers.has('X-API-Key')) {
+            init.headers.set('X-API-Key', apiKey);
+          }
+        } else if (Array.isArray(init.headers)) {
+          if (!init.headers.some(pair => pair[0].toLowerCase() === 'x-api-key')) {
+            init.headers.push(['X-API-Key', apiKey]);
+          }
+        } else {
+          init.headers = init.headers || {};
+          if (!init.headers['X-API-Key'] && !init.headers['x-api-key']) {
+            init.headers['X-API-Key'] = apiKey;
+          }
+        }
+      }
+    }
+
+    const response = await _fetch(resource, init);
+
+    if (response.status === 401 && url && (url.startsWith('/api/') || url.includes('/api/')) && !url.includes('/api/health')) {
+      showApiKeyModal('Unauthorized: Missing or invalid API key. Please re-enter your key:');
+    }
+
+    return response;
+  };
+})();
+
 const state = {
   activeTab: 'jobs',
   page: 0,
@@ -482,6 +603,10 @@ initTheme();
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   updateLayoutUI();
+  if (!getStoredApiKey()) {
+    showApiKeyModal();
+    return;
+  }
   await Promise.all([loadStats(), loadRoles(), loadCities(), loadPlatforms(), loadMasterResumeStatus(), loadKBDocuments(), loadKBUnifiedProfile()]);
   await loadJobs();
   setupEventListeners();
@@ -1243,6 +1368,8 @@ function handleSortChange(newSort) {
 
 function getSortLabel(sortVal) {
   const map = {
+    'relevance': 'Relevance: Highest Match',
+    'pune_first': 'Pune First → Priority Cities',
     'date_desc': 'Date: Most Recent',
     'first_scraped_desc': 'Newest Scraped First',
     'first_scraped_asc': 'Oldest Scraped First',
@@ -2296,6 +2423,7 @@ function renderJobCards(jobs) {
               <span class="job-role-badge ${badgeClass}">${escapeHtml(job.standard_role)}</span>
               <span class="badge-fresher">🎓 0–1 Yr Fresher</span>
               <span class="badge-workmode">${escapeHtml(job.work_mode)}</span>
+              ${job.relevance_score ? `<span class="badge-fresher" style="background: #eef2ff; color: #4338ca; border-color: #c7d2fe; font-weight: 600;" title="Ingest relevance score">🎯 ${job.relevance_score}% Relevance</span>` : ''}
               <span class="job-match-pill" title="ATS profile match score">${Math.round(job.match_score || 0)}% Match</span>
             </div>
             
@@ -7736,7 +7864,23 @@ async function openLinkedInSettingsModal() {
   try {
     const res = await fetch('/api/scraper/linkedin/settings');
     const s = await res.json();
-    if (document.getElementById('li-setting-cookie')) document.getElementById('li-setting-cookie').value = s.li_at || '';
+    const cookieInput = document.getElementById('li-setting-cookie');
+    const badge = document.getElementById('li-cookie-status-badge');
+    if (cookieInput) {
+      cookieInput.value = '';
+      if (s.li_at_configured) {
+        cookieInput.placeholder = '●●●●●●●● (Configured via LI_AT env var)';
+      } else {
+        cookieInput.placeholder = 'Paste li_at here or set LI_AT in .env (never saved on disk)...';
+      }
+    }
+    if (badge) {
+      if (s.li_at_configured) {
+        badge.innerHTML = '<span style="color: #16a34a; font-weight: 600;">✓ Configured via LI_AT</span>';
+      } else {
+        badge.innerHTML = '<span style="color: #64748b;">Not configured (Optional)</span>';
+      }
+    }
     if (document.getElementById('li-setting-keywords')) document.getElementById('li-setting-keywords').value = s.keywords || 'data analyst fresher hiring';
     if (document.getElementById('li-setting-auto-sync')) document.getElementById('li-setting-auto-sync').checked = s.sync_enabled ?? true;
     modal.style.display = 'flex';
@@ -8763,4 +8907,81 @@ function initModalScrollLockWatcher() {
   document.querySelectorAll('.modal-overlay').forEach(modal => {
     modalObserver.observe(modal, { attributes: true, attributeFilter: ['style'] });
   });
+}
+
+/**
+ * Curate and export all scraped job listings to CSV, Excel (.xlsx), or JSON.
+ * Seamlessly authenticates with stored API key and triggers an in-browser download.
+ */
+async function exportJobs(format = 'csv') {
+  const normFormat = (format || 'csv').toLowerCase();
+  const formatLabels = {
+    'csv': 'CSV',
+    'excel': 'Excel (.xlsx)',
+    'xlsx': 'Excel (.xlsx)',
+    'json': 'JSON'
+  };
+  const label = formatLabels[normFormat] || normFormat.toUpperCase();
+
+  try {
+    const apiKey = getStoredApiKey();
+    const endpoint = (normFormat === 'xlsx' || normFormat === 'excel') ? 'excel' : normFormat;
+
+    const params = new URLSearchParams();
+    if (apiKey) params.set('api_key', apiKey);
+    params.set('limit', '10000');
+
+    // Preserve active filters if applied, allowing targeted curation
+    if (window.state && window.state.filters) {
+      const f = window.state.filters;
+      if (f.q) params.set('q', f.q);
+      if (f.country) params.set('country', f.country);
+      if (f.date_posted) params.set('date_posted', f.date_posted);
+      if (f.scrape_freshness) params.set('scrape_freshness', f.scrape_freshness);
+      if (f.sort_by) params.set('sort_by', f.sort_by);
+      if (Array.isArray(f.roles) && f.roles.length > 0) {
+        f.roles.forEach(r => params.append('roles', r));
+      }
+      if (Array.isArray(f.cities) && f.cities.length > 0) {
+        f.cities.forEach(c => params.append('cities', c));
+      }
+      if (Array.isArray(f.platforms) && f.platforms.length > 0) {
+        f.platforms.forEach(p => params.append('platforms', p));
+      }
+    }
+
+    const url = `/api/export/${endpoint}?${params.toString()}`;
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      if (res.status === 401) {
+        showApiKeyModal('Unauthorized: Please enter your system API key to download the export:');
+        return;
+      }
+      const err = await res.json().catch(() => ({}));
+      alert(`Export Error (${res.status}): ${err.detail || res.statusText || 'Could not export jobs'}`);
+      return;
+    }
+
+    const blob = await res.blob();
+    const ext = (normFormat === 'excel' || normFormat === 'xlsx') ? 'xlsx' : normFormat;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `curated_scraped_jobs_${dateStr}.${ext}`;
+
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    console.error(`Export failed for format ${format}:`, err);
+    // Direct link fallback
+    const apiKey = getStoredApiKey();
+    const endpoint = (normFormat === 'xlsx' || normFormat === 'excel') ? 'excel' : normFormat;
+    const fallbackUrl = `/api/export/${endpoint}?limit=10000${apiKey ? `&api_key=${encodeURIComponent(apiKey)}` : ''}`;
+    window.location.href = fallbackUrl;
+  }
 }

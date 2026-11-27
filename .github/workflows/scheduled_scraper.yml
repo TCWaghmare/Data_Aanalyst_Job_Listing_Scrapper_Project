@@ -1,4 +1,4 @@
-name: Automated Job Scraping Cloud Cron Dispatcher
+name: Scheduled Job Scraper
 
 on:
   schedule:
@@ -6,23 +6,34 @@ on:
     - cron: '30 5 * * *'
     # 16:30 UTC = 10:00 PM IST (Evening Job Scraping Sweep)
     - cron: '30 16 * * *'
-    # Periodic sweep every 15 minutes to trigger custom scheduled user times
-    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
-  cron_trigger:
+  run-scraper:
+    name: Run Scraper CLI
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
+
     steps:
-      - name: Ping Deployed Scraper Cron Endpoint
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
         run: |
-          DEPLOY_URL="${{ secrets.DEPLOYED_APP_URL }}"
-          if [ -z "$DEPLOY_URL" ]; then
-            # Automatically check common project domain or repo fallback
-            DEPLOY_URL="https://data-aanalyst-job-listing-scrapper-project.vercel.app"
-          fi
-          echo "Triggering cloud cron check on: $DEPLOY_URL"
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET "$DEPLOY_URL/api/cron" || true)
-          echo "Cron Response:"
-          echo "$RESPONSE"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute Scraper Across All Adapters
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          LI_AT: ${{ secrets.LI_AT }}
+        run: |
+          python run_scraper.py --all

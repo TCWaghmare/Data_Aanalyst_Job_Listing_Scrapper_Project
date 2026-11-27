@@ -17,6 +17,11 @@ from scraper.taxonomy import (
     CORE_ANALYTICS_ROLES
 )
 from scraper.linkedin_intelligence import linkedin_intelligence_agent
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -350,30 +355,70 @@ class LinkedInRecruiterFeedAdapter(BaseAdapter):
     """
     Modular Adapter for scraping & ingesting HR & Recruiter hiring feed posts from LinkedIn.
     """
-    def __init__(self):
+    def __init__(self, db: Optional[Any] = None):
         super().__init__(platform_id="linkedin_feed", platform_name="LinkedIn HR & Recruiter Posts")
-        is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
-        if is_serverless:
-            self.settings_file = "/tmp/data/linkedin_feed_settings.json"
-        else:
-            self.settings_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "linkedin_feed_settings.json")
+        from scraper.database import Database
+        self.db = db or Database()
+        self.settings_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "linkedin_feed_settings.json")
+
+    def get_li_at_cookie(self) -> str:
+        """Retrieves user's LinkedIn session cookie strictly from environment variable."""
+        return os.getenv("LI_AT", "").strip()
 
     def load_user_settings(self) -> Dict[str, Any]:
-        """Loads user's LinkedIn feed sync settings and cookies."""
+        """Loads user's LinkedIn feed sync settings from database or disk without persisting or exposing secrets."""
+        data = {"sync_enabled": True, "last_synced_at": None, "keywords": "data analyst fresher hiring"}
+        # 1. Try DB first
+        try:
+            db_settings = self.db.get_linkedin_feed_settings()
+            if db_settings:
+                data.update(db_settings)
+        except Exception as e:
+            logger.warning(f"Error loading LinkedIn settings from DB: {e}")
+
+        # 2. Check disk fallback
         if os.path.exists(self.settings_file):
             try:
                 with open(self.settings_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    disk_data = json.load(f)
+                    if isinstance(disk_data, dict):
+                        disk_data.pop("li_at", None)
+                        for k, v in disk_data.items():
+                            if k not in data or data[k] is None:
+                                data[k] = v
             except Exception as e:
                 logger.warning(f"Error loading LinkedIn settings: {e}")
-        return {"li_at": "", "sync_enabled": True, "last_synced_at": None, "keywords": "data analyst fresher hiring"}
+
+        # The settings API and consumers receive boolean li_at_configured, never the raw secret
+        data["li_at_configured"] = bool(self.get_li_at_cookie())
+        data.pop("li_at", None)
+        return data
 
     def save_user_settings(self, settings: Dict[str, Any]) -> bool:
-        """Saves user's LinkedIn settings."""
+        """Saves user's LinkedIn settings to database and disk, ensuring li_at is never stored on disk."""
         try:
-            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
-            with open(self.settings_file, "w", encoding="utf-8") as f:
-                json.dump(settings, f, indent=2)
+            to_save = dict(settings)
+            raw_cookie = to_save.pop("li_at", None)
+            to_save.pop("li_at_configured", None)
+
+            # If a session cookie was provided in payload, set in memory environment only
+            if raw_cookie and isinstance(raw_cookie, str) and raw_cookie.strip():
+                os.environ["LI_AT"] = raw_cookie.strip()
+
+            # Save to persistent DB
+            try:
+                self.db.save_linkedin_feed_settings(to_save)
+            except Exception as e:
+                logger.warning(f"Error saving LinkedIn settings to DB: {e}")
+
+            # Also save to disk if writable
+            try:
+                os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+                with open(self.settings_file, "w", encoding="utf-8") as f:
+                    json.dump(to_save, f, indent=2)
+            except Exception as e:
+                logger.warning(f"Error saving LinkedIn settings to disk: {e}")
+
             return True
         except Exception as e:
             logger.error(f"Error saving LinkedIn settings: {e}")
@@ -588,4 +633,8 @@ class LinkedInRecruiterFeedAdapter(BaseAdapter):
 
         logger.info(f"LinkedInRecruiterFeedAdapter returning {len(jobs)} fresher recruiter feed jobs.")
         return jobs
+
+# Global singleton adapter instance
+linkedin_adapter = LinkedInRecruiterFeedAdapter()
+
 

@@ -27,6 +27,8 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
+from scraper.safe_fetch import safe_fetch, validate_url, SSRFError
+
 from scraper.taxonomy import (
     classify_role,
     detect_work_mode,
@@ -73,7 +75,7 @@ def scrape_linkedin_post(url_or_text: str) -> Dict[str, Any]:
     }
     
     try:
-        resp = requests.get(url, headers=headers, allow_redirects=True, timeout=12)
+        resp = safe_fetch(url, headers=headers, timeout=12)
         if resp.status_code != 200:
             logger.warning(f"LinkedIn fetch returned status {resp.status_code} for URL: {url}")
             return {"raw_url": url, "final_url": resp.url}

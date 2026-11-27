@@ -113,12 +113,16 @@
           <span class="theme-toggle-text" id="theme-toggle-text">Dark</span>
         </button>
         <!-- Export Actions -->
-        <button class="btn btn-outline btn-sm header-btn-desktop-only" onclick="window.location.href='/api/export/csv'"
-          title="Export all recent listings to CSV">
+        <button class="btn btn-outline btn-sm header-btn-desktop-only" onclick="exportJobs('csv')"
+          title="Curate & Export all scraped job listings to CSV">
           📥 CSV
         </button>
-        <button class="btn btn-outline btn-sm header-btn-desktop-only" onclick="window.location.href='/api/export/json'"
-          title="Export all recent listings to JSON">
+        <button class="btn btn-outline btn-sm header-btn-desktop-only" onclick="exportJobs('excel')"
+          title="Curate & Export all scraped job listings to Excel (.xlsx)">
+          📊 Excel
+        </button>
+        <button class="btn btn-outline btn-sm header-btn-desktop-only" onclick="exportJobs('json')"
+          title="Curate & Export all scraped job listings to JSON">
           📥 JSON
         </button>
         <!-- Primary Action Button: #FFCED8 -->
@@ -154,10 +158,13 @@
           <button class="btn btn-outline mobile-drawer-btn" onclick="openSettingsModal(); closeMobileMenu();">
             ⚙️ Settings
           </button>
-          <button class="btn btn-outline mobile-drawer-btn" onclick="window.location.href='/api/export/csv'; closeMobileMenu();">
+          <button class="btn btn-outline mobile-drawer-btn" onclick="exportJobs('csv'); closeMobileMenu();">
             📥 CSV Export
           </button>
-          <button class="btn btn-outline mobile-drawer-btn" onclick="window.location.href='/api/export/json'; closeMobileMenu();">
+          <button class="btn btn-outline mobile-drawer-btn" onclick="exportJobs('excel'); closeMobileMenu();">
+            📊 Excel Export
+          </button>
+          <button class="btn btn-outline mobile-drawer-btn" onclick="exportJobs('json'); closeMobileMenu();">
             📥 JSON Export
           </button>
           <button class="btn btn-outline mobile-drawer-btn" onclick="toggleTheme(); closeMobileMenu();">
@@ -474,6 +481,7 @@
               <span class="toolbar-label">Sort By:</span>
               <select id="toolbar-sort-select" class="sort-select" data-filter="sort_by" title="Sort job listings">
                 <option value="pune_first" selected>📍 Pune First → Priority Cities (On-Site/Hybrid)</option>
+                <option value="relevance">🎯 Relevance: Highest Match</option>
                 <option value="date_desc">⚡ Date: Most Recent</option>
                 <option value="first_scraped_desc">⬇ Newest Scraped First</option>
                 <option value="first_scraped_asc">⬆ Oldest Scraped First</option>
@@ -2692,9 +2700,12 @@
           <strong>Connect Your Account Feed:</strong> By supplying your LinkedIn session cookie (<code>li_at</code>), the platform can query live feed hiring posts matching fresher keywords directly from your personal network.
         </div>
         <div style="margin-bottom: 1rem;">
-          <label style="font-weight: 700; font-size: 0.8rem; color: #1e293b; display: block; margin-bottom: 4px;">LINKEDIN SESSION COOKIE (li_at)</label>
-          <input type="password" id="li-setting-cookie" class="search-input" placeholder="Paste your li_at cookie here (optional for live feed sync)..." style="font-size: 0.825rem; width: 100%; padding: 0.45rem 0.65rem;">
-          <span style="font-size: 0.7rem; color: #64748b; margin-top: 2px; display: block;">Found in your browser Developer Tools -> Application -> Cookies -> linkedin.com -> li_at</span>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+            <label style="font-weight: 700; font-size: 0.8rem; color: #1e293b;">LINKEDIN SESSION COOKIE (li_at)</label>
+            <span id="li-cookie-status-badge" style="font-size: 0.725rem;"></span>
+          </div>
+          <input type="password" id="li-setting-cookie" class="search-input" placeholder="Paste li_at here or set LI_AT in .env (never saved on disk)..." style="font-size: 0.825rem; width: 100%; padding: 0.45rem 0.65rem;">
+          <span style="font-size: 0.7rem; color: #64748b; margin-top: 2px; display: block;">For privacy, <code>li_at</code> is never stored on disk. Configure in <code>.env</code> as <code>LI_AT=...</code> or supply temporarily for this session.</span>
         </div>
         <div style="margin-bottom: 1rem;">
           <label style="font-weight: 700; font-size: 0.8rem; color: #1e293b; display: block; margin-bottom: 4px;">SEARCH & FEED KEYWORDS</label>
@@ -2941,6 +2952,31 @@
       <span class="bottom-nav-label">More</span>
     </button>
   </nav>
+
+  <!-- API Key Authentication Modal -->
+  <div id="api-key-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(5px); z-index: 100000; align-items: center; justify-content: center; padding: 1.25rem;">
+    <div class="modal-content" style="background: var(--bg-card, #ffffff); border-radius: 16px; max-width: 440px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); border: 1px solid var(--border-color, #e2e8f0); overflow: hidden; animation: fadeIn 0.25s ease-out; margin: auto;">
+      <div style="background: linear-gradient(135deg, #D97F95 0%, #B85F75 100%); padding: 1.5rem; color: #ffffff; text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.35rem;">🔐</div>
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #ffffff;">System Authentication</h3>
+        <p style="margin: 0.4rem 0 0; font-size: 0.85rem; opacity: 0.95; color: #fff1f2;">Enter your API key to access Fresher Job Finder</p>
+      </div>
+      <div style="padding: 1.75rem 1.5rem;">
+        <div id="api-key-error" style="display: none; background: #fef2f2; border: 1px solid #f87171; color: #b91c1c; font-size: 0.82rem; padding: 0.65rem 0.85rem; border-radius: 8px; margin-bottom: 1.2rem; line-height: 1.4;"></div>
+        <form id="api-key-form" onsubmit="handleApiKeySubmit(event)">
+          <div style="margin-bottom: 1.25rem;">
+            <label for="api-key-input" style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary, #475569); margin-bottom: 0.45rem;">API Key (X-API-Key)</label>
+            <input type="password" id="api-key-input" placeholder="Paste your API key..." required autocomplete="current-password"
+                   style="width: 100%; box-sizing: border-box; padding: 0.75rem 0.85rem; border: 1.5px solid var(--border-color, #cbd5e1); border-radius: 8px; font-family: monospace; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" />
+            <span style="font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 0.4rem;">The key is stored in your browser's sessionStorage for this session.</span>
+          </div>
+          <button type="submit" id="api-key-submit-btn" style="width: 100%; background: linear-gradient(135deg, #D97F95 0%, #B85F75 100%); color: #ffffff; border: none; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(217, 127, 149, 0.4); transition: transform 0.1s ease, filter 0.2s;">
+            Authenticate & Enter
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <script src="/static/js/app.js?v=3.1.0-mobile-opt"></script>
 </body>

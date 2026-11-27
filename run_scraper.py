@@ -57,7 +57,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Fresher Data Analyst Job Scraper CLI (0-1 Year Experience) - India & Global Remote Open to India."
     )
-    parser.add_argument("--all", action="store_true", help="Run scrape across active adapters")
+    parser.add_argument("--all", action="store_true", help="Run scrape across active adapters (default)")
+    parser.add_argument("--timeout", type=float, default=60.0, help="Per-adapter timeout in seconds (default: 60s)")
+    parser.add_argument("--process-queue", action="store_true", help="Process queued scrape runs from run_logs first")
     parser.add_argument("--roles", nargs="+", help="Multi-select specific job roles (e.g. 'Data Analyst' 'Power BI Developer')")
     parser.add_argument("--category", choices=["core", "related", "all"], default="all", help="Role category filter")
     parser.add_argument("--country", type=str, help="Country filter (e.g. India, Remote)")
@@ -133,20 +135,7 @@ def main():
     elif args.category == "related":
         target_roles = RELATED_ROLES
 
-    if args.all or args.sources or target_roles or args.limit:
-        engine = ScraperEngine(db=db, registry=registry)
-        print(f"Starting fresher scrape run at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}...")
-        print(f"Priority City Queue: {', '.join(args.cities)}")
-        print(f"Target Work Modes: {', '.join(args.work_modes)} (Remote excluded)")
-        run = engine.run(
-            adapter_ids=args.sources,
-            roles=target_roles,
-            limit_per_source=args.limit,
-            cities=args.cities,
-            work_modes=args.work_modes
-        )
-        print(f"Scrape completed: {run.jobs_added} new jobs added, {run.duplicates_skipped} duplicates skipped, {run.jobs_scanned} total scanned.")
-
+    # If --export is requested, handle export first
     if args.export:
         cat_filter = ""
         if args.category == "core":
@@ -166,6 +155,96 @@ def main():
             export_to_csv(jobs, out)
         else:
             export_to_json(jobs, out)
+        return
+
+    # Check for queued runs if requested or if pending
+    if args.process_queue:
+        queued = db.get_queued_run_requests()
+        if queued:
+            print(f"\nFound {len(queued)} queued scrape request(s) in run_logs. Processing queue...")
+            engine = ScraperEngine(db=db, registry=registry)
+            any_failure = False
+            for q in queued:
+                q_id = q["run_id"]
+                raw_sources = q.get("adapters_scanned")
+                adapter_ids = None
+                if raw_sources:
+                    try:
+                        parsed = json.loads(raw_sources)
+                        if isinstance(parsed, list) and "all" not in parsed:
+                            adapter_ids = parsed
+                    except Exception:
+                        pass
+                print(f"Processing queued run {q_id} (trigger: {q.get('trigger_source')})...")
+                run = engine.run(
+                    adapter_ids=adapter_ids,
+                    roles=target_roles,
+                    limit_per_source=args.limit,
+                    cities=args.cities,
+                    work_modes=args.work_modes,
+                    run_id=q_id,
+                    schedule_name=q.get("schedule_name"),
+                    trigger_source=q.get("trigger_source", "queued"),
+                    triggered_by=q.get("triggered_by", "Worker CLI"),
+                    adapter_timeout=args.timeout
+                )
+                if run.status == "failed":
+                    any_failure = True
+            if any_failure:
+                print("❌ One or more queued runs suffered total failure. Exiting 1.")
+                sys.exit(1)
+            sys.exit(0)
+        else:
+            print("No queued scrape runs found in run_logs.")
+
+    # Default execution: run scrape across all adapters (or specified --sources)
+    engine = ScraperEngine(db=db, registry=registry)
+    print(f"\n=======================================================")
+    print(f"Starting Fresher Job Scraper CLI at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Storage: {'PostgreSQL (DATABASE_URL)' if db.is_postgres else 'SQLite (' + str(db.db_path) + ')'}")
+    print(f"Priority City Queue: {', '.join(args.cities)}")
+    print(f"Target Work Modes: {', '.join(args.work_modes)} (Remote excluded)")
+    print(f"Per-Adapter Timeout: {args.timeout}s (Failure Isolation Enabled)")
+    print("=======================================================\n")
+
+    run = engine.run(
+        adapter_ids=args.sources if args.sources else None,
+        roles=target_roles,
+        limit_per_source=args.limit,
+        cities=args.cities,
+        work_modes=args.work_modes,
+        adapter_timeout=args.timeout,
+        trigger_source="cli",
+        triggered_by="CLI/GitHub Actions Runner"
+    )
+
+    print("\n=======================================================")
+    print(f"             SCRAPE RUN SUMMARY: {run.status.upper()}")
+    print("=======================================================")
+    print(f"Run ID:             {run.run_id}")
+    print(f"Status:             {run.status}")
+    print(f"Jobs Scanned:       {run.jobs_scanned}")
+    print(f"Jobs Added:         {run.jobs_added}")
+    print(f"Duplicates Skipped: {run.duplicates_skipped}")
+    print(f"Errors Encountered: {run.errors_count}")
+    print("-------------------------------------------------------")
+    if getattr(run, "adapter_summaries", None):
+        print("Adapter Breakdown:")
+        for aid, s in run.adapter_summaries.items():
+            status_icon = "✅" if s.get("status") in ["success", "zero_results"] else "❌"
+            dur = s.get("duration_seconds", 0)
+            scanned = s.get("jobs_scanned", 0)
+            added = s.get("jobs_added", 0)
+            err = f" - {s.get('error')}" if s.get("error") else ""
+            print(f"  {status_icon} {s.get('name', aid):<28} | {s.get('status'):<12} | {dur}s | +{added} jobs{err}")
+    print("=======================================================\n")
+
+    if run.status == "failed":
+        print("❌ Scraper run resulted in TOTAL FAILURE (0 adapters completed successfully). Exiting with code 1.")
+        sys.exit(1)
+    else:
+        print(f"✅ Scraper run finished with status '{run.status}'. Exiting with code 0.")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

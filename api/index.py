@@ -6,6 +6,8 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
+# Persistent storage note: No ephemeral /tmp SQLite copying is performed.
+# Database persistence is handled directly via DATABASE_URL and PostgreSQL storage engine.
 from app import app
 
 # Expose app and handler for universal Vercel / serverless ASGI runtime compatibility

@@ -11,15 +11,27 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
-# Test databases & SQLite temporary journals
-data/jobs.db-journal
-data/jobs.db-wal
-data/jobs.db-shm
+# Local SQLite databases & temporary journals
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
 data/test_temp.db
 
-# Dynamic test resumes & cover letters (preserves folder structure)
-data/resumes/*
+# User career documents & master resumes (preserves folder structure)
+data/documents/
+!data/documents/.gitkeep
+
+# Dynamic tailored resumes & cover letters (preserves folder structure)
+data/resumes/
 !data/resumes/.gitkeep
+
+# Local career knowledge base & settings
+data/knowledge_base.json
+data/linkedin_feed_settings.json
+
+# Preserve root data directory in git
+!data/.gitkeep
 
 # Operating system & Editor files
 .DS_Store

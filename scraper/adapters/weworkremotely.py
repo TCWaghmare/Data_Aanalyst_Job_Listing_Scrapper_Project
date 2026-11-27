@@ -101,7 +101,7 @@ class WeWorkRemotelyAdapter(BaseAdapter):
                         source_id=self.platform_id,
                         source_name=self.platform_name,
                         source_url=link,
-                        published_at=pub_date,
+                        published_at=raw_pub or pub_date,
                         is_deep_scraped=True,
                         extraction_status="complete"
                     )

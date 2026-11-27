@@ -11,13 +11,16 @@ import logging
 import os
 import re
 import threading
+import time
+import zipfile
+from collections import defaultdict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import List, Optional, Dict, Any, Tuple
 from urllib.parse import quote
 from fastapi import FastAPI, BackgroundTasks, Query, Response, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, PlainTextResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -38,6 +41,13 @@ from scraper.deep_scraper import deep_job_scraper
 from resume_tailor.analyzer import deep_job_analyzer
 from scraper.adapters.linkedin_recruiter import LinkedInRecruiterFeedAdapter
 from scraper.linkedin_intelligence import linkedin_intelligence_agent
+from scraper.safe_fetch import safe_fetch, validate_url, SSRFError
+from scraper.relevance import score_job, get_min_relevance
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("job_finder")
@@ -48,31 +58,127 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Enable CORS & Private Network Access for bookmarklet / browser feed sync from linkedin.com
+# Rate limiter implementation: 60 req/min general, 5 req/min on strict endpoints
+class InMemoryRateLimiter:
+    def __init__(self):
+        self._records: Dict[str, List[float]] = defaultdict(list)
+        self._lock = threading.Lock()
+
+    def check(self, ip: str, path: str) -> bool:
+        now = time.time()
+        window = 60.0
+
+        # Strict routes: 5 req/min on /api/resume/*, /api/scraper/run, /api/kb/upload
+        is_strict = (
+            path.startswith("/api/resume")
+            or path == "/api/scraper/run"
+            or path.startswith("/api/kb/upload")
+        )
+        limit = 5 if is_strict else 60
+        key = f"{ip}:{'strict' if is_strict else 'general'}"
+
+        with self._lock:
+            timestamps = [t for t in self._records[key] if now - t < window]
+            if len(timestamps) >= limit:
+                self._records[key] = timestamps
+                return False
+            timestamps.append(now)
+            self._records[key] = timestamps
+            return True
+
+rate_limiter = InMemoryRateLimiter()
+
+def get_client_ip(request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "127.0.0.1"
+
+# CORS Configuration: allow only origins in env ALLOWED_ORIGINS, allow_credentials=False
+class DynamicCORSMiddleware(CORSMiddleware):
+    def is_allowed_origin(self, origin: str) -> bool:
+        allowed_raw = os.getenv("ALLOWED_ORIGINS", "")
+        allowed = [o.strip() for o in allowed_raw.split(",") if o.strip()]
+        return origin in allowed
+
 app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r"https?://.*",
-    allow_credentials=True,
-    allow_methods=["*"],
+    DynamicCORSMiddleware,
+    allow_origins=[],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
 @app.middleware("http")
-async def cors_pna_middleware(request, call_next):
-    origin = request.headers.get("origin") or "*"
+async def security_auth_and_rate_limit_middleware(request, call_next):
+    path = request.scope.get("path", request.url.path)
+
+    # Static files and non-api routes bypass API authentication and rate limiting
+    if not path.startswith("/api/"):
+        return await call_next(request)
+
+    # Preflight CORS requests must pass through to CORSMiddleware
     if request.method == "OPTIONS":
-        resp = Response(status_code=200)
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "*"
-        resp.headers["Access-Control-Allow-Private-Network"] = "true"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        return resp
-    resp = await call_next(request)
-    resp.headers["Access-Control-Allow-Origin"] = origin
-    resp.headers["Access-Control-Allow-Private-Network"] = "true"
-    resp.headers["Access-Control-Allow-Credentials"] = "true"
-    return resp
+        return await call_next(request)
+
+    # 1. Health check endpoint (GET /api/health) is exempt from API key
+    if path == "/api/health" and request.method == "GET":
+        return await call_next(request)
+
+    # 2. Cron route: require Authorization: Bearer <CRON_SECRET>
+    if path == "/api/cron":
+        cron_secret = os.getenv("CRON_SECRET", "")
+        auth_header = request.headers.get("Authorization", "")
+        if not cron_secret or not auth_header.startswith("Bearer "):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Unauthorized: Missing or invalid Bearer token for cron"}
+            )
+        token = auth_header[7:].strip()
+        if token != cron_secret:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Unauthorized: Invalid cron secret"}
+            )
+        return await call_next(request)
+
+    # 3. All other /api/* routes require X-API-Key == env API_KEY
+    expected_api_key = os.getenv("API_KEY", "")
+    provided_api_key = request.headers.get("X-API-Key", "") or request.query_params.get("api_key", "")
+    if not expected_api_key or provided_api_key != expected_api_key:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized: Missing or invalid X-API-Key header"}
+        )
+
+    # 4. Per-IP Rate Limiting
+    client_ip = get_client_ip(request)
+    if not rate_limiter.check(client_ip, path):
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests. Rate limit exceeded, please wait a minute before retrying."}
+        )
+
+    return await call_next(request)
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.cdnfonts.com https://fonts.googleapis.com; "
+        "font-src 'self' https://cdnjs.cloudflare.com https://fonts.cdnfonts.com https://fonts.gstatic.com data:; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https:; "
+        "frame-ancestors 'none';"
+    )
+    return response
 
 # Initialize singletons
 db = Database()
@@ -105,6 +211,18 @@ async def add_no_cache_headers(request, call_next):
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
     return response
+
+@app.get("/api/health")
+def health_check():
+    """
+    Public health check endpoint for monitoring, uptime verification, and connectivity testing.
+    Exempt from API key authentication.
+    """
+    return {
+        "status": "ok",
+        "service": "Fresher Data Analyst Job Finder",
+        "timestamp": datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
+    }
 
 class ScrapeRequest(BaseModel):
     adapter_ids: Optional[List[str]] = None
@@ -220,21 +338,7 @@ class LinkedInSettingsRequest(BaseModel):
 @app.on_event("startup")
 def on_app_startup():
     is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
-    logger.info(f"Application starting up (Serverless mode: {is_serverless}). Initializing ScraperScheduler...")
-    try:
-        scraper_scheduler.start()
-    except Exception as e:
-        logger.warning(f"Could not start scraper_scheduler: {e}")
-    if not is_serverless:
-        try:
-            _, count = db.get_jobs(source_id="linkedin_feed", limit=5)
-            if count < 5:
-                feed_jobs = linkedin_adapter.scrape(limit=30)
-                for j in feed_jobs:
-                    db.save_job(j)
-                logger.info(f"Auto-seeded {len(feed_jobs)} LinkedIn recruiter feed jobs into database.")
-        except Exception as e:
-            logger.warning(f"Could not auto-seed LinkedIn feed jobs: {e}")
+    logger.info(f"Application starting up (Serverless mode: {is_serverless}). Web app never scrapes in request.")
 
 @app.on_event("shutdown")
 def on_app_shutdown():
@@ -556,37 +660,24 @@ def get_stats():
     return db.get_statistics()
 
 @app.post("/api/scraper/run")
-def trigger_scrape(req: ScrapeRequest, background_tasks: BackgroundTasks):
+def trigger_scrape(req: ScrapeRequest):
     """
-    Triggers an immediate scrape run with smart controls,
-    updating the live status monitor and recording activity logs.
+    Enqueues an immediate scrape run request for CLI/background worker execution.
+    The web app never executes scraping directly inside a web request.
     """
-    if scraper_scheduler.live_monitor.get("status") == "running":
-        return {
-            "status": "already_running",
-            "message": "A scrape process is currently running.",
-            "live_status": scraper_scheduler.live_monitor
-        }
-
-    custom_params = req.model_dump()
-    custom_params["sources"] = req.adapter_ids or ["all"]
-    custom_params["schedule_name"] = req.schedule_name or "Manual On-Demand Run"
-    custom_params["work_modes"] = req.work_modes or ["On-Site", "Hybrid", "Remote"]
-    custom_params["roles"] = req.roles or ["Data Analyst", "Junior Data Analyst", "Business Analyst", "Power BI Developer", "Python"]
-    custom_params["keywords"] = custom_params["roles"]
-
-    background_tasks.add_task(
-        scraper_scheduler.execute_scrape,
-        schedule_id=None,
-        custom_params=custom_params,
+    target_adapters = req.adapter_ids or ["all"]
+    run_id = db.enqueue_run_request(
         trigger_source="manual",
-        triggered_by="User (Manual Run)"
+        triggered_by="User (Manual Web Request)",
+        adapter_ids=target_adapters,
+        schedule_name=req.schedule_name or "Manual On-Demand Run"
     )
 
     return {
-        "status": "initiated",
-        "message": f"Fresher scraper initiated with {len(req.adapter_ids) if req.adapter_ids else 'all'} adapters.",
-        "target_adapters": req.adapter_ids or list(engine.adapters.keys())
+        "status": "queued",
+        "message": f"Scrape run request enqueued for worker CLI ({len(target_adapters)} adapters requested).",
+        "run_id": run_id,
+        "target_adapters": target_adapters
     }
 
 @app.get("/api/scraper/status")
@@ -602,12 +693,6 @@ def get_scraper_status():
 @app.get("/api/scraper/monitor/live")
 def get_live_monitor():
     """Returns real-time scraping progress, stage, active adapter, elapsed time, and jobs found."""
-    # Ensure due schedules are checked on every client monitor poll (vital for serverless/cloud hosting like Vercel)
-    if scraper_scheduler.live_monitor.get("status") != "running":
-        try:
-            scraper_scheduler._check_and_trigger_due_schedules()
-        except Exception as _e:
-            logger.warning(f"Error checking due schedules on monitor poll: {_e}")
     return scraper_scheduler.live_monitor
 
 @app.get("/api/cron")
@@ -615,11 +700,10 @@ def get_live_monitor():
 def cron_trigger():
     """
     Automated Cron Trigger endpoint for serverless and cloud deployments.
-    Checks all enabled schedules and triggers scraping for any due schedule.
-    Can be pinged by Vercel Cron, GitHub Actions, or client auto-tickers.
+    Evaluates enabled schedules and enqueues due runs in run_logs.
+    The web app never executes scraping directly inside a web request.
     """
     triggered_runs = []
-    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
     schedules = db.get_schedules()
     tz = ZoneInfo("Asia/Kolkata")
     now_in_tz = datetime.now(tz)
@@ -635,8 +719,8 @@ def cron_trigger():
             if next_dt.tzinfo is None:
                 next_dt = next_dt.replace(tzinfo=tz)
 
-            if next_dt <= now_in_tz and scraper_scheduler.live_monitor.get("status") != "running":
-                logger.info(f"[Cron Auto-Trigger] Schedule '{s['name']}' ({s['id']}) is DUE ({next_dt} <= {now_in_tz})")
+            if next_dt <= now_in_tz:
+                logger.info(f"[Cron Auto-Trigger] Schedule '{s['name']}' ({s['id']}) is DUE ({next_dt} <= {now_in_tz}). Enqueuing run request...")
                 subsequent_run = calculate_next_run(
                     s.get("frequency", "daily"),
                     s.get("run_times", ["11:00"]),
@@ -647,29 +731,19 @@ def cron_trigger():
                 s["next_run_at"] = subsequent_run
                 db.save_schedule(s)
 
-                if is_serverless:
-                    # In serverless, execute synchronously so Vercel keeps the lambda container alive
-                    res = scraper_scheduler.execute_scrape(
-                        schedule_id=s["id"],
-                        trigger_source="scheduled",
-                        triggered_by="Cloud Cron Scheduler"
-                    )
-                    triggered_runs.append({"schedule_id": s["id"], "name": s["name"], "result": res})
-                    break
-                else:
-                    t = threading.Thread(
-                        target=scraper_scheduler.execute_scrape,
-                        kwargs={
-                            "schedule_id": s["id"],
-                            "trigger_source": "scheduled",
-                            "triggered_by": "Automated Scheduler"
-                        },
-                        daemon=True,
-                        name=f"CronWorker_{s['id']}"
-                    )
-                    t.start()
-                    triggered_runs.append({"schedule_id": s["id"], "name": s["name"], "status": "started_async"})
-                    break
+                run_id = db.enqueue_run_request(
+                    trigger_source="scheduled",
+                    triggered_by="Cloud Cron Scheduler",
+                    adapter_ids=s.get("sources") or ["all"],
+                    schedule_id=s["id"],
+                    schedule_name=s["name"]
+                )
+                triggered_runs.append({
+                    "schedule_id": s["id"],
+                    "name": s["name"],
+                    "status": "queued",
+                    "run_id": run_id
+                })
         except Exception as e:
             logger.error(f"Error checking schedule {s.get('id')} in cron_trigger: {e}")
 
@@ -880,8 +954,11 @@ def get_linkedin_feed_jobs(
     if total < 5 and not q:
         scraped_jobs = linkedin_adapter.scrape(limit=30)
         for j in scraped_jobs:
-            db.save_job(j)
-        feed_jobs, total = db.get_jobs(source_id="linkedin_feed", limit=limit)
+            score = score_job(j)
+            j.relevance_score = score
+            if score >= get_min_relevance():
+                db.save_job(j, enforce_relevance=True)
+        feed_jobs, total = db.get_jobs(source_id="linkedin_feed", limit=limit, sort_by=sort_by or "date_desc")
 
     items = [j.model_dump() for j in feed_jobs]
     if has_email_only:
@@ -906,8 +983,11 @@ def sync_linkedin_recruiter_posts():
     scraped_jobs = linkedin_adapter.scrape(limit=50)
     added_count = 0
     for j in scraped_jobs:
-        if db.save_job(j):
-            added_count += 1
+        score = score_job(j)
+        j.relevance_score = score
+        if score >= get_min_relevance():
+            if db.save_job(j, enforce_relevance=True):
+                added_count += 1
 
     db.add_notification(
         title=f"👔 LinkedIn Recruiter Sync: {len(scraped_jobs)} Posts Scraped",
@@ -1059,6 +1139,9 @@ def generate_tailored_artifacts(job: Any) -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"Cover letter build warning: {e}")
 
+    # Persist all generated artifacts into the database stored_files table
+    _persist_tailored_artifacts_to_db(clean_id)
+
     filenames = {
         "resume_pdf": build_standard_filename(candidate_name, title, company, "Resume", "pdf"),
         "resume_docx": build_standard_filename(candidate_name, title, company, "Resume", "docx"),
@@ -1077,6 +1160,27 @@ def generate_tailored_artifacts(job: Any) -> Dict[str, Any]:
         "cl_docx_url": f"/api/cover-letter/download/docx/{clean_id}",
         "filenames": filenames
     }
+
+def _persist_tailored_artifacts_to_db(clean_id: str):
+    """Persists generated resume and cover letter files to persistent database stored_files table."""
+    files_to_store = [
+        (f"tailored_{clean_id}.pdf", "application/pdf", "pdf", os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.pdf")),
+        (f"tailored_{clean_id}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx", os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.docx")),
+        (f"tailored_{clean_id}.tex", "text/plain; charset=utf-8", "tex", os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.tex")),
+        (f"tailored_{clean_id}.txt", "text/plain; charset=utf-8", "txt", os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.txt")),
+        (f"tailored_{clean_id}.html", "text/html; charset=utf-8", "html", os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.html")),
+        (f"cover_letter_{clean_id}.pdf", "application/pdf", "pdf", os.path.join(RESUME_OUTPUT_DIR, f"cover_letter_{clean_id}.pdf")),
+        (f"cover_letter_{clean_id}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx", os.path.join(RESUME_OUTPUT_DIR, f"cover_letter_{clean_id}.docx")),
+        (f"cover_letter_{clean_id}.txt", "text/plain; charset=utf-8", "txt", os.path.join(RESUME_OUTPUT_DIR, f"cover_letter_{clean_id}.txt")),
+    ]
+    for fname, ctype, ftype, fpath in files_to_store:
+        if os.path.exists(fpath):
+            try:
+                with open(fpath, "rb") as fp:
+                    content = fp.read()
+                db.save_file(file_id=fname, filename=fname, content=content, content_type=ctype, file_type=ftype)
+            except Exception as e:
+                logger.warning(f"Error persisting {fname} to db: {e}")
 
 def _ensure_job_artifacts(job_id: str):
     """Ensures tailored resume and cover letter artifacts exist on disk for the given job_id."""
@@ -1109,6 +1213,12 @@ def ingest_linkedin_post(req: LinkedInPostIngestRequest):
     """
     if not req.post_text.strip() and not (req.post_url and req.post_url.strip()):
         raise HTTPException(status_code=400, detail="Please provide post text or post URL.")
+
+    if req.post_url and req.post_url.strip():
+        try:
+            validate_url(req.post_url.strip())
+        except SSRFError as se:
+            raise HTTPException(status_code=400, detail=f"SSRF Protection: {se}")
 
     # 1. Run Intelligence Agent Analysis (auto-scrapes live URLs including lnkd.in)
     analyzed_data = linkedin_intelligence_agent.analyze_post(
@@ -1153,7 +1263,13 @@ def ingest_linkedin_post(req: LinkedInPostIngestRequest):
         contact_phone=analyzed_data.get("phone"),
         contact_whatsapp=analyzed_data.get("whatsapp"),
     )
-    is_new = db.save_job(job)
+    job.relevance_score = score_job(job)
+    if job.relevance_score < get_min_relevance():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Post does not meet relevance threshold ({job.relevance_score} < {get_min_relevance()})"
+        )
+    is_new = db.save_job(job, enforce_relevance=True)
 
     # 4. Auto-generate tailored ATS resume and cover letter artifacts for this job
     clean_id = "".join([c if c.isalnum() else "_" for c in job.id])
@@ -1263,6 +1379,12 @@ def analyze_linkedin_post(req: LinkedInPostIngestRequest):
     if not req.post_text.strip() and not (req.post_url and req.post_url.strip()):
         raise HTTPException(status_code=400, detail="Please provide post text or post URL.")
 
+    if req.post_url and req.post_url.strip():
+        try:
+            validate_url(req.post_url.strip())
+        except SSRFError as se:
+            raise HTTPException(status_code=400, detail=f"SSRF Protection: {se}")
+
     analyzed = linkedin_intelligence_agent.analyze_post(
         post_text=req.post_text,
         post_url=req.post_url,
@@ -1300,7 +1422,8 @@ def export_csv(
     date_posted: Optional[str] = Query(None),
     scrape_freshness: Optional[str] = Query(None),
     sort_by: Optional[str] = Query("date_desc"),
-    q: Optional[str] = None
+    q: Optional[str] = None,
+    limit: Optional[int] = Query(10000)
 ):
     target_roles = []
     if roles:
@@ -1344,22 +1467,43 @@ def export_csv(
         date_filter=date_posted or "",
         scrape_freshness=scrape_freshness or "",
         sort_by=sort_by or "date_desc",
-        limit=2000
+        limit=limit if (limit and limit > 0) else 10000
     )
 
     output = io.StringIO()
     fieldnames = [
-        "id", "title", "standard_role", "role_category", "company", "location",
-        "country", "work_mode", "experience_level", "salary", "skills",
-        "source_name", "source_url", "published_at", "first_scraped_at", "last_checked_at", "scrape_count", "status",
-        "discovered_at", "is_applied", "applied_at"
+        "id", "title", "standard_role", "company", "apply_link", "salary",
+        "location", "country", "work_mode", "job_experience", "experience_level",
+        "min_experience", "max_experience", "skills", "role_category",
+        "source_name", "source_url", "description", "responsibilities",
+        "requirements", "qualifications", "ats_keywords", "application_deadline",
+        "openings", "recruiter_name", "recruiter_email", "recruiter_designation",
+        "linkedin_profile", "contact_phone", "contact_whatsapp", "company_website",
+        "published_at", "first_scraped_at", "scraped_at", "last_checked_at",
+        "scrape_count", "status", "application_status", "is_applied", "applied_at",
+        "discovered_at"
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
     for j in jobs:
         d = j.model_dump()
-        d["skills"] = ", ".join(d.get("skills", []))
-        d.pop("description", None)
+        d["apply_link"] = d.get("apply_url") or d.get("source_url") or ""
+        min_exp = d.get("min_experience")
+        max_exp = d.get("max_experience")
+        exp_lvl = d.get("experience_level") or "fresher"
+        if min_exp is not None and max_exp is not None:
+            d["job_experience"] = f"{min_exp}-{max_exp} yrs ({exp_lvl})"
+        elif min_exp is not None:
+            d["job_experience"] = f"{min_exp}+ yrs ({exp_lvl})"
+        else:
+            d["job_experience"] = exp_lvl
+
+        d["skills"] = ", ".join(d.get("skills") or []) if isinstance(d.get("skills"), list) else str(d.get("skills") or "")
+        d["responsibilities"] = "\n".join(d.get("responsibilities") or []) if isinstance(d.get("responsibilities"), list) else str(d.get("responsibilities") or "")
+        d["requirements"] = "\n".join(d.get("requirements") or []) if isinstance(d.get("requirements"), list) else str(d.get("requirements") or "")
+        d["qualifications"] = "\n".join(d.get("qualifications") or []) if isinstance(d.get("qualifications"), list) else str(d.get("qualifications") or "")
+        d["ats_keywords"] = ", ".join(d.get("ats_keywords") or []) if isinstance(d.get("ats_keywords"), list) else str(d.get("ats_keywords") or "")
+
         d.pop("is_active", None)
         d.pop("source_id", None)
         writer.writerow(d)
@@ -1368,7 +1512,195 @@ def export_csv(
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=fresher_analytics_jobs.csv"}
+        headers={"Content-Disposition": "attachment; filename=curated_scraped_jobs.csv"}
+    )
+
+@app.get("/api/export/excel")
+@app.get("/api/export/xlsx")
+def export_excel(
+    roles: Optional[List[str]] = Query(None),
+    role_category: Optional[str] = None,
+    platforms: Optional[List[str]] = Query(None),
+    platform: Optional[str] = None,
+    city: Optional[str] = None,
+    cities: Optional[List[str]] = Query(None),
+    country: Optional[str] = None,
+    date_posted: Optional[str] = Query(None),
+    scrape_freshness: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("date_desc"),
+    q: Optional[str] = None,
+    limit: Optional[int] = Query(10000)
+):
+    target_roles = []
+    if roles:
+        for r in roles:
+            if "," in r:
+                target_roles.extend([x.strip() for x in r.split(",") if x.strip()])
+            else:
+                target_roles.append(r)
+
+    target_platforms = []
+    if platforms:
+        for p in platforms:
+            if "," in p:
+                target_platforms.extend([x.strip() for x in p.split(",") if x.strip()])
+            else:
+                target_platforms.append(p)
+    elif platform:
+        target_platforms = [platform]
+
+    target_cities = []
+    if cities:
+        for c in cities:
+            if "," in c:
+                target_cities.extend([x.strip() for x in c.split(",") if x.strip()])
+            else:
+                target_cities.append(c.strip())
+    elif city:
+        if "," in city:
+            target_cities.extend([x.strip() for x in city.split(",") if x.strip()])
+        else:
+            target_cities.append(city.strip())
+
+    jobs, _ = db.get_jobs(
+        query=q or "",
+        roles=target_roles if target_roles else None,
+        role_category=role_category or "",
+        platforms=target_platforms if target_platforms else None,
+        country=country or "",
+        city=city or "",
+        cities=target_cities if target_cities else None,
+        date_filter=date_posted or "",
+        scrape_freshness=scrape_freshness or "",
+        sort_by=sort_by or "date_desc",
+        limit=limit if (limit and limit > 0) else 10000
+    )
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Curated Job Listings"
+
+    headers = [
+        "Job Title", "Company Name", "Apply Link", "Salary", "Location", "Country",
+        "Work Mode", "Job Experience", "Skills Required", "Standard Role", "Role Category",
+        "Source Platform", "Source Job URL", "Job Description", "Key Responsibilities",
+        "Requirements", "Qualifications", "ATS Keywords", "Application Deadline",
+        "Openings", "Recruiter Name", "Recruiter Email", "Recruiter Designation",
+        "LinkedIn Profile", "Contact Phone", "WhatsApp", "Company Website",
+        "Published Date", "First Scraped Date", "Last Checked Date", "Status",
+        "Application Status", "Is Applied", "Applied Date", "Discovered Date", "Job ID"
+    ]
+    ws.append(headers)
+
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = thin_border
+    ws.row_dimensions[1].height = 28
+
+    data_font = Font(name="Calibri", size=10)
+    top_align = Alignment(vertical="top", wrap_text=True)
+
+    for row_idx, j in enumerate(jobs, start=2):
+        d = j.model_dump()
+        min_exp = d.get("min_experience")
+        max_exp = d.get("max_experience")
+        exp_lvl = d.get("experience_level") or "fresher"
+        if min_exp is not None and max_exp is not None:
+            job_exp = f"{min_exp}-{max_exp} yrs ({exp_lvl})"
+        elif min_exp is not None:
+            job_exp = f"{min_exp}+ yrs ({exp_lvl})"
+        else:
+            job_exp = exp_lvl
+
+        skills_str = ", ".join(d.get("skills") or []) if isinstance(d.get("skills"), list) else str(d.get("skills") or "")
+        resp_str = "\n".join(d.get("responsibilities") or []) if isinstance(d.get("responsibilities"), list) else str(d.get("responsibilities") or "")
+        req_str = "\n".join(d.get("requirements") or []) if isinstance(d.get("requirements"), list) else str(d.get("requirements") or "")
+        qual_str = "\n".join(d.get("qualifications") or []) if isinstance(d.get("qualifications"), list) else str(d.get("qualifications") or "")
+        ats_str = ", ".join(d.get("ats_keywords") or []) if isinstance(d.get("ats_keywords"), list) else str(d.get("ats_keywords") or "")
+        apply_link = d.get("apply_url") or d.get("source_url") or ""
+
+        row_data = [
+            d.get("title") or "",
+            d.get("company") or "",
+            apply_link,
+            d.get("salary") or "Not Disclosed",
+            d.get("location") or "",
+            d.get("country") or "",
+            d.get("work_mode") or "",
+            job_exp,
+            skills_str,
+            d.get("standard_role") or "",
+            d.get("role_category") or "",
+            d.get("source_name") or "",
+            d.get("source_url") or "",
+            d.get("description") or "",
+            resp_str,
+            req_str,
+            qual_str,
+            ats_str,
+            d.get("application_deadline") or "",
+            d.get("openings") or "",
+            d.get("recruiter_name") or "",
+            d.get("recruiter_email") or "",
+            d.get("recruiter_designation") or "",
+            d.get("linkedin_profile") or "",
+            d.get("contact_phone") or "",
+            d.get("contact_whatsapp") or "",
+            d.get("company_website") or "",
+            d.get("published_at") or "",
+            d.get("first_scraped_at") or "",
+            d.get("last_checked_at") or "",
+            d.get("status") or "active",
+            d.get("application_status") or "new",
+            "Yes" if d.get("is_applied") else "No",
+            d.get("applied_at") or "",
+            d.get("discovered_at") or "",
+            d.get("id") or ""
+        ]
+        ws.append(row_data)
+        ws.row_dimensions[row_idx].height = 20
+        for col_idx in range(1, len(row_data) + 1):
+            c = ws.cell(row=row_idx, column=col_idx)
+            c.font = data_font
+            c.alignment = top_align
+            c.border = thin_border
+
+    ws.freeze_panes = "A2"
+
+    for col in ws.columns:
+        col_letter = get_column_letter(col[0].column)
+        max_len = 0
+        for cell in col:
+            val = cell.value
+            if val:
+                val_first = str(val).split("\n")[0]
+                if len(val_first) > max_len:
+                    max_len = len(val_first)
+        ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 45)
+
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+
+    return StreamingResponse(
+        iter([stream.getvalue()]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=curated_scraped_jobs.xlsx"}
     )
 
 @app.get("/api/export/json")
@@ -1383,7 +1715,8 @@ def export_json(
     date_posted: Optional[str] = Query(None),
     scrape_freshness: Optional[str] = Query(None),
     sort_by: Optional[str] = Query("date_desc"),
-    q: Optional[str] = None
+    q: Optional[str] = None,
+    limit: Optional[int] = Query(10000)
 ):
     target_roles = []
     if roles:
@@ -1460,6 +1793,10 @@ def get_kb_documents(q: Optional[str] = None, category: Optional[str] = None):
         "summary_stats": stats
     }
 
+MAX_KB_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_KB_FILES_PER_REQUEST = 10
+ALLOWED_KB_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
+
 @app.post("/api/kb/upload")
 @app.post("/api/kb/upload-batch")
 async def upload_kb_documents(
@@ -1467,27 +1804,110 @@ async def upload_kb_documents(
     category: Optional[str] = Form(None)
 ):
     """
-    Batch multi-file upload for Career Knowledge Base.
-    Supports PDF, DOCX, DOC, TXT, MD, Images (JPG, PNG), and LinkedIn exports.
-    Automatically parses structured entities and re-synthesizes unified profile.
+    Hardened batch multi-file upload for Career Knowledge Base:
+    - Allows only .pdf, .docx, .txt, .md (rejects others with HTTP 415).
+    - Max 5 MB per file (HTTP 413), max 10 files per request (HTTP 413).
+    - Verifies magic bytes match extension (PDF starts with %PDF, DOCX is a zip archive).
+    - Rejects empty files and unextractable/corrupt files with HTTP 422 (and does not add to KB).
+    - Stores display_name strictly as os.path.basename(filename).
     """
-    results = []
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided.")
+
+    if len(files) > MAX_KB_FILES_PER_REQUEST:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Too many files: maximum {MAX_KB_FILES_PER_REQUEST} files per request, got {len(files)}."
+        )
+
+    validated_files = []
     for file in files:
-        try:
-            content = await file.read()
-            doc = career_kb.add_document(
-                filename=file.filename,
-                file_bytes=content,
-                category=category if category and category != "auto" else None
+        raw_filename = file.filename or ""
+        clean_filename = os.path.basename(raw_filename.replace("\\", "/"))
+        ext = os.path.splitext(clean_filename)[1].lower()
+
+        # 1. Allow only .pdf, .docx, .txt, .md (HTTP 415)
+        if ext not in ALLOWED_KB_EXTENSIONS:
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported file type '{ext}' for file '{clean_filename}'. Allowed types: .pdf, .docx, .txt, .md"
             )
-            results.append(doc)
+
+        # Read content
+        content = await file.read()
+
+        # 2. Max 5 MB per file (HTTP 413)
+        if len(content) > MAX_KB_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File '{clean_filename}' ({len(content)} bytes) exceeds the maximum allowed size of 5 MB."
+            )
+
+        # 3. Empty file check (HTTP 422)
+        if len(content) == 0:
+            raise HTTPException(
+                status_code=422,
+                detail=f"File '{clean_filename}' is empty (0 bytes). No text can be extracted."
+            )
+
+        # 4. Verify magic bytes match extension
+        if ext == ".pdf":
+            if not content.startswith(b"%PDF"):
+                raise HTTPException(
+                    status_code=415,
+                    detail=f"Invalid file signature: '{clean_filename}' does not start with PDF magic bytes (%PDF)."
+                )
+        elif ext == ".docx":
+            is_zip = content.startswith(b"PK\x03\x04") or zipfile.is_zipfile(io.BytesIO(content))
+            if not is_zip:
+                raise HTTPException(
+                    status_code=415,
+                    detail=f"Invalid file signature: '{clean_filename}' is not a valid DOCX (ZIP archive)."
+                )
+        elif ext in (".txt", ".md"):
+            try:
+                decoded_txt = content.decode("utf-8")
+            except UnicodeDecodeError:
+                try:
+                    decoded_txt = content.decode("latin-1")
+                except Exception:
+                    raise HTTPException(
+                        status_code=415,
+                        detail=f"Invalid text file: '{clean_filename}' cannot be decoded as text."
+                    )
+            if "\x00" in decoded_txt:
+                raise HTTPException(
+                    status_code=415,
+                    detail=f"Invalid file signature: binary null bytes detected in text file '{clean_filename}'."
+                )
+
+        # 5. Parse the file; if no text can be extracted, reject with 422 and do NOT add to KB
+        try:
+            extracted_text, _meta = career_kb.extract_text_from_file(clean_filename, content)
         except Exception as e:
-            logger.error(f"Error processing file {file.filename}: {e}")
-            results.append({
-                "filename": file.filename,
-                "status": "Error",
-                "error_message": str(e)
-            })
+            raise HTTPException(
+                status_code=422,
+                detail=f"Failed to parse '{clean_filename}': {e}"
+            )
+
+        if not extracted_text or not extracted_text.strip():
+            raise HTTPException(
+                status_code=422,
+                detail=f"No text could be extracted from '{clean_filename}'."
+            )
+
+        validated_files.append((clean_filename, content))
+
+    # All files validated; now add to knowledge base
+    results = []
+    for clean_filename, content in validated_files:
+        doc = career_kb.add_document(
+            filename=clean_filename,
+            file_bytes=content,
+            category=category if category and category != "auto" else None,
+            display_name=clean_filename
+        )
+        results.append(doc)
 
     return {
         "success": True,
@@ -1592,9 +2012,6 @@ def preview_kb_document(doc_id: str):
     doc = career_kb.get_document(doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    file_path = doc.get("file_path", "")
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File missing on server")
 
     ext = doc.get("file_type", "").lower()
     media_type = "application/octet-stream"
@@ -1604,6 +2021,21 @@ def preview_kb_document(doc_id: str):
         media_type = f"image/{ext if ext != 'jpg' else 'jpeg'}"
     elif ext in ["txt", "md", "csv", "json"]:
         media_type = "text/plain"
+    elif ext == "docx":
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+    # Check persistent database first
+    stored = db.get_file(doc_id) or db.get_file(f"doc_{doc.get('filename')}")
+    if stored and stored.get("file_data"):
+        return Response(
+            content=stored["file_data"],
+            media_type=media_type,
+            headers={"Content-Disposition": f'inline; filename="{doc.get("filename", "document")}"'}
+        )
+
+    file_path = doc.get("file_path", "")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File missing on server")
 
     return FileResponse(file_path, media_type=media_type, content_disposition_type="inline", filename=doc["filename"])
 
@@ -1888,8 +2320,14 @@ def analyze_job_url(req: AnalyzeUrlRequest):
     Supports LinkedIn, Internshala, Naukri, Foundit, Indeed, Wellfound, WeWorkRemotely, Jobicy, Remotive, RemoteOK, and company career pages.
     """
     url = (req.url or "").strip()
-    if not url or not (url.startswith("http://") or url.startswith("https://")):
-        raise HTTPException(status_code=400, detail="Please enter a valid HTTP or HTTPS job posting URL.")
+    if not url:
+        raise HTTPException(status_code=400, detail="Please enter a valid job posting URL.")
+
+    # Validate against SSRF (HTTPS only, public IPs only, no loopback/private/link-local/file)
+    try:
+        validate_url(url)
+    except SSRFError as se:
+        raise HTTPException(status_code=400, detail=f"SSRF Protection: {se}")
 
     scraped = deep_job_scraper.scrape_url(url)
     if not scraped.get("success") and not scraped.get("description"):
@@ -2064,9 +2502,16 @@ def _resolve_job_metadata(
 @app.get("/api/resume/preview/pdf/{job_id}")
 def preview_tailored_pdf(job_id: str):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    stored = db.get_file(f"tailored_{clean_id}.pdf")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/pdf", headers={"Content-Disposition": "inline"})
+
     pdf_path = os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.pdf")
     if not os.path.exists(pdf_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"tailored_{clean_id}.pdf")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/pdf", headers={"Content-Disposition": "inline"})
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail="Tailored PDF not found. Please click Tailor Resume first.")
     return FileResponse(
@@ -2078,9 +2523,16 @@ def preview_tailored_pdf(job_id: str):
 @app.get("/api/resume/preview/html/{job_id}")
 def preview_tailored_html(job_id: str):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    stored = db.get_file(f"tailored_{clean_id}.html")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"].decode("utf-8", errors="ignore"), media_type="text/html")
+
     html_path = os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.html")
     if not os.path.exists(html_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"tailored_{clean_id}.html")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"].decode("utf-8", errors="ignore"), media_type="text/html")
     if not os.path.exists(html_path):
         raise HTTPException(status_code=404, detail="Tailored preview not found. Please click Tailor Resume first.")
     return FileResponse(
@@ -2096,13 +2548,21 @@ def download_tailored_pdf(
     name: Optional[str] = Query(None)
 ):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
+    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Resume", "pdf")
+
+    stored = db.get_file(f"tailored_{clean_id}.pdf")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     pdf_path = os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.pdf")
     if not os.path.exists(pdf_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"tailored_{clean_id}.pdf")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail="Tailored PDF not found. Please click Tailor Resume first.")
-    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
-    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Resume", "pdf")
     return FileResponse(
         pdf_path,
         media_type="application/pdf",
@@ -2117,13 +2577,21 @@ def download_tailored_docx(
     name: Optional[str] = Query(None)
 ):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
+    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Resume", "docx")
+
+    stored = db.get_file(f"tailored_{clean_id}.docx")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     docx_path = os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.docx")
     if not os.path.exists(docx_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"tailored_{clean_id}.docx")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     if not os.path.exists(docx_path):
         raise HTTPException(status_code=404, detail="Tailored Word document not found. Please click Tailor Resume first.")
-    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
-    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Resume", "docx")
     return FileResponse(
         docx_path,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -2138,13 +2606,21 @@ def download_tailored_tex(
     name: Optional[str] = Query(None)
 ):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
+    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Resume", "tex")
+
+    stored = db.get_file(f"tailored_{clean_id}.tex")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="text/plain; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     tex_path = os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.tex")
     if not os.path.exists(tex_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"tailored_{clean_id}.tex")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="text/plain; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     if not os.path.exists(tex_path):
         raise HTTPException(status_code=404, detail="Tailored LaTeX file not found. Please click Tailor Resume first.")
-    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
-    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Resume", "tex")
     return FileResponse(
         tex_path,
         media_type="text/plain",
@@ -2159,13 +2635,21 @@ def download_tailored_txt(
     name: Optional[str] = Query(None)
 ):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
+    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Resume", "txt")
+
+    stored = db.get_file(f"tailored_{clean_id}.txt")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="text/plain; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     txt_path = os.path.join(RESUME_OUTPUT_DIR, f"tailored_{clean_id}.txt")
     if not os.path.exists(txt_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"tailored_{clean_id}.txt")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="text/plain; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     if not os.path.exists(txt_path):
         raise HTTPException(status_code=404, detail="Tailored TXT not found. Please click Tailor Resume first.")
-    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
-    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Resume", "txt")
     return FileResponse(
         txt_path,
         media_type="text/plain",
@@ -2177,9 +2661,16 @@ def download_tailored_txt(
 @app.get("/api/cover-letter/preview/pdf/{job_id}")
 def preview_cover_letter_pdf(job_id: str):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    stored = db.get_file(f"cover_letter_{clean_id}.pdf")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/pdf", headers={"Content-Disposition": "inline"})
+
     pdf_path = os.path.join(RESUME_OUTPUT_DIR, f"cover_letter_{clean_id}.pdf")
     if not os.path.exists(pdf_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"cover_letter_{clean_id}.pdf")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/pdf", headers={"Content-Disposition": "inline"})
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail="Cover letter PDF not found.")
     return FileResponse(
@@ -2196,13 +2687,21 @@ def download_cover_letter_docx(
     name: Optional[str] = Query(None)
 ):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
+    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Cover_Letter", "docx")
+
+    stored = db.get_file(f"cover_letter_{clean_id}.docx")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     docx_path = os.path.join(RESUME_OUTPUT_DIR, f"cover_letter_{clean_id}.docx")
     if not os.path.exists(docx_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"cover_letter_{clean_id}.docx")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     if not os.path.exists(docx_path):
         raise HTTPException(status_code=404, detail="Cover letter Word document not found.")
-    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
-    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Cover_Letter", "docx")
     return FileResponse(
         docx_path,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -2217,13 +2716,21 @@ def download_cover_letter_pdf(
     name: Optional[str] = Query(None)
 ):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
+    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Cover_Letter", "pdf")
+
+    stored = db.get_file(f"cover_letter_{clean_id}.pdf")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     pdf_path = os.path.join(RESUME_OUTPUT_DIR, f"cover_letter_{clean_id}.pdf")
     if not os.path.exists(pdf_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"cover_letter_{clean_id}.pdf")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail="Cover letter PDF not found.")
-    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
-    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Cover_Letter", "pdf")
     return FileResponse(
         pdf_path,
         media_type="application/pdf",
@@ -2238,13 +2745,21 @@ def download_cover_letter_txt(
     name: Optional[str] = Query(None)
 ):
     clean_id = "".join([c if c.isalnum() else "_" for c in job_id])
+    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
+    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Cover_Letter", "txt")
+
+    stored = db.get_file(f"cover_letter_{clean_id}.txt")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="text/plain; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
     txt_path = os.path.join(RESUME_OUTPUT_DIR, f"cover_letter_{clean_id}.txt")
     if not os.path.exists(txt_path):
         _ensure_job_artifacts(job_id)
+    stored = db.get_file(f"cover_letter_{clean_id}.txt")
+    if stored and stored.get("file_data"):
+        return Response(content=stored["file_data"], media_type="text/plain; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     if not os.path.exists(txt_path):
         raise HTTPException(status_code=404, detail="Cover letter TXT not found.")
-    eff_name, eff_role, eff_comp = _resolve_job_metadata(job_id, role, company, name)
-    filename = build_standard_filename(eff_name, eff_role, eff_comp, "Cover_Letter", "txt")
     return FileResponse(
         txt_path,
         media_type="text/plain",

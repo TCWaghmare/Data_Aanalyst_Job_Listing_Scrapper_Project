@@ -57,15 +57,12 @@ class ResilientSession:
         self.session.mount("http://", adapter)
 
     def get(self, url: str, **kwargs):
+        from scraper.safe_fetch import safe_fetch
         headers = get_random_headers(kwargs.pop("headers", None))
         timeout = kwargs.pop("timeout", self.timeout)
 
         try:
-            # First attempt with standard verification
-            return self.session.get(url, headers=headers, timeout=timeout, **kwargs)
-        except requests.exceptions.SSLError:
-            logger.warning(f"SSL verification failed for {url}. Retrying with verify=False.")
-            return self.session.get(url, headers=headers, timeout=timeout, verify=False, **kwargs)
+            return safe_fetch(url, headers=headers, timeout=timeout, session=self.session, **kwargs)
         except Exception as e:
             logger.error(f"Request failed for {url}: {e}")
             raise

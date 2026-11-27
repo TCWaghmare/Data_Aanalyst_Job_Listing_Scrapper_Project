@@ -49,6 +49,11 @@ def test_first_scraped_at_immutability_on_duplicate_scrapes():
         status="active"
     )
 
+    # Clean up any leftover row from previous runs
+    with db.get_connection() as conn:
+        conn.execute("DELETE FROM jobs WHERE id = ?", (test_job_id,))
+        conn.commit()
+
     # 1. First scrape
     is_new = db.save_job(test_job)
     assert is_new is True, "First save should be treated as new"

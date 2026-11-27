@@ -5,6 +5,7 @@ Optimized for 0-1 year fresher analytics jobs.
 
 import hashlib
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -14,57 +15,229 @@ from typing import Dict, List, Optional, Tuple, Any
 from zoneinfo import ZoneInfo
 
 from scraper.models import Job, Platform, ScrapeRun
+from scraper.cleaners import (
+    clean_source_url,
+    compute_clean_dedup_hash,
+    normalize_published_at,
+    normalize_experience_level,
+    calculate_expires_at,
+    is_job_active,
+)
+
+logger = logging.getLogger(__name__)
+
+try:
+    import psycopg2
+    import psycopg2.extras
+    from psycopg2 import Binary as PgBinary
+except ImportError:
+    psycopg2 = None
+    PgBinary = None
+
+
+class DictAndIndexRow(dict):
+    """Row wrapper that supports both key access (row['col']) and integer index access (row[0])."""
+    def __init__(self, mapping: dict, tuple_vals: tuple):
+        super().__init__(mapping)
+        self._tuple = tuple_vals
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._tuple[key]
+        return super().__getitem__(key)
+
+    def keys(self):
+        return super().keys()
+
+
+def translate_sql_to_postgres(sql: str) -> str:
+    """Translates SQLite SQL dialect to PostgreSQL dialect."""
+    s = sql
+
+    # 1. PRAGMA queries: translate table_info to information_schema, ignore others
+    if re.match(r"^\s*PRAGMA\s+", s, flags=re.IGNORECASE):
+        m = re.search(r"PRAGMA\s+table_info\((\w+)\)", s, flags=re.IGNORECASE)
+        if m:
+            table_name = m.group(1).lower()
+            return f"SELECT column_name as name FROM information_schema.columns WHERE LOWER(table_name) = '{table_name}'"
+        return "SELECT 1"
+
+    # 2. INSERT OR IGNORE INTO -> INSERT INTO ... ON CONFLICT DO NOTHING
+    if "INSERT OR IGNORE INTO" in s.upper():
+        s = re.sub(r"INSERT\s+OR\s+IGNORE\s+INTO", "INSERT INTO", s, flags=re.IGNORECASE)
+        if "ON CONFLICT" not in s.upper():
+            s = s.rstrip(";") + " ON CONFLICT DO NOTHING"
+
+    # 3. COLLATE NOCASE -> LOWER(...)
+    s = re.sub(r"(\b\w+\b)\s+COLLATE\s+NOCASE", r"LOWER(\1)", s, flags=re.IGNORECASE)
+    s = re.sub(r"COLLATE\s+NOCASE", "", s, flags=re.IGNORECASE)
+
+    # 4. datetime('now') -> NOW()::text
+    s = re.sub(r"datetime\('now'\)", "NOW()::text", s, flags=re.IGNORECASE)
+
+    # 5. strftime('%Y-W%W', col) -> to_char(col::timestamp, 'YYYY-"W"IW')
+    s = re.sub(r"strftime\('%Y-W%W',\s*(\w+)\)", r"""to_char(\1::timestamp, 'YYYY-"W"IW')""", s, flags=re.IGNORECASE)
+
+    # 6. BLOB -> BYTEA in CREATE TABLE
+    if "CREATE TABLE" in s.upper():
+        s = re.sub(r"\bBLOB\b", "BYTEA", s, flags=re.IGNORECASE)
+
+    # 7. Replace ? with %s outside quotes
+    parts = []
+    tokens = re.split(r"('(?:''|[^'])*'|\"(?:\"\"|[^\"])*\")", s)
+    for token in tokens:
+        if token.startswith("'") or token.startswith('"'):
+            parts.append(token)
+        else:
+            parts.append(token.replace("?", "%s"))
+    return "".join(parts)
+
+
+class PostgresCursorWrapper:
+    """Cursor wrapper for psycopg2 matching sqlite3 cursor behavior."""
+    def __init__(self, cursor, conn):
+        self._cursor = cursor
+        self._conn = conn
+
+    def execute(self, sql: str, params: Any = None):
+        pg_sql = translate_sql_to_postgres(sql)
+        if pg_sql.strip() == "SELECT 1" and "PRAGMA" in sql.upper():
+            return self
+        if params is not None:
+            if isinstance(params, list):
+                params = tuple(params)
+            if PgBinary is not None:
+                new_params = []
+                for p in params:
+                    if isinstance(p, bytes):
+                        new_params.append(PgBinary(p))
+                    else:
+                        new_params.append(p)
+                params = tuple(new_params)
+            self._cursor.execute(pg_sql, params)
+        else:
+            self._cursor.execute(pg_sql)
+        return self
+
+    def executemany(self, sql: str, seq_of_parameters):
+        pg_sql = translate_sql_to_postgres(sql)
+        self._cursor.executemany(pg_sql, seq_of_parameters)
+        return self
+
+    def fetchone(self):
+        if not self._cursor.description:
+            return None
+        row = self._cursor.fetchone()
+        if row is None:
+            return None
+        col_names = [d[0] for d in self._cursor.description]
+        mapping = dict(zip(col_names, row))
+        return DictAndIndexRow(mapping, row)
+
+    def fetchall(self):
+        if not self._cursor.description:
+            return []
+        rows = self._cursor.fetchall()
+        col_names = [d[0] for d in self._cursor.description]
+        return [DictAndIndexRow(dict(zip(col_names, r)), r) for r in rows]
+
+    def fetchmany(self, size=None):
+        if not self._cursor.description:
+            return []
+        rows = self._cursor.fetchmany(size)
+        col_names = [d[0] for d in self._cursor.description]
+        return [DictAndIndexRow(dict(zip(col_names, r)), r) for r in rows]
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    @property
+    def lastrowid(self):
+        return getattr(self._cursor, "lastrowid", None)
+
+    @property
+    def description(self):
+        return self._cursor.description
+
+    def close(self):
+        self._cursor.close()
+
+
+class PostgresConnectionContext:
+    """Context manager for PostgreSQL connections."""
+    def __init__(self, dsn: str):
+        self.dsn = dsn
+        self._conn = None
+        self._cursor = None
+
+    def __enter__(self):
+        if psycopg2 is None:
+            raise RuntimeError("psycopg2 is required for PostgreSQL connections but is not installed.")
+        dsn = self.dsn
+        if dsn.startswith("postgres://"):
+            dsn = "postgresql://" + dsn[len("postgres://"):]
+        self._conn = psycopg2.connect(dsn)
+        self._conn.autocommit = False
+        raw_cursor = self._conn.cursor()
+        self._cursor = PostgresCursorWrapper(raw_cursor, self._conn)
+        return self._cursor
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._cursor:
+            try:
+                self._cursor.close()
+            except Exception:
+                pass
+        if self._conn:
+            try:
+                if exc_type is None:
+                    self._conn.commit()
+                else:
+                    self._conn.rollback()
+            finally:
+                self._conn.close()
+
 
 def get_default_db_path() -> str:
-    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
-    if is_serverless:
-        tmp_dir = "/tmp/data"
-        tmp_db = os.path.join(tmp_dir, "jobs.db")
-        bundled_db = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "jobs.db")
-        try:
-            os.makedirs(tmp_dir, exist_ok=True)
-            if not os.path.exists(tmp_db) and os.path.exists(bundled_db):
-                import shutil
-                shutil.copy2(bundled_db, tmp_db)
-        except Exception:
-            pass
-        return tmp_db
     return os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "jobs.db")
 
 DB_PATH = get_default_db_path()
 
-def compute_dedup_hash(title: str, company: str, location: str, source_url: str = "") -> str:
-    def clean(s: str) -> str:
-        s = (s or "").lower()
-        s = re.sub(r"[^\w\s]", "", s)
-        return " ".join(s.split())
-
-    clean_t = clean(title)
-    clean_c = clean(company)
-    clean_l = clean(location)
-    clean_u = (source_url or "").split("?")[0].rstrip("/").lower()
-
-    base = f"{clean_t}|{clean_c}|{clean_l}"
-    if clean_u:
-        base += f"|{clean_u}"
-
-    return hashlib.sha256(base.encode("utf-8")).hexdigest()
+def compute_dedup_hash(title: str, company: str, location: str = "", source_url: str = "") -> str:
+    """
+    Computes dedup hash from the cleaned source URL (stripped of tracking params)
+    plus normalized title and company.
+    """
+    return compute_clean_dedup_hash(title, company, location, source_url)
 
 class Database:
-    def __init__(self, db_path: Optional[str] = None):
-        if db_path is None:
-            self.db_path = get_default_db_path()
+    def __init__(self, db_path: Optional[str] = None, database_url: Optional[str] = None):
+        env_db_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
+        if database_url:
+            self.is_postgres = True
+            self.database_url = database_url
+            self.db_path = None
+        elif db_path is None and env_db_url:
+            self.is_postgres = True
+            self.database_url = env_db_url
+            self.db_path = None
         else:
-            self.db_path = db_path
-        db_dir = os.path.dirname(self.db_path)
-        if db_dir:
-            try:
-                os.makedirs(db_dir, exist_ok=True)
-            except OSError:
-                pass
+            self.is_postgres = False
+            self.database_url = None
+            self.db_path = db_path or get_default_db_path()
+            db_dir = os.path.dirname(self.db_path)
+            if db_dir:
+                try:
+                    os.makedirs(db_dir, exist_ok=True)
+                except OSError:
+                    pass
         self.init_db()
 
-    def get_connection(self) -> sqlite3.Connection:
+    def get_connection(self):
+        if self.is_postgres:
+            return PostgresConnectionContext(self.database_url)
+
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         try:
@@ -78,6 +251,7 @@ class Database:
         return conn
 
     def init_db(self):
+        now_iso = datetime.utcnow().isoformat()
         with self.get_connection() as conn:
             conn.execute("""
             CREATE TABLE IF NOT EXISTS jobs (
@@ -123,6 +297,8 @@ class Database:
                 "is_deep_scraped": "INTEGER DEFAULT 0",
                 "extraction_status": "TEXT DEFAULT 'complete'",
                 "first_scraped_at": "TEXT",
+                "scraped_at": "TEXT",
+                "expires_at": "TEXT",
                 "last_checked_at": "TEXT",
                 "created_at": "TEXT",
                 "updated_at": "TEXT",
@@ -142,24 +318,29 @@ class Database:
                 "company_website": "TEXT",
                 "company_linkedin": "TEXT",
                 "role_match_score": "INTEGER",
-                "confidence_score": "INTEGER"
+                "confidence_score": "INTEGER",
+                "relevance_score": "INTEGER DEFAULT 0"
             }
-            existing_cols = [c[1] for c in conn.execute("PRAGMA table_info(jobs)").fetchall()]
+            rows = conn.execute("PRAGMA table_info(jobs)").fetchall()
+            existing_cols = [r["name"] if isinstance(r, dict) and "name" in r else (r[1] if len(r) > 1 else r[0]) for r in rows]
             for col_name, col_type in column_definitions.items():
                 if col_name not in existing_cols:
                     conn.execute(f"ALTER TABLE jobs ADD COLUMN {col_name} {col_type}")
 
-            # Backfill first_scraped_at & scrape tracking metadata for existing jobs
+            default_exp = (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            # Backfill first_scraped_at, scraped_at, expires_at & scrape tracking metadata for existing jobs
             conn.execute("""
             UPDATE jobs SET
-                first_scraped_at = COALESCE(first_scraped_at, discovered_at, datetime('now')),
-                last_checked_at = COALESCE(last_checked_at, discovered_at, datetime('now')),
-                created_at = COALESCE(created_at, discovered_at, datetime('now')),
-                updated_at = COALESCE(updated_at, discovered_at, datetime('now')),
+                first_scraped_at = COALESCE(first_scraped_at, discovered_at, ?),
+                scraped_at = COALESCE(scraped_at, first_scraped_at, discovered_at, ?),
+                expires_at = COALESCE(expires_at, ?),
+                last_checked_at = COALESCE(last_checked_at, discovered_at, ?),
+                created_at = COALESCE(created_at, discovered_at, ?),
+                updated_at = COALESCE(updated_at, discovered_at, ?),
                 scrape_count = COALESCE(scrape_count, 1),
                 status = COALESCE(status, CASE WHEN is_active = 1 THEN 'active' ELSE 'inactive' END)
-            WHERE first_scraped_at IS NULL OR last_checked_at IS NULL OR scrape_count IS NULL
-            """)
+            WHERE first_scraped_at IS NULL OR scraped_at IS NULL OR expires_at IS NULL OR last_checked_at IS NULL OR scrape_count IS NULL
+            """, (now_iso, now_iso, default_exp, now_iso, now_iso, now_iso))
 
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_role ON jobs(standard_role)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_category ON jobs(role_category)")
@@ -169,8 +350,11 @@ class Database:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_published ON jobs(published_at DESC)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_discovered ON jobs(discovered_at DESC)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_first_scraped ON jobs(first_scraped_at DESC)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_scraped_at ON jobs(scraped_at DESC)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_expires_at ON jobs(expires_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_last_checked ON jobs(last_checked_at DESC)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_applied ON jobs(is_applied)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_relevance ON jobs(relevance_score DESC)")
 
             conn.execute("""
             CREATE TABLE IF NOT EXISTS sources (
@@ -203,6 +387,30 @@ class Database:
                 duplicates_skipped INTEGER DEFAULT 0,
                 errors_count INTEGER DEFAULT 0,
                 error_messages TEXT
+            )
+            """)
+
+            # Dedicated Run Logs table for worker isolation, CLI runs, and enqueued scrape requests
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS run_logs (
+                run_id TEXT PRIMARY KEY,
+                schedule_id TEXT,
+                schedule_name TEXT,
+                trigger_source TEXT NOT NULL,
+                triggered_by TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'queued',
+                started_at TEXT,
+                finished_at TEXT,
+                duration_seconds REAL DEFAULT 0,
+                adapters_scanned TEXT,
+                jobs_scanned INTEGER DEFAULT 0,
+                jobs_added INTEGER DEFAULT 0,
+                duplicates_skipped INTEGER DEFAULT 0,
+                errors_count INTEGER DEFAULT 0,
+                error_messages TEXT,
+                adapter_summaries TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             )
             """)
 
@@ -317,14 +525,100 @@ class Database:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_schedules_enabled ON scrape_schedules(is_enabled)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_activity_logs_status ON scrape_activity_logs(status)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON scrape_activity_logs(created_at DESC)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_run_logs_status ON run_logs(status)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_run_logs_created ON run_logs(created_at DESC)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(is_read, created_at DESC)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_time ON schedule_audit_logs(timestamp DESC)")
 
             # Initialize Default Notification Settings if not present
             conn.execute("""
-            INSERT OR IGNORE INTO notification_settings (id, in_app_enabled, email_enabled, notify_on_complete, notify_on_new_jobs, notify_on_high_match, notify_on_failure)
+            INSERT INTO notification_settings (id, in_app_enabled, email_enabled, notify_on_complete, notify_on_new_jobs, notify_on_high_match, notify_on_failure)
             VALUES ('default', 1, 0, 1, 1, 1, 1)
+            ON CONFLICT (id) DO NOTHING
             """)
+
+            # Persistent LinkedIn Settings Table
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS linkedin_feed_settings (
+                id TEXT PRIMARY KEY DEFAULT 'default',
+                sync_enabled INTEGER DEFAULT 1,
+                last_synced_at TEXT,
+                keywords TEXT DEFAULT 'data analyst fresher hiring',
+                updated_at TEXT
+            )
+            """)
+            conn.execute("""
+            INSERT INTO linkedin_feed_settings (id, sync_enabled, keywords, updated_at)
+            VALUES ('default', 1, 'data analyst fresher hiring', ?)
+            ON CONFLICT (id) DO NOTHING
+            """, (now_iso,))
+
+            # Persistent Career Knowledge Base Tables
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_base_documents (
+                id TEXT PRIMARY KEY,
+                filename TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                file_type TEXT NOT NULL,
+                file_size INTEGER DEFAULT 0,
+                file_size_formatted TEXT DEFAULT '0 KB',
+                file_path TEXT DEFAULT '',
+                uploaded_at TEXT,
+                last_processed_at TEXT,
+                upload_status TEXT DEFAULT 'Uploaded',
+                extraction_status TEXT DEFAULT 'Ready for AI Usage',
+                status TEXT DEFAULT 'Ready for AI Usage',
+                error_message TEXT,
+                extracted_summary TEXT,
+                extracted_data TEXT,
+                created_at TEXT,
+                updated_at TEXT
+            )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_kb_docs_category ON knowledge_base_documents(category)")
+
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_base_profile (
+                id TEXT PRIMARY KEY DEFAULT 'default',
+                profile_data TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """)
+
+            # Persistent Binary Files Storage (resumes, cover letters, uploaded docs)
+            conn.execute("""
+            CREATE TABLE IF NOT EXISTS stored_files (
+                id TEXT PRIMARY KEY,
+                filename TEXT NOT NULL,
+                file_type TEXT NOT NULL,
+                content_type TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                file_data BLOB NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stored_files_filename ON stored_files(filename)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stored_files_file_type ON stored_files(file_type)")
+        self.expire_old_jobs(cutoff_days=30)
+
+    def expire_old_jobs(self, cutoff_days: int = 30) -> int:
+        """Marks jobs older than cutoff_days (30 days) as inactive."""
+        now_utc = datetime.now(timezone.utc)
+        cutoff_iso = (now_utc - timedelta(days=cutoff_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now_iso = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+            UPDATE jobs
+            SET is_active = 0, status = 'inactive'
+            WHERE is_active = 1
+              AND (
+                (expires_at IS NOT NULL AND expires_at < ?)
+                OR (published_at IS NOT NULL AND published_at < ?)
+              )
+            """, (now_iso, cutoff_iso))
+            return cursor.rowcount if hasattr(cursor, "rowcount") and cursor.rowcount >= 0 else 0
 
     def reset_for_curated_platforms(self, platforms_data: List[dict]):
         """Align sources strictly with the curated platforms list."""
@@ -362,15 +656,42 @@ class Database:
                     1 if p.get("has_adapter") else 0, p.get("notes", "")
                 ))
 
-    def save_job(self, job: Job, update_existing: bool = True) -> bool:
-        dedup_hash = compute_dedup_hash(job.title, job.company, job.location, job.source_url)
-        now_iso = datetime.utcnow().isoformat()
+    def save_job(self, job: Job, update_existing: bool = True, enforce_relevance: bool = False) -> bool:
+        # Clean and normalize fields at ingest
+        job.source_url = clean_source_url(job.source_url)
+        job.published_at = normalize_published_at(job.published_at)
+        job.experience_level = normalize_experience_level(job.experience_level)
+
+        now_utc = datetime.now(timezone.utc)
+        now_iso = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
         first_scraped = job.first_scraped_at or job.discovered_at or now_iso
+        scraped_at = normalize_published_at(getattr(job, "scraped_at", None)) or normalize_published_at(first_scraped) or now_iso
+        job.scraped_at = scraped_at
+        expires_at = getattr(job, "expires_at", None) or calculate_expires_at(job.published_at or scraped_at)
+        job.expires_at = expires_at
+
+        # Mark inactive if older than 30 days
+        if not is_job_active(job.published_at, expires_at):
+            job.is_active = False
+            job.status = "inactive"
+
+        if getattr(job, "relevance_score", None) is None:
+            from scraper.relevance import score_job
+            job.relevance_score = score_job(job)
+
+        if enforce_relevance:
+            from scraper.relevance import get_min_relevance
+            min_rel = get_min_relevance()
+            if (job.relevance_score or 0) < min_rel:
+                logger.info(f"Skipping irrelevant job '{job.title}' (relevance {job.relevance_score} < {min_rel})")
+                return False
+
+        dedup_hash = compute_clean_dedup_hash(job.title, job.company, job.location, job.source_url)
         initial_last_checked = job.last_checked_at or now_iso
         initial_created = job.created_at or first_scraped
         initial_updated = job.updated_at or now_iso
         initial_scrape_count = job.scrape_count if job.scrape_count is not None else 1
-        initial_status = job.status or "active"
+        initial_status = job.status or ("active" if job.is_active else "inactive")
 
         with self.get_connection() as conn:
             existing = conn.execute(
@@ -391,11 +712,13 @@ class Database:
                     skills_json = json.dumps(job.skills, ensure_ascii=False) if job.skills else None
                     conn.execute("""
                     UPDATE jobs SET
-                        is_active = 1,
-                        status = 'active',
+                        is_active = CASE WHEN ? = 0 THEN 0 ELSE is_active END,
+                        status = CASE WHEN ? = 0 THEN 'inactive' ELSE status END,
                         last_checked_at = ?,
                         updated_at = ?,
                         scrape_count = ?,
+                        scraped_at = COALESCE(scraped_at, ?),
+                        expires_at = COALESCE(expires_at, ?),
                         salary = CASE WHEN ? != 'Not Disclosed' AND ? != '' THEN ? ELSE salary END,
                         description = CASE WHEN length(?) > length(COALESCE(description, '')) THEN ? ELSE description END,
                         skills = CASE WHEN ? IS NOT NULL AND length(?) > 2 THEN ? ELSE skills END,
@@ -412,10 +735,14 @@ class Database:
                         company_website = COALESCE(?, company_website),
                         company_linkedin = COALESCE(?, company_linkedin),
                         role_match_score = COALESCE(?, role_match_score),
-                        confidence_score = COALESCE(?, confidence_score)
+                        confidence_score = COALESCE(?, confidence_score),
+                        relevance_score = COALESCE(?, relevance_score)
                     WHERE dedup_hash = ?
                     """, (
+                        1 if job.is_active else 0,
+                        1 if job.is_active else 0,
                         now_iso, now_iso, new_scrape_count,
+                        scraped_at, expires_at,
                         job.salary, job.salary, job.salary,
                         job.description, job.description,
                         skills_json, skills_json, skills_json,
@@ -433,18 +760,21 @@ class Database:
                         getattr(job, "company_linkedin", None),
                         getattr(job, "role_match_score", None),
                         getattr(job, "confidence_score", None),
+                        getattr(job, "relevance_score", None),
                         dedup_hash
                     ))
                 else:
                     conn.execute("""
                     UPDATE jobs SET
-                        is_active = 1,
-                        status = 'active',
+                        is_active = CASE WHEN ? = 0 THEN 0 ELSE is_active END,
+                        status = CASE WHEN ? = 0 THEN 'inactive' ELSE status END,
                         last_checked_at = ?,
                         updated_at = ?,
-                        scrape_count = ?
+                        scrape_count = ?,
+                        scraped_at = COALESCE(scraped_at, ?),
+                        expires_at = COALESCE(expires_at, ?)
                     WHERE dedup_hash = ?
-                    """, (now_iso, now_iso, new_scrape_count, dedup_hash))
+                    """, (1 if job.is_active else 0, 1 if job.is_active else 0, now_iso, now_iso, new_scrape_count, scraped_at, expires_at, dedup_hash))
                 return False
 
             fuzzy_match = conn.execute(
@@ -457,11 +787,13 @@ class Database:
                 if update_existing:
                     conn.execute("""
                     UPDATE jobs SET
-                        is_active = 1,
-                        status = 'active',
+                        is_active = CASE WHEN ? = 0 THEN 0 ELSE is_active END,
+                        status = CASE WHEN ? = 0 THEN 'inactive' ELSE status END,
                         last_checked_at = ?,
                         updated_at = ?,
                         scrape_count = ?,
+                        scraped_at = COALESCE(scraped_at, ?),
+                        expires_at = COALESCE(expires_at, ?),
                         source_url = CASE WHEN ? != '' AND ? != 'Post URL Extraction Failed' THEN ? ELSE source_url END,
                         recruiter_email = COALESCE(?, recruiter_email),
                         recruiter_name = CASE WHEN ? != '' AND ? NOT LIKE 'http%' THEN ? ELSE recruiter_name END,
@@ -471,10 +803,14 @@ class Database:
                         contact_whatsapp = COALESCE(?, contact_whatsapp),
                         apply_url = COALESCE(?, apply_url),
                         role_match_score = COALESCE(?, role_match_score),
-                        confidence_score = COALESCE(?, confidence_score)
+                        confidence_score = COALESCE(?, confidence_score),
+                        relevance_score = COALESCE(?, relevance_score)
                     WHERE id = ?
                     """, (
+                        1 if job.is_active else 0,
+                        1 if job.is_active else 0,
                         now_iso, now_iso, new_scrape_count,
+                        scraped_at, expires_at,
                         job.source_url, job.source_url, job.source_url,
                         job.recruiter_email,
                         job.recruiter_name, job.recruiter_name, job.recruiter_name,
@@ -485,18 +821,21 @@ class Database:
                         getattr(job, "apply_url", None),
                         getattr(job, "role_match_score", None),
                         getattr(job, "confidence_score", None),
+                        getattr(job, "relevance_score", None),
                         fuzzy_match["id"]
                     ))
                 else:
                     conn.execute("""
                     UPDATE jobs SET
-                        is_active = 1,
-                        status = 'active',
+                        is_active = CASE WHEN ? = 0 THEN 0 ELSE is_active END,
+                        status = CASE WHEN ? = 0 THEN 'inactive' ELSE status END,
                         last_checked_at = ?,
                         updated_at = ?,
-                        scrape_count = ?
+                        scrape_count = ?,
+                        scraped_at = COALESCE(scraped_at, ?),
+                        expires_at = COALESCE(expires_at, ?)
                     WHERE id = ?
-                    """, (now_iso, now_iso, new_scrape_count, fuzzy_match["id"]))
+                    """, (1 if job.is_active else 0, 1 if job.is_active else 0, now_iso, now_iso, new_scrape_count, scraped_at, expires_at, fuzzy_match["id"]))
                 return False
 
             skills_json = json.dumps(job.skills, ensure_ascii=False)
@@ -512,19 +851,19 @@ class Database:
                 salary, description, skills, responsibilities, qualifications, requirements, ats_keywords,
                 application_deadline, openings, company_details, department, employment_type,
                 source_id, source_name, source_url, published_at, discovered_at,
-                first_scraped_at, last_checked_at, created_at, updated_at, scrape_count, status,
+                first_scraped_at, scraped_at, expires_at, last_checked_at, created_at, updated_at, scrape_count, status,
                 is_active, is_applied, applied_at, is_deep_scraped, extraction_status,
                 recruiter_email, recruiter_name, company_logo,
                 recruiter_designation, linkedin_profile, contact_phone, contact_whatsapp,
-                apply_url, company_website, company_linkedin, role_match_score, confidence_score
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                apply_url, company_website, company_linkedin, role_match_score, confidence_score, relevance_score
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 job.id, dedup_hash, job.title, job.standard_role, job.role_category, job.company,
                 job.location, job.country, job.work_mode, job.experience_level, job.min_experience, job.max_experience,
                 job.salary, job.description, skills_json, responsibilities_json, qualifications_json, requirements_json, ats_keywords_json,
                 job.application_deadline, job.openings, job.company_details, job.department, job.employment_type,
                 job.source_id, job.source_name, job.source_url, job.published_at, first_scraped,
-                first_scraped, initial_last_checked, initial_created, initial_updated, initial_scrape_count, initial_status,
+                first_scraped, scraped_at, expires_at, initial_last_checked, initial_created, initial_updated, initial_scrape_count, initial_status,
                 1 if job.is_active else 0, 1 if job.is_applied else 0, job.applied_at, 1 if job.is_deep_scraped else 0,
                 getattr(job, "extraction_status", "complete"),
                 job.recruiter_email, job.recruiter_name, job.company_logo,
@@ -536,7 +875,8 @@ class Database:
                 getattr(job, "company_website", None),
                 getattr(job, "company_linkedin", None),
                 getattr(job, "role_match_score", None),
-                getattr(job, "confidence_score", None)
+                getattr(job, "confidence_score", None),
+                getattr(job, "relevance_score", 0)
             ))
             return True
 
@@ -562,7 +902,10 @@ class Database:
         """
         Search and filter jobs with multi-role support, multi-city support, multi-platform support, scrape freshness, and configurable sorting.
         """
-        conditions = ["is_active = 1"]
+        if scrape_freshness == "older_30d":
+            conditions = []
+        else:
+            conditions = ["is_active = 1"]
         params = []
 
         # Strict Fresher Guarantee: Exclude Senior, Lead, Principal, Manager, Architect, and > 1 yr min experience
@@ -697,8 +1040,13 @@ class Database:
                 params.append(work_mode)
 
         if experience_level:
-            conditions.append("experience_level LIKE ?")
-            params.append(f"%{experience_level}%")
+            norm_exp = normalize_experience_level(experience_level)
+            if norm_exp != "unknown":
+                conditions.append("(experience_level = ? OR experience_level LIKE ?)")
+                params.extend([norm_exp, f"%{experience_level}%"])
+            else:
+                conditions.append("experience_level LIKE ?")
+                params.append(f"%{experience_level}%")
 
         if skill:
             conditions.append("skills LIKE ?")
@@ -712,55 +1060,55 @@ class Database:
 
         now = datetime.utcnow()
 
-        # Scrape Freshness Filter (based strictly on first_scraped_at / first discovery date)
+        # Scrape Freshness Filter (based strictly on published_at with fallback to first_scraped_at / discovery date)
         has_freshness_filter = bool(scrape_freshness and scrape_freshness not in ("", "all"))
         if has_freshness_filter:
             if scrape_freshness == "today":
                 cutoff = now.strftime("%Y-%m-%d")
-                conditions.append("COALESCE(first_scraped_at, discovered_at) >= ?")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif scrape_freshness == "24h":
-                cutoff = (now - timedelta(hours=24)).isoformat()
-                conditions.append("COALESCE(first_scraped_at, discovered_at) >= ?")
+                cutoff = (now - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif scrape_freshness == "3d":
-                cutoff = (now - timedelta(days=3)).isoformat()
-                conditions.append("COALESCE(first_scraped_at, discovered_at) >= ?")
+                cutoff = (now - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif scrape_freshness == "7d":
-                cutoff = (now - timedelta(days=7)).isoformat()
-                conditions.append("COALESCE(first_scraped_at, discovered_at) >= ?")
+                cutoff = (now - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif scrape_freshness == "30d":
-                cutoff = (now - timedelta(days=30)).isoformat()
-                conditions.append("COALESCE(first_scraped_at, discovered_at) >= ?")
+                cutoff = (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif scrape_freshness == "older_30d":
-                cutoff = (now - timedelta(days=30)).isoformat()
-                conditions.append("(COALESCE(first_scraped_at, discovered_at) < ? OR first_scraped_at IS NULL)")
+                cutoff = (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) < ?")
                 params.append(cutoff)
 
         # Date posted filter on published_at (only when scrape freshness is not actively overriding)
         if not has_freshness_filter and date_filter and date_filter not in ("", "all"):
             if date_filter == "24h":
                 cutoff = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-                conditions.append("published_at >= ?")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif date_filter == "3d":
                 cutoff = (now - timedelta(days=3)).strftime("%Y-%m-%d")
-                conditions.append("published_at >= ?")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif date_filter == "7d":
                 cutoff = (now - timedelta(days=7)).strftime("%Y-%m-%d")
-                conditions.append("published_at >= ?")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif date_filter == "14d":
                 cutoff = (now - timedelta(days=14)).strftime("%Y-%m-%d")
-                conditions.append("published_at >= ?")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
                 params.append(cutoff)
             elif date_filter == "30d":
                 cutoff = (now - timedelta(days=35)).strftime("%Y-%m-%d")
-                conditions.append("(published_at >= ? OR published_at IS NULL)")
+                conditions.append("(COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ? OR published_at IS NULL)")
                 params.append(cutoff)
 
         where_clause = " WHERE " + " AND ".join(conditions)
@@ -790,7 +1138,9 @@ class Database:
         """
 
         # Dynamic sorting clause
-        if sort_by == "pune_first":
+        if sort_by == "relevance":
+            order_clause = f"ORDER BY COALESCE(relevance_score, 0) DESC, {city_priority_case}, published_at DESC NULLS LAST, COALESCE(first_scraped_at, discovered_at) DESC"
+        elif sort_by == "pune_first":
             order_clause = f"ORDER BY {city_priority_case}, published_at DESC NULLS LAST, COALESCE(first_scraped_at, discovered_at) DESC"
         elif sort_by == "date_asc":
             order_clause = "ORDER BY published_at ASC NULLS LAST, discovered_at ASC"
@@ -865,6 +1215,8 @@ class Database:
             source_name=row["source_name"],
             source_url=row["source_url"],
             published_at=row["published_at"],
+            scraped_at=row["scraped_at"] if "scraped_at" in col_keys else None,
+            expires_at=row["expires_at"] if "expires_at" in col_keys else None,
             discovered_at=row["discovered_at"],
             first_scraped_at=row["first_scraped_at"] if "first_scraped_at" in col_keys and row["first_scraped_at"] else (row["discovered_at"] if "discovered_at" in col_keys else None),
             last_checked_at=row["last_checked_at"] if "last_checked_at" in col_keys and row["last_checked_at"] else (row["discovered_at"] if "discovered_at" in col_keys else None),
@@ -887,6 +1239,7 @@ class Database:
             company_linkedin=row["company_linkedin"] if "company_linkedin" in col_keys else None,
             role_match_score=row["role_match_score"] if "role_match_score" in col_keys else None,
             confidence_score=row["confidence_score"] if "confidence_score" in col_keys else None,
+            relevance_score=int(row["relevance_score"]) if "relevance_score" in col_keys and row["relevance_score"] is not None else 0,
             is_active=bool(row["is_active"]),
             is_applied=bool(row["is_applied"]) if "is_applied" in col_keys and row["is_applied"] else False,
             applied_at=row["applied_at"] if "applied_at" in col_keys else None,
@@ -911,12 +1264,18 @@ class Database:
                 "title", "company", "location", "country", "work_mode", "experience_level",
                 "min_experience", "max_experience", "salary", "description",
                 "application_deadline", "openings", "company_details", "department",
-                "employment_type", "published_at", "is_deep_scraped", "extraction_status"
+                "employment_type", "published_at", "scraped_at", "expires_at", "is_deep_scraped", "extraction_status",
+                "relevance_score"
             ]
             for f in allowed:
                 if f in deep_data and deep_data[f] is not None:
+                    val = deep_data[f]
+                    if f == "experience_level":
+                        val = normalize_experience_level(val)
+                    elif f == "published_at":
+                        val = normalize_published_at(val)
                     fields.append(f"{f} = ?")
-                    params.append(deep_data[f])
+                    params.append(val)
 
             list_fields = ["skills", "responsibilities", "qualifications", "requirements", "ats_keywords"]
             for lf in list_fields:
@@ -1005,14 +1364,137 @@ class Database:
                 json.dumps(run.error_messages)
             ))
 
+    def enqueue_run_request(
+        self,
+        trigger_source: str = "manual",
+        triggered_by: str = "User (Web Request)",
+        adapter_ids: Optional[List[str]] = None,
+        schedule_id: Optional[str] = None,
+        schedule_name: Optional[str] = None
+    ) -> str:
+        """Enqueues a scrape run request for CLI/background worker execution without scraping in a web request."""
+        run_id = f"run_{uuid.uuid4().hex[:12]}"
+        now_iso = datetime.utcnow().isoformat()
+        adapters_json = json.dumps(adapter_ids or ["all"])
+        with self.get_connection() as conn:
+            conn.execute("""
+            INSERT INTO run_logs (
+                run_id, schedule_id, schedule_name, trigger_source, triggered_by,
+                status, adapters_scanned, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 'queued', ?, ?, ?)
+            """, (
+                run_id,
+                schedule_id,
+                schedule_name or ("Manual Request" if trigger_source == "manual" else "Scheduled Run"),
+                trigger_source,
+                triggered_by,
+                adapters_json,
+                now_iso,
+                now_iso
+            ))
+        logger.info(f"Enqueued scrape run request {run_id} (trigger: {trigger_source}, by: {triggered_by})")
+        return run_id
+
+    def get_queued_run_requests(self) -> List[Dict[str, Any]]:
+        """Retrieves all pending scrape requests waiting for worker execution."""
+        with self.get_connection() as conn:
+            rows = conn.execute("""
+            SELECT * FROM run_logs
+            WHERE status = 'queued'
+            ORDER BY created_at ASC
+            """).fetchall()
+            return [dict(r) for r in rows]
+
+    def save_run_log(self, log_data: Dict[str, Any]) -> str:
+        """Upserts a run summary into run_logs table."""
+        run_id = log_data.get("run_id") or f"run_{uuid.uuid4().hex[:12]}"
+        now_iso = datetime.utcnow().isoformat()
+        created_at = log_data.get("created_at") or now_iso
+        updated_at = log_data.get("updated_at") or now_iso
+
+        adapters_scanned = log_data.get("adapters_scanned")
+        if isinstance(adapters_scanned, list):
+            adapters_scanned = json.dumps(adapters_scanned)
+        errors = log_data.get("error_messages")
+        if isinstance(errors, list):
+            errors = json.dumps(errors)
+        summaries = log_data.get("adapter_summaries")
+        if isinstance(summaries, (dict, list)):
+            summaries = json.dumps(summaries)
+
+        with self.get_connection() as conn:
+            conn.execute("""
+            INSERT INTO run_logs (
+                run_id, schedule_id, schedule_name, trigger_source, triggered_by,
+                status, started_at, finished_at, duration_seconds,
+                adapters_scanned, jobs_scanned, jobs_added, duplicates_skipped,
+                errors_count, error_messages, adapter_summaries,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (run_id) DO UPDATE SET
+                schedule_id = excluded.schedule_id,
+                schedule_name = excluded.schedule_name,
+                trigger_source = excluded.trigger_source,
+                triggered_by = excluded.triggered_by,
+                status = excluded.status,
+                started_at = excluded.started_at,
+                finished_at = excluded.finished_at,
+                duration_seconds = excluded.duration_seconds,
+                adapters_scanned = excluded.adapters_scanned,
+                jobs_scanned = excluded.jobs_scanned,
+                jobs_added = excluded.jobs_added,
+                duplicates_skipped = excluded.duplicates_skipped,
+                errors_count = excluded.errors_count,
+                error_messages = excluded.error_messages,
+                adapter_summaries = excluded.adapter_summaries,
+                updated_at = excluded.updated_at
+            """, (
+                run_id,
+                log_data.get("schedule_id"),
+                log_data.get("schedule_name") or "Scrape Run",
+                log_data.get("trigger_source", "manual"),
+                log_data.get("triggered_by", "System"),
+                log_data.get("status", "completed"),
+                log_data.get("started_at"),
+                log_data.get("finished_at"),
+                float(log_data.get("duration_seconds", 0)),
+                adapters_scanned or "[]",
+                int(log_data.get("jobs_scanned", 0)),
+                int(log_data.get("jobs_added", 0)),
+                int(log_data.get("duplicates_skipped", 0)),
+                int(log_data.get("errors_count", 0)),
+                errors or "[]",
+                summaries or "{}",
+                created_at,
+                updated_at
+            ))
+        return run_id
+
+    def get_run_logs(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Returns recent run logs ordered by creation time."""
+        with self.get_connection() as conn:
+            rows = conn.execute("""
+            SELECT * FROM run_logs
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+            """, (limit, offset)).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_run_log(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Returns details of a specific run log."""
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT * FROM run_logs WHERE run_id = ?", (run_id,)).fetchone()
+            return dict(row) if row else None
+
     def get_statistics(self) -> Dict[str, Any]:
+        self.expire_old_jobs(cutoff_days=30)
         with self.get_connection() as conn:
             total_jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1").fetchone()[0]
             core_jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1 AND role_category='Core Analytics'").fetchone()[0]
             related_jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1 AND role_category='Related'").fetchone()[0]
             india_jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1 AND (country='India' OR location LIKE '%India%')").fetchone()[0]
             remote_jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1 AND (work_mode='Remote' OR country LIKE '%Remote%')").fetchone()[0]
-            fresher_jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1 AND (experience_level LIKE '%Fresher%' OR experience_level LIKE '%0 - 1%' OR experience_level LIKE '%Intern%')").fetchone()[0]
+            fresher_jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1 AND (experience_level IN ('fresher', '0-1') OR experience_level LIKE '%Fresher%' OR experience_level LIKE '%0 - 1%' OR experience_level LIKE '%Intern%')").fetchone()[0]
             applied_jobs = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1 AND is_applied=1").fetchone()[0]
             total_sources = conn.execute("SELECT COUNT(*) FROM sources").fetchone()[0]
             active_adapters = conn.execute("SELECT COUNT(*) FROM sources WHERE has_adapter=1").fetchone()[0]
@@ -1037,34 +1519,34 @@ class Database:
             SELECT * FROM scrape_runs ORDER BY started_at DESC LIMIT 1
             """).fetchone()
 
-            # Advanced Scrape Freshness & Job History Intelligence Metrics
+            # Advanced Scrape Freshness & Job History Intelligence Metrics using published_at
             now = datetime.utcnow()
             today_str = now.strftime("%Y-%m-%d")
-            week_str = (now - timedelta(days=7)).isoformat()
-            month_str = (now - timedelta(days=30)).isoformat()
+            week_str = (now - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            month_str = (now - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
             jobs_added_today = conn.execute(
-                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND COALESCE(first_scraped_at, discovered_at) >= ?",
+                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?",
                 (today_str,)
             ).fetchone()[0]
 
             jobs_added_this_week = conn.execute(
-                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND COALESCE(first_scraped_at, discovered_at) >= ?",
+                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?",
                 (week_str,)
             ).fetchone()[0]
 
             jobs_added_this_month = conn.execute(
-                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND COALESCE(first_scraped_at, discovered_at) >= ?",
+                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?",
                 (month_str,)
             ).fetchone()[0]
 
             jobs_older_30d = conn.execute(
-                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND (COALESCE(first_scraped_at, discovered_at) < ? OR first_scraped_at IS NULL)",
+                "SELECT COUNT(*) FROM jobs WHERE COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) < ?",
                 (month_str,)
             ).fetchone()[0]
 
             distinct_days = conn.execute(
-                "SELECT COUNT(DISTINCT SUBSTR(COALESCE(first_scraped_at, discovered_at), 1, 10)) FROM jobs WHERE is_active=1"
+                "SELECT COUNT(DISTINCT SUBSTR(COALESCE(published_at, scraped_at, first_scraped_at, discovered_at), 1, 10)) FROM jobs WHERE is_active=1"
             ).fetchone()[0] or 1
             avg_daily_discovery = round(total_jobs / max(1, distinct_days), 1)
 
@@ -1077,7 +1559,7 @@ class Database:
             new_vs_existing_ratio = f"{round((single_scrape_jobs / max(1, total_jobs)) * 100, 1)}% New"
 
             growth_rows = conn.execute("""
-                SELECT SUBSTR(COALESCE(first_scraped_at, discovered_at), 1, 10) as day, COUNT(*) as cnt
+                SELECT SUBSTR(COALESCE(published_at, scraped_at, first_scraped_at, discovered_at), 1, 10) as day, COUNT(*) as cnt
                 FROM jobs WHERE is_active=1
                 GROUP BY day
                 ORDER BY day DESC
@@ -1740,3 +2222,269 @@ class Database:
                 "jobs_per_month": jobs_per_month,
                 "portal_breakdown": [{"portal": r["source_name"], "count": r["cnt"]} for r in portal_breakdown]
             }
+
+    # =========================================================================
+    # Persistent Binary File Storage (Resumes, Cover Letters, Documents)
+    # =========================================================================
+
+    def save_file(
+        self,
+        file_id: str,
+        filename: str,
+        content: bytes,
+        content_type: str = "application/octet-stream",
+        file_type: str = ""
+    ) -> bool:
+        """Stores binary data (bytea / BLOB) in stored_files table."""
+        if not file_type and "." in filename:
+            file_type = filename.rsplit(".", 1)[1].lower()
+        now_iso = datetime.utcnow().isoformat()
+        with self.get_connection() as conn:
+            conn.execute("""
+            INSERT INTO stored_files (id, filename, file_type, content_type, file_size, file_data, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                filename = excluded.filename,
+                file_type = excluded.file_type,
+                content_type = excluded.content_type,
+                file_size = excluded.file_size,
+                file_data = excluded.file_data,
+                updated_at = excluded.updated_at
+            """, (
+                file_id,
+                filename,
+                file_type or "bin",
+                content_type,
+                len(content),
+                content,
+                now_iso,
+                now_iso
+            ))
+        return True
+
+    def get_file(self, file_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves binary file record by file_id."""
+        with self.get_connection() as conn:
+            row = conn.execute("""
+            SELECT id, filename, file_type, content_type, file_size, file_data, created_at, updated_at
+            FROM stored_files WHERE id = ?
+            """, (file_id,)).fetchone()
+            if not row:
+                return None
+            data = bytes(row["file_data"]) if row["file_data"] is not None else b""
+            return {
+                "id": row["id"],
+                "filename": row["filename"],
+                "file_type": row["file_type"],
+                "content_type": row["content_type"],
+                "file_size": row["file_size"],
+                "file_data": data,
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"]
+            }
+
+    def get_file_by_filename(self, filename: str) -> Optional[Dict[str, Any]]:
+        """Retrieves binary file record by filename."""
+        with self.get_connection() as conn:
+            row = conn.execute("""
+            SELECT id, filename, file_type, content_type, file_size, file_data, created_at, updated_at
+            FROM stored_files WHERE filename = ? ORDER BY updated_at DESC LIMIT 1
+            """, (filename,)).fetchone()
+            if not row:
+                return None
+            data = bytes(row["file_data"]) if row["file_data"] is not None else b""
+            return {
+                "id": row["id"],
+                "filename": row["filename"],
+                "file_type": row["file_type"],
+                "content_type": row["content_type"],
+                "file_size": row["file_size"],
+                "file_data": data,
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"]
+            }
+
+    def delete_file(self, file_id: str) -> bool:
+        """Deletes binary file record by file_id."""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM stored_files WHERE id = ?", (file_id,))
+        return True
+
+    def file_exists(self, file_id: str) -> bool:
+        """Checks if a file exists in stored_files table."""
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT 1 FROM stored_files WHERE id = ?", (file_id,)).fetchone()
+            return bool(row)
+
+    def list_files(self, file_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Lists metadata of all stored files without pulling binary data."""
+        with self.get_connection() as conn:
+            if file_type:
+                rows = conn.execute("""
+                SELECT id, filename, file_type, content_type, file_size, created_at, updated_at
+                FROM stored_files WHERE file_type = ? ORDER BY created_at DESC
+                """, (file_type.lower(),)).fetchall()
+            else:
+                rows = conn.execute("""
+                SELECT id, filename, file_type, content_type, file_size, created_at, updated_at
+                FROM stored_files ORDER BY created_at DESC
+                """).fetchall()
+            return [dict(r) for r in rows]
+
+    # =========================================================================
+    # Persistent LinkedIn Feed Settings
+    # =========================================================================
+
+    def get_linkedin_feed_settings(self) -> Dict[str, Any]:
+        """Loads LinkedIn feed settings from persistent database."""
+        with self.get_connection() as conn:
+            row = conn.execute("""
+            SELECT id, sync_enabled, last_synced_at, keywords, updated_at
+            FROM linkedin_feed_settings WHERE id = 'default'
+            """).fetchone()
+            if not row:
+                return {
+                    "sync_enabled": True,
+                    "last_synced_at": None,
+                    "keywords": "data analyst fresher hiring",
+                    "updated_at": None
+                }
+            return {
+                "sync_enabled": bool(row["sync_enabled"]),
+                "last_synced_at": row["last_synced_at"],
+                "keywords": row["keywords"] or "data analyst fresher hiring",
+                "updated_at": row["updated_at"]
+            }
+
+    def save_linkedin_feed_settings(self, settings: Dict[str, Any]) -> bool:
+        """Saves LinkedIn feed settings to persistent database."""
+        now_iso = datetime.utcnow().isoformat()
+        sync_enabled = 1 if settings.get("sync_enabled", True) else 0
+        last_synced_at = settings.get("last_synced_at")
+        keywords = settings.get("keywords", "data analyst fresher hiring")
+        with self.get_connection() as conn:
+            conn.execute("""
+            INSERT INTO linkedin_feed_settings (id, sync_enabled, last_synced_at, keywords, updated_at)
+            VALUES ('default', ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                sync_enabled = excluded.sync_enabled,
+                last_synced_at = excluded.last_synced_at,
+                keywords = excluded.keywords,
+                updated_at = excluded.updated_at
+            """, (sync_enabled, last_synced_at, keywords, now_iso))
+        return True
+
+    # =========================================================================
+    # Persistent Career Knowledge Base Documents & Profile
+    # =========================================================================
+
+    def get_kb_documents(self) -> List[Dict[str, Any]]:
+        """Retrieves all career knowledge base document metadata from persistent database."""
+        with self.get_connection() as conn:
+            rows = conn.execute("""
+            SELECT id, filename, display_name, category, file_type, file_size, file_size_formatted,
+                   file_path, uploaded_at, last_processed_at, upload_status, extraction_status,
+                   status, error_message, extracted_summary, extracted_data, created_at, updated_at
+            FROM knowledge_base_documents ORDER BY uploaded_at ASC
+            """).fetchall()
+            docs = []
+            for r in rows:
+                d = dict(r)
+                if d.get("extracted_data") and isinstance(d["extracted_data"], str):
+                    try:
+                        d["extracted_data"] = json.loads(d["extracted_data"])
+                    except Exception:
+                        d["extracted_data"] = {}
+                docs.append(d)
+            return docs
+
+    def save_kb_documents(self, documents: List[Dict[str, Any]]) -> bool:
+        """Persists a list of career knowledge base documents to database."""
+        now_iso = datetime.utcnow().isoformat()
+        with self.get_connection() as conn:
+            for doc in documents:
+                doc_id = doc.get("id") or str(uuid.uuid4())
+                extracted_str = json.dumps(doc.get("extracted_data", {}), ensure_ascii=False) if isinstance(doc.get("extracted_data"), dict) else (doc.get("extracted_data") or "{}")
+                conn.execute("""
+                INSERT INTO knowledge_base_documents (
+                    id, filename, display_name, category, file_type, file_size,
+                    file_size_formatted, file_path, uploaded_at, last_processed_at,
+                    upload_status, extraction_status, status, error_message,
+                    extracted_summary, extracted_data, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    filename = excluded.filename,
+                    display_name = excluded.display_name,
+                    category = excluded.category,
+                    file_type = excluded.file_type,
+                    file_size = excluded.file_size,
+                    file_size_formatted = excluded.file_size_formatted,
+                    file_path = excluded.file_path,
+                    uploaded_at = excluded.uploaded_at,
+                    last_processed_at = excluded.last_processed_at,
+                    upload_status = excluded.upload_status,
+                    extraction_status = excluded.extraction_status,
+                    status = excluded.status,
+                    error_message = excluded.error_message,
+                    extracted_summary = excluded.extracted_summary,
+                    extracted_data = excluded.extracted_data,
+                    updated_at = excluded.updated_at
+                """, (
+                    doc_id,
+                    doc.get("filename", ""),
+                    doc.get("display_name", ""),
+                    doc.get("category", "other"),
+                    doc.get("file_type", "").upper(),
+                    doc.get("file_size", 0),
+                    doc.get("file_size_formatted", "0 KB"),
+                    doc.get("file_path", ""),
+                    doc.get("uploaded_at", now_iso),
+                    doc.get("last_processed_at", now_iso),
+                    doc.get("upload_status", "Uploaded"),
+                    doc.get("extraction_status", "Ready for AI Usage"),
+                    doc.get("status", "Ready for AI Usage"),
+                    doc.get("error_message", ""),
+                    doc.get("extracted_summary", ""),
+                    extracted_str,
+                    doc.get("created_at", now_iso),
+                    now_iso
+                ))
+        return True
+
+    def save_kb_document(self, doc: Dict[str, Any]) -> bool:
+        """Persists a single career knowledge base document to database."""
+        return self.save_kb_documents([doc])
+
+    def delete_kb_document(self, doc_id: str) -> bool:
+        """Deletes a career knowledge base document and its stored file from database."""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM knowledge_base_documents WHERE id = ?", (doc_id,))
+            conn.execute("DELETE FROM stored_files WHERE id = ?", (doc_id,))
+        return True
+
+    def get_kb_profile(self) -> Dict[str, Any]:
+        """Retrieves unified career profile from persistent database."""
+        with self.get_connection() as conn:
+            row = conn.execute("""
+            SELECT profile_data FROM knowledge_base_profile WHERE id = 'default'
+            """).fetchone()
+            if not row or not row["profile_data"]:
+                return {}
+            try:
+                return json.loads(row["profile_data"])
+            except Exception:
+                return {}
+
+    def save_kb_profile(self, profile: Dict[str, Any]) -> bool:
+        """Persists unified career profile to database."""
+        now_iso = datetime.utcnow().isoformat()
+        prof_str = json.dumps(profile, ensure_ascii=False)
+        with self.get_connection() as conn:
+            conn.execute("""
+            INSERT INTO knowledge_base_profile (id, profile_data, updated_at)
+            VALUES ('default', ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                profile_data = excluded.profile_data,
+                updated_at = excluded.updated_at
+            """, (prof_str, now_iso))
+        return True

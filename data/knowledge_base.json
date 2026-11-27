@@ -1,76 +1,80 @@
 {
   "version": "3.0",
-  "last_updated": "2026-11-26T11:53:56.666426",
+  "last_updated": "2026-11-27T23:47:10.452574",
   "documents_count": 1,
   "documents": [
     {
-      "id": "doc_e1379436",
-      "filename": "Tejas_Data_Analyst_Master_Resume.txt",
-      "display_name": "Tejas Data Analyst Master Resume (Overleaf LaTeX)",
+      "id": "doc_435e7567",
+      "filename": "Tejas_Data_Analyst_Master_Resume.pdf",
+      "display_name": "Tejas_Data_Analyst_Master_Resume.pdf",
       "category": "resume",
-      "file_type": "TXT",
-      "file_size": 8533,
-      "file_size_formatted": "8.3 KB",
-      "file_path": "E:\\Antygravity\\job finder web\\data\\documents\\doc_e1379436_Tejas_Data_Analyst_Master_Resume.txt",
-      "uploaded_at": "2026-11-26T11:50:11.418224",
-      "last_processed_at": "2026-11-26T11:50:11.421617",
+      "file_type": "PDF",
+      "file_size": 203372,
+      "file_size_formatted": "198.6 KB",
+      "file_path": "E:\\Antygravity\\job finder web\\data\\documents\\doc_435e7567_Tejas_Data_Analyst_Master_Resume.pdf",
+      "uploaded_at": "2026-11-27T22:43:29.989414",
+      "last_processed_at": "2026-11-27T22:43:30.222996",
       "upload_status": "Uploaded",
       "extraction_status": "Ready for AI Usage",
       "status": "Ready for AI Usage",
       "error_message": "",
-      "extracted_summary": "Indexed: 43 technical competencies, 3 work experience items, 3 project items, 3 certifications",
+      "extracted_summary": "Indexed: 28 technical competencies, 3 work experience items, 3 project items, 3 certifications",
       "extracted_data": {
         "name": "Tejas C. Waghmare",
         "contact": {
           "phone": "+91 83788 69006",
           "email": "tejaswaghmare900@gmail.com",
-          "location": "Pune, Maharashtra",
           "linkedin": "linkedin.com/in/tejascwaghmare",
-          "linkedin_url": "https://www.linkedin.com/in/tejascwaghmare",
-          "portfolio": "linkedin.com/in/tejascwaghmare",
-          "portfolio_url": "https://www.linkedin.com/in/tejascwaghmare",
+          "linkedin_url": "https://linkedin.com/in/tejascwaghmare",
           "github": "github.com/TCWaghmare",
-          "github_url": "https://github.com/TCWaghmare"
+          "github_url": "https://github.com/TCWaghmare",
+          "location": "Pune"
         },
         "summary": "Data Analyst with hands-on experience in SQL, Power BI, Advanced Excel, and Python, backed by Microsoft certifications (PL-300, DP-600). Skilled in data cleaning, modeling, and building interactive dashboards that turn raw data into clear, actionable business insights. Engineering background with project work across pricing, sales, and profitability analysis, ready to add value in any industry.",
         "skills": {
           "bi_visualization": [
-            "Power BI (DAX, Power Query, Dashboard Design, KPIs)",
-            "Advanced Excel (Pivot Tables, Power Pivot, XLOOKUP)",
-            "Google Sheets"
+            "Power BI",
+            "DAX",
+            "Power Query",
+            "Dashboard Design",
+            "KPI Reporting"
           ],
-          "databases_sql": [
-            "SQL (Joins, CTEs, Window Functions, Subqueries, DDL/DML)",
-            "MS SQL Server",
-            "PostgreSQL",
-            "Star Schema Data Modeling"
-          ],
-          "analytics_statistics": [
+          "data_analytics": [
+            "Excel",
+            "Advanced Excel",
+            "Pivot Tables",
+            "Power Pivot",
+            "XLOOKUP",
+            "Data Modeling",
+            "Data Cleaning",
+            "Data Validation",
+            "Data Quality",
             "EDA",
-            "Data Cleaning & Transformation",
-            "KPI Reporting",
-            "Descriptive Statistics",
-            "Correlation",
-            "Hypothesis Testing",
-            "A/B Testing Basics",
-            "Outlier Detection"
+            "A/B Testing",
+            "KPI Tracking"
           ],
           "programming": [
-            "Python (currently learning, basic level) - Pandas",
-            "NumPy"
+            "Python",
+            "SQL",
+            "PostgreSQL"
           ],
-          "data_engineering": [
-            "Microsoft Fabric (Lakehouse, Data Warehouse, Dataflows Gen2)",
-            "Medallion Architecture",
+          "cloud_database": [
+            "Microsoft Fabric",
             "ETL"
           ],
-          "ai_tools": [
-            "Prompt Engineering",
-            "ChatGPT",
-            "Claude",
-            "GitHub Copilot",
-            "Git/GitHub",
-            "VS Code"
+          "machine_learning": [
+            "Pandas",
+            "NumPy"
+          ],
+          "engineering_manufacturing": [
+            "PLC"
+          ],
+          "domains": [
+            "Business Intelligence"
+          ],
+          "tools_workflows": [
+            "Git",
+            "GitHub"
           ]
         },
         "technical_tools": [
@@ -78,52 +82,37 @@
           "DAX",
           "Power Query",
           "Dashboard Design",
-          "KPIs",
+          "KPI Reporting",
+          "Excel",
           "Advanced Excel",
           "Pivot Tables",
           "Power Pivot",
           "XLOOKUP",
-          "Google Sheets",
-          "SQL",
-          "Joins",
-          "CTEs",
-          "Window Functions",
-          "Subqueries",
-          "DDL",
-          "DML",
-          "MS SQL Server",
-          "PostgreSQL",
-          "Star Schema Data Modeling",
+          "Data Modeling",
+          "Data Cleaning",
+          "Data Validation",
+          "Data Quality",
           "EDA",
-          "Data Cleaning & Transformation",
-          "KPI Reporting",
-          "Descriptive Statistics",
-          "Correlation",
-          "Hypothesis Testing",
-          "A/B Testing Basics",
-          "Outlier Detection",
-          "Python  - Pandas",
-          "basic level",
-          "NumPy",
+          "A/B Testing",
+          "KPI Tracking",
+          "Python",
+          "SQL",
+          "PostgreSQL",
           "Microsoft Fabric",
-          "Lakehouse",
-          "Data Warehouse",
-          "Dataflows Gen2",
-          "Medallion Architecture",
           "ETL",
-          "Prompt Engineering",
-          "ChatGPT",
-          "Claude",
-          "GitHub Copilot",
-          "Git/GitHub",
-          "VS Code"
+          "Pandas",
+          "NumPy",
+          "PLC",
+          "Business Intelligence",
+          "Git",
+          "GitHub"
         ],
         "experience": [
           {
             "id": "exp_1",
             "title": "Data Analyst Intern",
             "company": "Microsoft Elevate",
-            "location": "Remote",
+            "location": "India",
             "dates": "Feb 2026 – Mar 2026",
             "bullets": [
               "Cleaned, transformed, and prepared datasets to ensure data quality before analysis and reporting.",
@@ -132,18 +121,19 @@
             ],
             "skills": [
               "Power BI",
-              "SQL",
-              "Excel",
               "DAX",
-              "Data Modeling"
+              "Power Query",
+              "Data Modeling",
+              "Data Quality",
+              "SQL"
             ],
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           },
           {
             "id": "exp_2",
             "title": "Project Engineer",
             "company": "Cybernetic India",
-            "location": "Pune, Maharashtra",
+            "location": "India",
             "dates": "Sep 2025 – Dec 2025",
             "bullets": [
               "Supported onsite project execution, monitored work progress, and coordinated activities to ensure alignment with project requirements and timelines.",
@@ -151,17 +141,18 @@
             ],
             "skills": [
               "Excel",
-              "PivotTables",
               "XLOOKUP",
+              "Data Cleaning",
+              "Data Validation",
               "KPI Tracking"
             ],
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           },
           {
             "id": "exp_3",
             "title": "Graduate Trainee Engineer",
             "company": "Bajaj Engineering Skills Training Centre (BEST)",
-            "location": "Remote",
+            "location": "India",
             "dates": "Jan 2025 – Aug 2025",
             "bullets": [
               "Gained hands-on experience in industrial sensors, PLC programming, robotics, and automation systems, including sensor data acquisition and industrial process monitoring.",
@@ -169,11 +160,9 @@
             ],
             "skills": [
               "Excel",
-              "PivotTables",
-              "XLOOKUP",
-              "KPI Tracking"
+              "PLC"
             ],
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           }
         ],
         "projects": [
@@ -181,43 +170,43 @@
             "id": "proj_1",
             "title": "NYC Airbnb Data Analysis & Business Intelligence",
             "tools": "SQL, Power BI, DAX, Power Query",
-            "link_text": "GitHub",
+            "link_text": "View Project",
             "link_url": "https://github.com/TCWaghmare/NYC-Airbnb-Marketplace-Intelligence-Dashboard",
             "bullets": [
               "Analyzed 30,259 listings across 16,441 hosts using SQL and Power Query to uncover borough-level pricing, occupancy, and revenue drivers across $389.3M in estimated market value.",
-              "Built an interactive Power BI dashboard (custom DAX measures, data model) showing Manhattan led with 205M revenue (52.7% of total) and the highest average daily rate (366), giving hosts and property managers pricing benchmarks."
+              "Built an interactive Power BI dashboard (custom DAX measures, data model) showing Manhattan led with $205M revenue (52.7% of total) and the highest average daily rate ($366), giving hosts and property managers pricing benchmarks."
             ],
             "skills": [
-              "SQL",
               "Power BI",
               "DAX",
-              "Power Query"
+              "Power Query",
+              "SQL",
+              "Business Intelligence"
             ],
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           },
           {
             "id": "proj_2",
             "title": "Bakery Sales, Profitability & Waste Analysis",
             "tools": "Excel, Power Pivot, PivotTables, Data Modeling",
-            "link_text": "GitHub",
+            "link_text": "View Project",
             "link_url": "https://github.com/TCWaghmare/Bakery_Data_Analysis_Project_by_Excel",
             "bullets": [
               "Analyzed 16,569 transactions (2023–2024) across 3 stores using a star-schema model and Excel dashboards to track revenue, profit, discount, and waste KPIs.",
-              "Found waste cost equaled 40% of revenue and deep discounts drove a -6.7% margin; recommended capping discounts near 5% and cutting waste 20–25% to return to profit."
+              "Found waste cost equaled 40% of revenue and deep discounts drove a−6.7% margin; recommended capping discounts near 5% and cutting waste 20–25% to return to profit."
             ],
             "skills": [
               "Excel",
               "Power Pivot",
-              "PivotTables",
               "Data Modeling"
             ],
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           },
           {
             "id": "proj_3",
             "title": "Amazon Sales Performance Dashboard",
             "tools": "Power BI, DAX, Data Modeling, Geo Mapping",
-            "link_text": "GitHub",
+            "link_text": "View Project",
             "link_url": "https://github.com/TCWaghmare/amazon-sales-data-analysis-dashboard_project",
             "bullets": [
               "Developed a 3-page interactive dashboard analyzing 50K+ orders and $32.8M revenue across 6 categories and 5 global regions.",
@@ -226,57 +215,64 @@
             "skills": [
               "Power BI",
               "DAX",
-              "Data Modeling",
-              "Geo Mapping"
+              "Geo Mapping",
+              "Data Modeling"
             ],
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           }
         ],
         "certifications": [
           {
-            "name": "Microsoft Certified: Power BI Data Analyst Associate (PL-300)",
-            "link": "Link",
-            "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/100f220a9cc6e75",
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "name": "Microsoft Certified: Power BI Data Analyst Associate (PL-300) Link",
+            "link": "Credential Link",
+            "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/data-analyst-associate?tab=credentials-tab",
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           },
           {
-            "name": "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)",
-            "link": "Link",
-            "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a",
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "name": "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600) Link",
+            "link": "Credential Link",
+            "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a?ref=https%3A%2F%2Fwww.linkedin.com%2F",
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           },
           {
-            "name": "Introduction to Python, DataCamp",
-            "link": "Link",
-            "url": "https://www.datacamp.com/statement-of-accomplishment/course/271c74e9f18f1b7b10e026a104ecd0d3c2b976a1?raw=1",
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "name": "Introduction to Python, DataCamp Link",
+            "link": "Credential Link",
+            "url": "#",
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           }
         ],
         "education": [
           {
-            "institution": "Bajaj Institute of Technology, Wardha",
-            "degree": "B.Tech, Mechanical Engineering (CGPA: 8.04/10)",
+            "institution": "B.Tech, Mechanical Engineering|Bajaj Institute of Technology, Wardha|CGPA: 8.04/10",
+            "degree": "",
             "dates": "2020 – 2024",
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           },
           {
-            "institution": "Maharashtra State Board",
-            "degree": "HSC (Information Technology), 66.62% | SSC, 81.80%",
+            "institution": "HSC (Information Technology), 66.62%|SSC, 81.80%|Maharashtra State Board",
+            "degree": "",
             "dates": "2018 – 2020",
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           }
         ],
         "achievements": [
           {
-            "title": "McKinsey.org Forward Program (2026)",
-            "description": "Strengthened structured problem-solving, critical thinking, communication, and analytical decision-making, with exposure to digital and AI essentials.",
-            "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+            "title": "McKinsey.org Forward Program (2026):Strengthened structured problem-solving, critical thinking, comm",
+            "description": "McKinsey.org Forward Program (2026):Strengthened structured problem-solving, critical thinking, communication,",
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
+          },
+          {
+            "title": "and analytical decision-making, with exposure to digital and AI essentials.",
+            "description": "and analytical decision-making, with exposure to digital and AI essentials.",
+            "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
           }
         ],
         "recommendations": [],
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt",
-        "raw_snippet": "\\documentclass[10pt,a4paper]{article}\r\n \r\n% ---------- PACKAGES ----------\r\n\\usepackage[T1]{fontenc}\r\n\\usepackage[utf8]{inputenc}\r\n\\usepackage{lmodern}\r\n\\usepackage[top=0.3in,bottom=0.25in,left=0.5in,right=0.5in,nohead,nofoot]{geometry}\r\n\\usepackage{enumitem}\r\n\\usepackage{xcolor}\r\n\\usepackage{fontawesome5}\r\n\\usepackage[hidelinks]{hyperref}\r\n\\usepackage{accsupp}\r\n\\usepackage{microtype}\r\n \r\n\\input{g..."
-      }
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "raw_snippet": "Tejas C. Waghmare\nData Analyst\n♂phone +91 83788 69006| ✉ tejaswaghmare900@gmail.com| ♂¶ap-¶arker-alt Pune, Maharashtra\n/linkedin linkedin.com/in/tejascwaghmare| /gl⌢be tejaswaghmare.me| /github github.com/TCWaghmare\nProfessional Summary\nData Analyst with hands-on experience in SQL, Power BI, Advanced Excel, and Python, backed by Microsoft certifications\n(PL-300, DP-600). Skilled in data cleaning, ..."
+      },
+      "created_at": "2026-11-27T17:13:30.247749",
+      "updated_at": "2026-11-27T18:16:43.111605"
     }
   ],
   "unified_profile": {
@@ -285,12 +281,12 @@
       "phone": "+91 83788 69006",
       "email": "tejaswaghmare900@gmail.com",
       "linkedin": "linkedin.com/in/tejascwaghmare",
-      "linkedin_url": "https://www.linkedin.com/in/tejascwaghmare",
+      "linkedin_url": "https://linkedin.com/in/tejascwaghmare",
       "github": "github.com/TCWaghmare",
       "github_url": "https://github.com/TCWaghmare",
-      "portfolio": "linkedin.com/in/tejascwaghmare",
-      "portfolio_url": "https://www.linkedin.com/in/tejascwaghmare",
-      "location": "Pune, Maharashtra"
+      "portfolio": "tejaswaghmare.me",
+      "portfolio_url": "https://www.tejaswaghmare.me/",
+      "location": "Pune"
     },
     "summary": "Data Analyst with hands-on experience in SQL, Power BI, Advanced Excel, and Python, backed by Microsoft certifications (PL-300, DP-600). Skilled in data cleaning, modeling, and building interactive dashboards that turn raw data into clear, actionable business insights. Engineering background with project work across pricing, sales, and profitability analysis, ready to add value in any industry.",
     "experience": [
@@ -298,7 +294,7 @@
         "id": "exp_1",
         "title": "Data Analyst Intern",
         "company": "Microsoft Elevate",
-        "location": "Remote",
+        "location": "India",
         "dates": "Feb 2026 – Mar 2026",
         "bullets": [
           "Cleaned, transformed, and prepared datasets to ensure data quality before analysis and reporting.",
@@ -307,18 +303,19 @@
         ],
         "skills": [
           "Power BI",
-          "SQL",
-          "Excel",
           "DAX",
-          "Data Modeling"
+          "Power Query",
+          "Data Modeling",
+          "Data Quality",
+          "SQL"
         ],
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       {
         "id": "exp_2",
         "title": "Project Engineer",
         "company": "Cybernetic India",
-        "location": "Pune, Maharashtra",
+        "location": "India",
         "dates": "Sep 2025 – Dec 2025",
         "bullets": [
           "Supported onsite project execution, monitored work progress, and coordinated activities to ensure alignment with project requirements and timelines.",
@@ -326,17 +323,18 @@
         ],
         "skills": [
           "Excel",
-          "PivotTables",
           "XLOOKUP",
+          "Data Cleaning",
+          "Data Validation",
           "KPI Tracking"
         ],
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       {
         "id": "exp_3",
         "title": "Graduate Trainee Engineer",
         "company": "Bajaj Engineering Skills Training Centre (BEST)",
-        "location": "Remote",
+        "location": "India",
         "dates": "Jan 2025 – Aug 2025",
         "bullets": [
           "Gained hands-on experience in industrial sensors, PLC programming, robotics, and automation systems, including sensor data acquisition and industrial process monitoring.",
@@ -344,11 +342,9 @@
         ],
         "skills": [
           "Excel",
-          "PivotTables",
-          "XLOOKUP",
-          "KPI Tracking"
+          "PLC"
         ],
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       }
     ],
     "projects": [
@@ -356,43 +352,43 @@
         "id": "proj_1",
         "title": "NYC Airbnb Data Analysis & Business Intelligence",
         "tools": "SQL, Power BI, DAX, Power Query",
-        "link_text": "GitHub",
+        "link_text": "View Project",
         "link_url": "https://github.com/TCWaghmare/NYC-Airbnb-Marketplace-Intelligence-Dashboard",
         "bullets": [
           "Analyzed 30,259 listings across 16,441 hosts using SQL and Power Query to uncover borough-level pricing, occupancy, and revenue drivers across $389.3M in estimated market value.",
-          "Built an interactive Power BI dashboard (custom DAX measures, data model) showing Manhattan led with 205M revenue (52.7% of total) and the highest average daily rate (366), giving hosts and property managers pricing benchmarks."
+          "Built an interactive Power BI dashboard (custom DAX measures, data model) showing Manhattan led with $205M revenue (52.7% of total) and the highest average daily rate ($366), giving hosts and property managers pricing benchmarks."
         ],
         "skills": [
-          "SQL",
           "Power BI",
           "DAX",
-          "Power Query"
+          "Power Query",
+          "SQL",
+          "Business Intelligence"
         ],
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       {
         "id": "proj_2",
         "title": "Bakery Sales, Profitability & Waste Analysis",
         "tools": "Excel, Power Pivot, PivotTables, Data Modeling",
-        "link_text": "GitHub",
+        "link_text": "View Project",
         "link_url": "https://github.com/TCWaghmare/Bakery_Data_Analysis_Project_by_Excel",
         "bullets": [
           "Analyzed 16,569 transactions (2023–2024) across 3 stores using a star-schema model and Excel dashboards to track revenue, profit, discount, and waste KPIs.",
-          "Found waste cost equaled 40% of revenue and deep discounts drove a -6.7% margin; recommended capping discounts near 5% and cutting waste 20–25% to return to profit."
+          "Found waste cost equaled 40% of revenue and deep discounts drove a−6.7% margin; recommended capping discounts near 5% and cutting waste 20–25% to return to profit."
         ],
         "skills": [
           "Excel",
           "Power Pivot",
-          "PivotTables",
           "Data Modeling"
         ],
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       {
         "id": "proj_3",
         "title": "Amazon Sales Performance Dashboard",
         "tools": "Power BI, DAX, Data Modeling, Geo Mapping",
-        "link_text": "GitHub",
+        "link_text": "View Project",
         "link_url": "https://github.com/TCWaghmare/amazon-sales-data-analysis-dashboard_project",
         "bullets": [
           "Developed a 3-page interactive dashboard analyzing 50K+ orders and $32.8M revenue across 6 categories and 5 global regions.",
@@ -401,244 +397,213 @@
         "skills": [
           "Power BI",
           "DAX",
-          "Data Modeling",
-          "Geo Mapping"
+          "Geo Mapping",
+          "Data Modeling"
         ],
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       }
     ],
     "skills": {
       "bi_visualization": [
-        "Power BI (DAX, Power Query, Dashboard Design, KPIs)",
-        "Advanced Excel (Pivot Tables, Power Pivot, XLOOKUP)",
-        "Google Sheets"
+        "Power BI",
+        "DAX",
+        "Power Query",
+        "Dashboard Design",
+        "KPI Reporting"
       ],
-      "databases_sql": [
-        "SQL (Joins, CTEs, Window Functions, Subqueries, DDL/DML)",
-        "MS SQL Server",
-        "PostgreSQL",
-        "Star Schema Data Modeling"
-      ],
-      "analytics_statistics": [
+      "data_analytics": [
+        "Excel",
+        "Advanced Excel",
+        "Pivot Tables",
+        "Power Pivot",
+        "XLOOKUP",
+        "Data Modeling",
+        "Data Cleaning",
+        "Data Validation",
+        "Data Quality",
         "EDA",
-        "Data Cleaning & Transformation",
-        "KPI Reporting",
-        "Descriptive Statistics",
-        "Correlation",
-        "Hypothesis Testing",
-        "A/B Testing Basics",
-        "Outlier Detection"
+        "A/B Testing",
+        "KPI Tracking"
       ],
       "programming": [
-        "Python (currently learning, basic level) - Pandas",
-        "NumPy"
+        "Python",
+        "SQL",
+        "PostgreSQL"
       ],
-      "data_engineering": [
-        "Microsoft Fabric (Lakehouse, Data Warehouse, Dataflows Gen2)",
-        "Medallion Architecture",
+      "cloud_database": [
+        "Microsoft Fabric",
         "ETL"
       ],
-      "ai_tools": [
-        "Prompt Engineering",
-        "ChatGPT",
-        "Claude",
-        "GitHub Copilot",
-        "Git/GitHub",
-        "VS Code"
+      "machine_learning": [
+        "Pandas",
+        "NumPy"
+      ],
+      "engineering_manufacturing": [
+        "PLC"
+      ],
+      "domains": [
+        "Business Intelligence"
+      ],
+      "tools_workflows": [
+        "Git",
+        "GitHub"
       ]
     },
     "skills_lines": [],
     "technical_tools": [
-      "Power BI (DAX, Power Query, Dashboard Design, KPIs)",
-      "Advanced Excel (Pivot Tables, Power Pivot, XLOOKUP)",
-      "Google Sheets",
-      "SQL (Joins, CTEs, Window Functions, Subqueries, DDL/DML)",
-      "MS SQL Server",
-      "PostgreSQL",
-      "Star Schema Data Modeling",
-      "EDA",
-      "Data Cleaning & Transformation",
-      "KPI Reporting",
-      "Descriptive Statistics",
-      "Correlation",
-      "Hypothesis Testing",
-      "A/B Testing Basics",
-      "Outlier Detection",
-      "Python (currently learning, basic level) - Pandas",
-      "NumPy",
-      "Microsoft Fabric (Lakehouse, Data Warehouse, Dataflows Gen2)",
-      "Medallion Architecture",
-      "ETL",
-      "Prompt Engineering",
-      "ChatGPT",
-      "Claude",
-      "GitHub Copilot",
-      "Git/GitHub",
-      "VS Code",
       "Power BI",
       "DAX",
       "Power Query",
       "Dashboard Design",
-      "KPIs",
+      "KPI Reporting",
+      "Excel",
       "Advanced Excel",
       "Pivot Tables",
       "Power Pivot",
       "XLOOKUP",
+      "Data Modeling",
+      "Data Cleaning",
+      "Data Validation",
+      "Data Quality",
+      "EDA",
+      "A/B Testing",
+      "KPI Tracking",
+      "Python",
       "SQL",
-      "Joins",
-      "CTEs",
-      "Window Functions",
-      "Subqueries",
-      "DDL",
-      "DML",
-      "Python  - Pandas",
-      "basic level",
+      "PostgreSQL",
       "Microsoft Fabric",
-      "Lakehouse",
-      "Data Warehouse",
-      "Dataflows Gen2"
+      "ETL",
+      "Pandas",
+      "NumPy",
+      "PLC",
+      "Business Intelligence",
+      "Git",
+      "GitHub"
     ],
     "certifications": [
       {
-        "name": "Microsoft Certified: Power BI Data Analyst Associate (PL-300)",
-        "link": "Link",
-        "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/100f220a9cc6e75",
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "name": "Microsoft Certified: Power BI Data Analyst Associate (PL-300) Link",
+        "link": "Credential Link",
+        "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-6035/credentials/certification/data-analyst-associate?tab=credentials-tab",
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       {
-        "name": "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)",
-        "link": "Link",
-        "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a",
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "name": "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600) Link",
+        "link": "Credential Link",
+        "url": "https://learn.microsoft.com/en-us/users/tejaswaghmare-5042/credentials/173a3c6ca4f8190a?ref=https%3A%2F%2Fwww.linkedin.com%2F",
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       {
-        "name": "Introduction to Python, DataCamp",
-        "link": "Link",
-        "url": "https://www.datacamp.com/statement-of-accomplishment/course/271c74e9f18f1b7b10e026a104ecd0d3c2b976a1?raw=1",
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "name": "Introduction to Python, DataCamp Link",
+        "link": "Credential Link",
+        "url": "#",
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       }
     ],
     "education": [
       {
-        "institution": "Bajaj Institute of Technology, Wardha",
-        "degree": "B.Tech, Mechanical Engineering (CGPA: 8.04/10)",
+        "institution": "B.Tech, Mechanical Engineering|Bajaj Institute of Technology, Wardha|CGPA: 8.04/10",
+        "degree": "",
         "dates": "2020 – 2024",
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       {
-        "institution": "Maharashtra State Board",
-        "degree": "HSC (Information Technology), 66.62% | SSC, 81.80%",
+        "institution": "HSC (Information Technology), 66.62%|SSC, 81.80%|Maharashtra State Board",
+        "degree": "",
         "dates": "2018 – 2020",
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       }
     ],
     "achievements": [
       {
-        "title": "McKinsey.org Forward Program (2026)",
-        "description": "Strengthened structured problem-solving, critical thinking, communication, and analytical decision-making, with exposure to digital and AI essentials.",
-        "source_file": "Tejas_Data_Analyst_Master_Resume.txt"
+        "title": "McKinsey.org Forward Program (2026):Strengthened structured problem-solving, critical thinking, comm",
+        "description": "McKinsey.org Forward Program (2026):Strengthened structured problem-solving, critical thinking, communication,",
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
+      },
+      {
+        "title": "and analytical decision-making, with exposure to digital and AI essentials.",
+        "description": "and analytical decision-making, with exposure to digital and AI essentials.",
+        "source_file": "Tejas_Data_Analyst_Master_Resume.pdf"
       }
     ],
     "recommendations": [],
     "source_documents_count": 1,
     "source_files": [
-      "Tejas_Data_Analyst_Master_Resume.txt"
+      "Tejas_Data_Analyst_Master_Resume.pdf"
     ],
     "evidence_map": {
       "contact": {
-        "name": "Tejas_Data_Analyst_Master_Resume.txt",
-        "email": "Tejas_Data_Analyst_Master_Resume.txt",
-        "phone": "Tejas_Data_Analyst_Master_Resume.txt",
-        "linkedin": "Tejas_Data_Analyst_Master_Resume.txt",
-        "linkedin_url": "Tejas_Data_Analyst_Master_Resume.txt",
-        "github": "Tejas_Data_Analyst_Master_Resume.txt",
-        "github_url": "Tejas_Data_Analyst_Master_Resume.txt",
-        "portfolio": "Tejas_Data_Analyst_Master_Resume.txt",
-        "portfolio_url": "Tejas_Data_Analyst_Master_Resume.txt",
-        "location": "Tejas_Data_Analyst_Master_Resume.txt"
+        "name": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "email": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "phone": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "linkedin": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "linkedin_url": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "github": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "github_url": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "location": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
-      "summary": "Tejas_Data_Analyst_Master_Resume.txt",
+      "summary": "Tejas_Data_Analyst_Master_Resume.pdf",
       "skills": {
-        "Power BI (DAX, Power Query, Dashboard Design, KPIs)": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Advanced Excel (Pivot Tables, Power Pivot, XLOOKUP)": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Google Sheets": "Tejas_Data_Analyst_Master_Resume.txt",
-        "SQL (Joins, CTEs, Window Functions, Subqueries, DDL/DML)": "Tejas_Data_Analyst_Master_Resume.txt",
-        "MS SQL Server": "Tejas_Data_Analyst_Master_Resume.txt",
-        "PostgreSQL": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Star Schema Data Modeling": "Tejas_Data_Analyst_Master_Resume.txt",
-        "EDA": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Data Cleaning & Transformation": "Tejas_Data_Analyst_Master_Resume.txt",
-        "KPI Reporting": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Descriptive Statistics": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Correlation": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Hypothesis Testing": "Tejas_Data_Analyst_Master_Resume.txt",
-        "A/B Testing Basics": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Outlier Detection": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Python (currently learning, basic level) - Pandas": "Tejas_Data_Analyst_Master_Resume.txt",
-        "NumPy": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Microsoft Fabric (Lakehouse, Data Warehouse, Dataflows Gen2)": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Medallion Architecture": "Tejas_Data_Analyst_Master_Resume.txt",
-        "ETL": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Prompt Engineering": "Tejas_Data_Analyst_Master_Resume.txt",
-        "ChatGPT": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Claude": "Tejas_Data_Analyst_Master_Resume.txt",
-        "GitHub Copilot": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Git/GitHub": "Tejas_Data_Analyst_Master_Resume.txt",
-        "VS Code": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Power BI": "Tejas_Data_Analyst_Master_Resume.txt",
-        "DAX": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Power Query": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Dashboard Design": "Tejas_Data_Analyst_Master_Resume.txt",
-        "KPIs": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Advanced Excel": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Pivot Tables": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Power Pivot": "Tejas_Data_Analyst_Master_Resume.txt",
-        "XLOOKUP": "Tejas_Data_Analyst_Master_Resume.txt",
-        "SQL": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Joins": "Tejas_Data_Analyst_Master_Resume.txt",
-        "CTEs": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Window Functions": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Subqueries": "Tejas_Data_Analyst_Master_Resume.txt",
-        "DDL": "Tejas_Data_Analyst_Master_Resume.txt",
-        "DML": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Python  - Pandas": "Tejas_Data_Analyst_Master_Resume.txt",
-        "basic level": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Microsoft Fabric": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Lakehouse": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Data Warehouse": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Dataflows Gen2": "Tejas_Data_Analyst_Master_Resume.txt"
+        "Power BI": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "DAX": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Power Query": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Dashboard Design": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "KPI Reporting": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Excel": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Advanced Excel": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Pivot Tables": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Power Pivot": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "XLOOKUP": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Data Modeling": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Data Cleaning": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Data Validation": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Data Quality": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "EDA": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "A/B Testing": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "KPI Tracking": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Python": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "SQL": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "PostgreSQL": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Microsoft Fabric": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "ETL": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Pandas": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "NumPy": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "PLC": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Business Intelligence": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Git": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "GitHub": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       "experience": {
-        "Data Analyst Intern - Microsoft Elevate": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Project Engineer - Cybernetic India": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Graduate Trainee Engineer - Bajaj Engineering Skills Training Centre (BEST)": "Tejas_Data_Analyst_Master_Resume.txt"
+        "Data Analyst Intern - Microsoft Elevate": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Project Engineer - Cybernetic India": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Graduate Trainee Engineer - Bajaj Engineering Skills Training Centre (BEST)": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       "projects": {
-        "NYC Airbnb Data Analysis & Business Intelligence": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Bakery Sales, Profitability & Waste Analysis": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Amazon Sales Performance Dashboard": "Tejas_Data_Analyst_Master_Resume.txt"
+        "NYC Airbnb Data Analysis & Business Intelligence": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Bakery Sales, Profitability & Waste Analysis": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Amazon Sales Performance Dashboard": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       "certifications": {
-        "Microsoft Certified: Power BI Data Analyst Associate (PL-300)": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600)": "Tejas_Data_Analyst_Master_Resume.txt",
-        "Introduction to Python, DataCamp": "Tejas_Data_Analyst_Master_Resume.txt"
+        "Microsoft Certified: Power BI Data Analyst Associate (PL-300) Link": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Microsoft Certified: Fabric Analytics Engineer Associate (DP-600) Link": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "Introduction to Python, DataCamp Link": "Tejas_Data_Analyst_Master_Resume.pdf"
       },
       "education": {
-        "B.Tech, Mechanical Engineering (CGPA: 8.04/10) at Bajaj Institute of Technology, Wardha": "Tejas_Data_Analyst_Master_Resume.txt",
-        "HSC (Information Technology), 66.62% | SSC, 81.80% at Maharashtra State Board": "Tejas_Data_Analyst_Master_Resume.txt"
+        " at B.Tech, Mechanical Engineering|Bajaj Institute of Technology, Wardha|CGPA: 8.04/10": "Tejas_Data_Analyst_Master_Resume.pdf",
+        " at HSC (Information Technology), 66.62%|SSC, 81.80%|Maharashtra State Board": "Tejas_Data_Analyst_Master_Resume.pdf"
       }
     },
     "files_analyzed": [
       {
-        "id": "doc_e1379436",
-        "filename": "Tejas_Data_Analyst_Master_Resume.txt",
-        "display_name": "Tejas Data Analyst Master Resume (Overleaf LaTeX)",
+        "id": "doc_435e7567",
+        "filename": "Tejas_Data_Analyst_Master_Resume.pdf",
+        "display_name": "Tejas_Data_Analyst_Master_Resume.pdf",
         "category": "resume",
-        "file_type": "TXT",
-        "uploaded_at": "2026-11-26T11:50:11.418224",
+        "file_type": "PDF",
+        "uploaded_at": "2026-11-27T22:43:29.989414",
         "status": "Ready for AI Usage",
-        "summary": "Indexed: 43 technical competencies, 3 work experience items, 3 project items, 3 certifications",
-        "skills_found": 43,
+        "summary": "Indexed: 28 technical competencies, 3 work experience items, 3 project items, 3 certifications",
+        "skills_found": 28,
         "projects_found": 3,
         "certifications_found": 3,
         "experience_found": 3
