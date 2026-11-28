@@ -12,14 +12,19 @@ import os
 import re
 import threading
 import time
+import traceback
+import uuid
 import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import List, Optional, Dict, Any, Tuple
 from urllib.parse import quote
-from fastapi import FastAPI, BackgroundTasks, Query, Response, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, BackgroundTasks, Query, Request, Response, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, PlainTextResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -110,6 +115,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 @app.middleware("http")
 async def security_auth_and_rate_limit_middleware(request, call_next):
@@ -166,19 +172,69 @@ async def security_auth_and_rate_limit_middleware(request, call_next):
 @app.middleware("http")
 async def add_security_headers(request, call_next):
     response = await call_next(request)
+    path = request.url.path
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Allow same-origin iframe embedding for preview & document viewing endpoints
+    is_preview_path = (
+        path.startswith("/api/resume/preview/") or
+        path.startswith("/api/cover-letter/preview/") or
+        (path.startswith("/api/kb/document/") and "/preview" in path) or
+        path.startswith("/api/resume/download/") or
+        path.startswith("/api/cover-letter/download/")
+    )
+    if is_preview_path:
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        frame_ancestors = "frame-ancestors 'self';"
+    else:
+        response.headers["X-Frame-Options"] = "DENY"
+        frame_ancestors = "frame-ancestors 'none';"
+
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.cdnfonts.com https://fonts.googleapis.com; "
         "font-src 'self' https://cdnjs.cloudflare.com https://fonts.cdnfonts.com https://fonts.gstatic.com data:; "
         "img-src 'self' data: https:; "
-        "connect-src 'self' https:; "
-        "frame-ancestors 'none';"
+        "connect-src 'self' https: blob:; "
+        "frame-src 'self' blob:; "
+        f"{frame_ancestors}"
     )
     return response
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, (HTTPException, StarletteHTTPException)):
+        if exc.status_code == 500 and "Request ID:" not in str(exc.detail):
+            request_id = str(uuid.uuid4())
+            logger.error(f"HTTP 500 server error [Request ID: {request_id}]: {exc.detail}\n{traceback.format_exc()}")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "detail": f"An internal server error occurred. Request ID: {request_id}",
+                    "request_id": request_id
+                }
+            )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=getattr(exc, "headers", None)
+        )
+    if isinstance(exc, RequestValidationError):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": exc.errors()}
+        )
+    request_id = str(uuid.uuid4())
+    logger.error(f"Unhandled server error [Request ID: {request_id}]: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": f"An internal server error occurred. Request ID: {request_id}",
+            "request_id": request_id
+        }
+    )
 
 # Initialize singletons
 db = Database()
@@ -497,10 +553,18 @@ def get_jobs(
     date_posted: Optional[str] = Query(None),
     scrape_freshness: Optional[str] = Query(None),
     sort_by: Optional[str] = Query("date_desc"),
+    page: Optional[int] = Query(None, ge=1),
+    days: Optional[int] = Query(None, ge=1),
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0)
 ):
     """Search and filter jobs with multi-role support, multi-city support, multi-platform support, scrape freshness, and sorting."""
+    if days is not None and not date_posted:
+        date_posted = f"{days}d"
+
+    if page is not None:
+        offset = (page - 1) * limit
+
     target_roles = []
     if roles:
         for r in roles:
@@ -581,12 +645,19 @@ def get_jobs(
             if jskills:
                 match_pct = round((len(candidate_skills.intersection(jskills)) / len(jskills)) * 100)
                 d["match_score"] = match_pct
+
+        # Return a concise summary in the list (no full description)
+        full_desc = d.get("description") or ""
+        summary = (full_desc[:200] + "...") if len(full_desc) > 200 else full_desc
+        d["summary"] = summary
+        d["description"] = summary
         jobs_out.append(d)
 
     return {
         "total": total,
         "limit": limit,
         "offset": offset,
+        "page": page if page is not None else ((offset // limit) + 1 if limit else 1),
         "date_posted_filter": date_posted,
         "scrape_freshness_filter": scrape_freshness,
         "sort_by": sort_by or "date_desc",
@@ -633,25 +704,31 @@ def toggle_job_bookmark(job_id: str):
     is_bookmarked = db.toggle_job_bookmark(job_id)
     return {"id": job_id, "is_bookmarked": is_bookmarked, "success": True}
 
-@app.get("/api/jobs/{job_id}")
-def get_job_detail(job_id: str):
-    job = db.get_job_by_id(job_id)
+@app.get("/api/jobs/{id}")
+def get_job_detail(id: str):
+    job = db.get_job_by_id(id)
     if not job:
-        return Response(status_code=404, content=json.dumps({"error": "Job not found"}), media_type="application/json")
+        raise HTTPException(status_code=404, detail="Job not found")
     if not job.is_deep_scraped or len(job.description or "") < 250:
-        enriched = deep_job_scraper.enrich_job(db, job_id)
+        enriched = deep_job_scraper.enrich_job(db, id)
         if enriched:
             job = enriched
     return job.model_dump()
 
-@app.post("/api/jobs/{job_id}/rescrape")
-def rescrape_job(job_id: str):
-    job = db.get_job_by_id(job_id)
+@app.post("/api/jobs/{id}/rescrape")
+def rescrape_job(id: str):
+    job = db.get_job_by_id(id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    enriched = deep_job_scraper.enrich_job(db, job_id, force=True)
+    enriched = deep_job_scraper.enrich_job(db, id, force=True)
     if not enriched:
-        raise HTTPException(status_code=500, detail="Failed to scrape original job page")
+        request_id = str(uuid.uuid4())
+        logger.error(f"Failed to scrape original job page for {id} [Request ID: {request_id}]")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to scrape original job page. Request ID: {request_id}"
+        )
+    return {"success": True, "job": enriched.model_dump()}
     return {"success": True, "job": enriched.model_dump()}
 
 @app.get("/api/stats")
@@ -1885,9 +1962,11 @@ async def upload_kb_documents(
         try:
             extracted_text, _meta = career_kb.extract_text_from_file(clean_filename, content)
         except Exception as e:
+            request_id = str(uuid.uuid4())
+            logger.error(f"Failed to parse '{clean_filename}' [Request ID: {request_id}]: {e}\n{traceback.format_exc()}")
             raise HTTPException(
                 status_code=422,
-                detail=f"Failed to parse '{clean_filename}': {e}"
+                detail=f"Failed to parse '{clean_filename}'. Request ID: {request_id}"
             )
 
         if not extracted_text or not extracted_text.strip():
@@ -2094,8 +2173,12 @@ async def upload_master_resume(file: UploadFile = File(...)):
             "unified_profile": career_kb.get_unified_profile()
         }
     except Exception as e:
-        logger.error(f"Error parsing uploaded resume: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        request_id = str(uuid.uuid4())
+        logger.error(f"Error parsing uploaded resume [Request ID: {request_id}]: {e}\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An internal error occurred while parsing the uploaded resume. Request ID: {request_id}"
+        )
 
 @app.post("/api/resume/tailor")
 def tailor_resume_for_job(req: TailorResumeRequest):
@@ -2112,6 +2195,10 @@ def tailor_resume_for_job(req: TailorResumeRequest):
     skills = req.skills or []
 
     db_job = db.get_job_by_id(req.job_id) if req.job_id else None
+    if req.job_id and not db_job:
+        if not req.description or len(req.description.strip()) < 20:
+            raise HTTPException(status_code=404, detail="Job not found")
+
     if db_job and (not db_job.is_deep_scraped or len(db_job.description or "") < 150):
         try:
             enriched = deep_job_scraper.enrich_job(db, req.job_id, force=False)
@@ -2233,7 +2320,13 @@ def tailor_resume_for_job(req: TailorResumeRequest):
             ats_keywords=ats_keywords
         )
     except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
+        request_id = str(uuid.uuid4())
+        logger.error(f"Validation error tailoring resume [Request ID: {request_id}]: {ve}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=f"Invalid resume tailoring parameters. Request ID: {request_id}")
+    except Exception as e:
+        request_id = str(uuid.uuid4())
+        logger.error(f"Server error tailoring resume [Request ID: {request_id}]: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"An internal error occurred while tailoring the resume. Request ID: {request_id}")
     tailored_data = tailored_result["tailored_resume"]
     ats_metrics = tailored_result["ats_metrics"]
 

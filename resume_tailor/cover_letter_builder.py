@@ -18,6 +18,186 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import parse_xml
 
 from resume_tailor.pdf_compiler import find_browser_executable, EDGE_PATH
+from resume_tailor.validator import validate_against_knowledge_base, KnowledgeBaseValidationError
+
+
+def fix_casing_and_money(text: str) -> str:
+    """
+    Fixes tool casing (SQL, Power BI, Excel, Tableau, Python, Power Query, DAX) and formats money as $389.3M.
+    """
+    if not text:
+        return ""
+    # Tool casing
+    text = re.sub(r"\b(?:sql|Sql)\b", "SQL", text)
+    text = re.sub(r"\b(?:power\s*bi|Power\s*Bi|powerbi|Powerbi|POWER\s*BI)\b", "Power BI", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(?:excel|EXCEL)\b", "Excel", text)
+    text = re.sub(r"\b(?:tableau|TABLEAU)\b", "Tableau", text)
+    text = re.sub(r"\b(?:python|PYTHON)\b", "Python", text)
+    text = re.sub(r"\b(?:power\s*query|Power\s*query|powerquery)\b", "Power Query", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(?:dax|Dax)\b", "DAX", text)
+
+    # Money formatting
+    text = re.sub(r"(?<!\$)\b389\.3\s*(?:million|[mM])\b", "$389.3M", text)
+    text = re.sub(r"\$\s*389\.3\s*(?:million|[mM])\b", "$389.3M", text)
+    text = re.sub(r"\$\s*389\.3\b(?![mM])", "$389.3M", text)
+
+    text = re.sub(r"(?<!\$)\b205\s*(?:million|[mM])\b", "$205M", text)
+    text = re.sub(r"\$\s*205\s*(?:million|[mM])\b", "$205M", text)
+
+    text = re.sub(r"(?<!\$)\b32\.8\s*(?:million|[mM])\b", "$32.8M", text)
+    text = re.sub(r"\$\s*32\.8\s*(?:million|[mM])\b", "$32.8M", text)
+
+    text = re.sub(r"\$\s*(\d+(?:\.\d+)?)\s*million\b", r"$\1M", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?<!\$)\b(\d+(?:\.\d+)?)\s*million\s+dollars\b", r"$\1M", text, flags=re.IGNORECASE)
+    return text
+
+
+def remove_awkward_fragments(text: str) -> str:
+    """
+    Removes awkward fragments such as 'foundation in KPIs' and cleans up awkward phrasing.
+    """
+    if not text:
+        return ""
+
+    # 1. Fix awkward 'foundation in KPIs' phrases
+    text = re.sub(
+        r"\b(?:solid\s+)?(?:hands-on\s+)?foundation\s+in\s+KPIs\b",
+        "hands-on foundation in analytical KPI tracking and business intelligence reporting",
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(
+        r"\b(?:solid\s+)?(?:hands-on\s+)?foundation\s+in\s+key\s+performance\s+indicators\b",
+        "hands-on foundation in analytical KPI tracking and operational reporting",
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(
+        r"\b(?:solid\s+)?(?:hands-on\s+)?foundation\s+in\s+KPI\s+reporting\b",
+        "hands-on foundation in KPI reporting and business intelligence",
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(
+        r"\b(?:solid\s+)?(?:hands-on\s+)?foundation\s+in\s+dashboards?\b",
+        "hands-on foundation in dashboard engineering and visual analytics",
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(
+        r"\b(?:solid\s+)?(?:hands-on\s+)?foundation\s+in\s+reporting\b",
+        "hands-on foundation in business intelligence reporting",
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(
+        r"\b(?:solid\s+)?(?:hands-on\s+)?foundation\s+in\s+the\s+required\s+core\s+skills\b",
+        "solid foundation in SQL, Power BI, and Advanced Excel",
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(
+        r"\bproficiency\s+in\s+core\s+industry\s+tools\b",
+        "proficiency in SQL, Power BI, and Advanced Excel",
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # 2. Punctuation & Spacing cleanup
+    text = re.sub(r"\s+([,\.;:])", r"\1", text)
+    text = re.sub(r"\.{2,}", ".", text)
+    text = re.sub(r"  +", " ", text)
+    return text.strip()
+
+
+def paraphrase_key_duties(
+    job_title: str,
+    responsibilities: List[str] = None,
+    job_description: str = "",
+    company: str = ""
+) -> str:
+    """
+    Synthesizes 2-3 key duties from the job context into natural, professional sentences.
+    Never copies verbatim text from the job description or responsibilities list.
+    """
+    combined = f"{job_title} {job_description} {' '.join(responsibilities or [])}".lower()
+
+    # 1. Supply Chain / Material Planning / Inventory / Logistics (e.g. Cummins)
+    if any(k in combined for k in ["supply chain", "inventory", "pfep", "material planning", "materials kpi", "demand planning", "forecast exception", "logistics"]):
+        return (
+            "Specifically, I am drawn to the opportunity to analyze demand and forecast variations, "
+            "monitor material and inventory KPIs, and ensure rigorous data integrity across operational reporting."
+        )
+
+    # 2. Survey / Market Research / Tabulations / Studies / Polling (e.g. Comscore)
+    if any(k in combined for k in ["survey", "tabulation", "tabulations", "ad tracking", "brand tracking", "effectiveness studies", "questionnaire"]):
+        return (
+            "In particular, I am drawn to the opportunity to process and evaluate survey datasets, "
+            "verify data quality across ongoing tracking studies, and deliver clear tabular reporting to support research objectives."
+        )
+
+    # 3. Financial Analysis / FP&A / Variance / Cost / Revenue
+    if any(k in combined for k in ["financial analyst", "variance analysis", "budgeting", "p&l", "revenue forecasting", "cost reduction"]):
+        return (
+            "Specifically, I am drawn to the opportunity to conduct performance variance analysis, "
+            "track revenue and cost drivers, and synthesize transactional datasets into clear executive reporting."
+        )
+
+    # 4. Marketing Analytics / Growth / Attribution / Conversion
+    if any(k in combined for k in ["marketing analyst", "campaign", "customer acquisition", "attribution", "conversion rate", "funnel"]):
+        return (
+            "Specifically, I am drawn to the opportunity to evaluate campaign performance metrics, "
+            "analyze customer acquisition funnels, and generate actionable insights to optimize marketing initiatives."
+        )
+
+    # 5. Operations / Process Improvement / Operational Analytics
+    if any(k in combined for k in ["operational analysis", "operations analyst", "process improvement", "workflow efficiency", "sla"]):
+        return (
+            "Specifically, I am drawn to the opportunity to analyze operational workflow metrics, "
+            "identify process improvement opportunities, and deliver reliable reporting that supports cross-functional decision-making."
+        )
+
+    # 6. Dynamic Extraction & Paraphrasing for custom/arbitrary job duties
+    if responsibilities:
+        boilerplate_keywords = ["degree", "bachelor", "master", "medical", "pension", "leave", "insurance", "what you", "benefit", "years of"]
+        duty_candidates = []
+        for r in responsibilities:
+            r_clean = re.sub(r'^[•\-\*\d+\.\)]\s*', '', r).strip()
+            if len(r_clean) < 15 or len(r_clean) > 200:
+                continue
+            if any(b in r_clean.lower() for b in boilerplate_keywords):
+                continue
+            duty_candidates.append(r_clean)
+
+        if duty_candidates:
+            synthesized = []
+            for cand in duty_candidates[:3]:
+                c_sub = re.sub(
+                    r'^(?:responsible for|responsible to|ability to|proven ability to|experience in|deliver exceptional|deliver|engage in|perform|provide|support|help ensure|conduct|manage|execute)\s+',
+                    '',
+                    cand,
+                    flags=re.IGNORECASE
+                )
+                words = c_sub.split()
+                if len(words) >= 3:
+                    first_w = words[0].lower()
+                    rest = " ".join(words[1:6]).rstrip(",.;:")
+                    if first_w.endswith("ing"):
+                        synthesized.append(f"{first_w} {rest}")
+                    elif first_w.endswith("e"):
+                        synthesized.append(f"{first_w[:-1]}ing {rest}")
+                    else:
+                        synthesized.append(f"{first_w}ing {rest}")
+            if len(synthesized) >= 2:
+                duties_text = ", ".join(synthesized[:-1]) + f", and {synthesized[-1]}"
+                return f"Specifically, I look forward to contributing towards {duties_text}."
+
+    # 7. Default for Business Intelligence & Data Analysis roles
+    return (
+        "Specifically, I am drawn to the opportunity to engineer interactive dashboards, "
+        "automate KPI reporting workflows, and translate complex datasets into clear, actionable business insights."
+    )
+
 
 is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 OUTPUT_DIR = "/tmp/data/resumes" if is_serverless else os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "resumes")
@@ -54,6 +234,8 @@ class CoverLetterBuilder:
         """
         Synthesizes a personalized cover letter, executive summary, and application responses
         grounded strictly in the candidate's verified Career Knowledge Base.
+        Never states unheld titles, never pastes JD text verbatim, fixes casing and money,
+        eliminates awkward fragments, and strictly validates all output entities against the KB.
         """
         name = profile.get("name", "Candidate")
         contact = profile.get("contact", {})
@@ -73,17 +255,36 @@ class CoverLetterBuilder:
 
         # Identify certifications
         certs = profile.get("certifications", [])
-        cert_names = [c.get("name", str(c)) for c in certs[:3] if isinstance(c, dict)]
+        cert_names = [
+            re.sub(r"\s+(?:Link|\[Link\]\(.*?\))\s*$", "", (c.get("name") if isinstance(c, dict) else str(c))).strip()
+            for c in certs[:3]
+        ]
 
-        # Identify matching technical skills
-        all_skills = profile.get("technical_tools", [])
+        # Select verified technical tools only (never non-tool terms like 'KPIs' or 'Dashboards')
+        primary_tool_whitelist = [
+            "Power BI", "SQL", "Excel", "Advanced Excel", "Python",
+            "Microsoft Fabric", "PostgreSQL", "DAX", "Power Query", "Pandas", "NumPy"
+        ]
         jd_text = f"{job_title} {job_description} {' '.join(job_skills or [])}".lower()
-        matched_skills = [s for s in all_skills if re.search(r"\b" + re.escape(s.lower()) + r"\b", jd_text)]
-        if not matched_skills:
-            matched_skills = all_skills[:5]
+        matched_tools = [t for t in primary_tool_whitelist if re.search(r"\b" + re.escape(t.lower()) + r"\b", jd_text)]
+        if not matched_tools:
+            matched_tools = ["Power BI", "SQL", "Advanced Excel"]
+        elif len(matched_tools) == 1:
+            for fallback_t in ["SQL", "Power BI", "Advanced Excel"]:
+                if fallback_t not in matched_tools:
+                    matched_tools.append(fallback_t)
+                if len(matched_tools) >= 3:
+                    break
+
+        # Format tools naturally (e.g. "Power BI, SQL, and Advanced Excel")
+        if len(matched_tools) == 1:
+            tools_str = matched_tools[0]
+        elif len(matched_tools) == 2:
+            tools_str = f"{matched_tools[0]} and {matched_tools[1]}"
+        else:
+            tools_str = f"{', '.join(matched_tools[:2])}, and {matched_tools[2]}"
 
         # 1. Generate Structured Cover Letter Paragraphs
-        tools_str = ', '.join(matched_skills[:3]) if matched_skills else "the required core skills"
         p1_intro = (
             f"I am writing to express my strong enthusiasm for the {clean_title} position at {clean_company}. "
             f"With a solid hands-on foundation in {tools_str}, "
@@ -121,20 +322,11 @@ class CoverLetterBuilder:
         if cert_names:
             cert_sentence = f" To substantiate my technical discipline, I have earned industry-recognized credentials including {cert_names[0]}."
 
-        resp_sentence = ""
-        if responsibilities:
-            clean_resps = [re.sub(r'^[•\-\*\d+\.\)]\s*', '', r).strip() for r in responsibilities if len(r) > 12]
-            if clean_resps:
-                top_resp = clean_resps[0]
-                if not top_resp.endswith("."):
-                    top_resp += "."
-                resp_sentence = f" I am particularly energized by the role's focus on key duties such as {top_resp.lower() if not top_resp.startswith('I') else top_resp}"
-
-        top_skills_str = ', '.join((job_skills or matched_skills)[:4]) if (job_skills or matched_skills) else "the required competencies"
+        duty_sentence = paraphrase_key_duties(job_title, responsibilities, job_description, company)
         p3_skills = (
-            f"Your job posting emphasizes proficiency in {top_skills_str}.{resp_sentence} "
-            f"In my verified background, I have consistently applied these tools and principles to solve complex problems and ensure high-standard deliverables.{cert_sentence} "
-            f"I am highly adaptable, eager to master {clean_company}'s internal workflows, and dedicated to upholding the highest standards of quality."
+            f"Your job posting emphasizes proficiency in {tools_str}. {duty_sentence} "
+            f"In my verified background, I have consistently applied these tools and analytical principles to solve complex problems and ensure high-standard deliverables.{cert_sentence} "
+            f"I am highly adaptable, eager to master {clean_company}'s internal workflows, and dedicated to upholding the highest standards of data integrity."
         )
 
         p4_closing = (
@@ -142,15 +334,16 @@ class CoverLetterBuilder:
             f"Thank you for your time and consideration."
         )
 
-        body_paragraphs = [p1_intro, p2_experience, p3_skills, p4_closing]
+        raw_paragraphs = [p1_intro, p2_experience, p3_skills, p4_closing]
+        body_paragraphs = [fix_casing_and_money(remove_awkward_fragments(p)) for p in raw_paragraphs]
 
-        # 2. Executive Summary / Elevator Pitch
-        exec_skills_str = ', '.join(matched_skills[:4]) if matched_skills else "core technical competencies"
-        exec_summary = (
-            f"Qualified {clean_title} candidate with verified hands-on proficiency in {exec_skills_str}. "
-            f"Demonstrated ability to execute technical workflows, maintain high accuracy, and deliver actionable results. "
+        # 2. Executive Summary / Elevator Pitch (Strictly using "Data analyst with ..., targeting <title> roles")
+        raw_exec_summary = (
+            f"Data analyst with verified hands-on proficiency in {tools_str}, targeting {clean_title} roles. "
+            f"Demonstrated ability to execute technical workflows, maintain high data accuracy, and deliver actionable results. "
             f"Recognized for fast learning agility, rigorous validation, and clear professional communication."
         )
+        exec_summary = fix_casing_and_money(remove_awkward_fragments(raw_exec_summary))
 
         # 3. Application Responses (Strictly Evidence-Based)
         q2_answer = ""
@@ -178,22 +371,22 @@ class CoverLetterBuilder:
         app_responses = [
             {
                 "question": f"Why are you interested in joining {clean_company} as a {clean_title}?",
-                "answer": (
-                    f"I am excited by {clean_company}'s reputation for quality and innovation. As a {clean_title} candidate, "
-                    f"I want to apply my verified proficiency in {', '.join(matched_skills[:3]) if matched_skills else 'core industry tools'} to support strategic objectives. "
+                "answer": fix_casing_and_money(remove_awkward_fragments(
+                    f"I am excited by {clean_company}'s reputation for quality and innovation. As an analytical professional targeting {clean_title} roles, "
+                    f"I want to apply my verified proficiency in {tools_str} to support strategic objectives. "
                     f"The role aligns with my dedication to precision, continuous learning, and cross-functional collaboration."
-                )
+                ))
             },
             {
                 "question": "Can you highlight a significant project or achievement from your background?",
-                "answer": q2_answer
+                "answer": fix_casing_and_money(remove_awkward_fragments(q2_answer))
             },
             {
-                "question": f"How do your skills match our requirements for {', '.join((job_skills or matched_skills)[:3]) if (job_skills or matched_skills) else 'this role'}?",
-                "answer": (
-                    f"My background directly demonstrates practical capability in {', '.join(matched_skills[:4]) if matched_skills else 'the core competencies for this role'}.{q3_cert_note}"
+                "question": f"How do your skills match our requirements for {clean_title}?",
+                "answer": fix_casing_and_money(remove_awkward_fragments(
+                    f"My background directly demonstrates practical capability in {tools_str}.{q3_cert_note}"
                     f"I have consistently applied these skills to maintain high standards of execution, documentation, and continuous improvement."
-                )
+                ))
             }
         ]
 
@@ -211,20 +404,20 @@ class CoverLetterBuilder:
             "",
             "Dear Hiring Manager,",
             "",
-            p1_intro,
+            body_paragraphs[0],
             "",
-            p2_experience,
+            body_paragraphs[1],
             "",
-            p3_skills,
+            body_paragraphs[2],
             "",
-            p4_closing,
+            body_paragraphs[3],
             "",
             "Sincerely,",
             name
         ]
-        full_text = "\n".join(text_lines)
+        full_text = fix_casing_and_money(remove_awkward_fragments("\n".join(text_lines)))
 
-        return {
+        result_data = {
             "candidate_name": name,
             "target_role": clean_title,
             "target_company": clean_company,
@@ -234,8 +427,18 @@ class CoverLetterBuilder:
             "full_text": full_text,
             "executive_summary": exec_summary,
             "application_responses": app_responses,
-            "matched_skills": matched_skills
+            "matched_skills": [t for t in matched_tools if t in primary_tool_whitelist]
         }
+
+        # 5. Strict Knowledge Base Validation Pass
+        validate_against_knowledge_base(
+            result_data,
+            profile,
+            target_company=clean_company,
+            target_job_title=clean_title
+        )
+
+        return result_data
 
     def build_docx(self, cover_letter_data: Dict[str, Any], job_id: str) -> str:
         """

@@ -2900,7 +2900,18 @@ async function openJobDetails(jobId) {
 
   try {
     const res = await fetch(`/api/jobs/${jobId}`);
+    if (!res.ok) {
+      throw new Error(`Failed to load job details (${res.status})`);
+    }
     const job = await res.json();
+
+    // Cache full job details into state.currentJobs so full metadata is stored locally
+    if (state.currentJobs && Array.isArray(state.currentJobs)) {
+      const idx = state.currentJobs.findIndex(j => String(j.id) === String(jobId));
+      if (idx !== -1) {
+        state.currentJobs[idx] = { ...state.currentJobs[idx], ...job };
+      }
+    }
 
     const isCore = job.role_category === 'Core Analytics';
     const skillsChips = (job.skills || []).map(s => `<span class="job-skill-chip" style="font-size: 0.8rem; padding: 0.25rem 0.65rem;">${escapeHtml(s)}</span>`).join('');
@@ -3469,15 +3480,32 @@ async function tailorResumeForJob(jobId, event) {
   modal.style.display = 'flex';
 
   try {
+    let currentJob = job;
+    if (!currentJob || !currentJob.description || currentJob.description.endsWith('...')) {
+      try {
+        const detailRes = await fetch(`/api/jobs/${jobId}`);
+        if (detailRes.ok) {
+          const fullJob = await detailRes.json();
+          currentJob = { ...(currentJob || {}), ...fullJob };
+          if (state.currentJobs && Array.isArray(state.currentJobs)) {
+            const idx = state.currentJobs.findIndex(j => String(j.id) === String(jobId));
+            if (idx !== -1) state.currentJobs[idx] = currentJob;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not pre-fetch full job details for tailoring:', e);
+      }
+    }
+
     const res = await fetch('/api/resume/tailor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         job_id: jobId,
-        job_title: job ? job.title : undefined,
-        company: job ? job.company : undefined,
-        description: job ? job.description : undefined,
-        skills: job ? job.skills : undefined
+        job_title: currentJob ? currentJob.title : undefined,
+        company: currentJob ? currentJob.company : undefined,
+        description: currentJob ? currentJob.description : undefined,
+        skills: currentJob ? currentJob.skills : undefined
       })
     });
 
@@ -3500,6 +3528,40 @@ async function tailorResumeForJob(jobId, event) {
       </div>
     `;
   }
+}
+
+function getAuthUrl(url) {
+  if (!url) return '';
+  const apiKey = sessionStorage.getItem('apiKey') || '';
+  if (!apiKey || url.includes('api_key=')) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}api_key=${encodeURIComponent(apiKey)}`;
+}
+
+async function loadPdfPreviewIframe(pdfUrl) {
+  const iframe = document.getElementById('tailor-pdf-iframe');
+  if (!iframe || !pdfUrl) return;
+
+  const authUrl = getAuthUrl(pdfUrl);
+  const apiKey = sessionStorage.getItem('apiKey') || '';
+
+  try {
+    const headers = {};
+    if (apiKey) headers['X-API-Key'] = apiKey;
+
+    const res = await fetch(authUrl, { headers });
+    if (res.ok) {
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      iframe.src = `${blobUrl}#toolbar=0&navpanes=0`;
+      return;
+    }
+  } catch (err) {
+    console.warn('Authenticated PDF blob preview fetch failed, using direct URL:', err);
+  }
+
+  // Fallback: direct URL with api_key
+  iframe.src = `${authUrl}#toolbar=0&navpanes=0`;
 }
 
 function renderTailoredResumeModal(data) {
@@ -3539,25 +3601,25 @@ function renderTailoredResumeModal(data) {
   // Update top actions toolbar
   topActionsEl.innerHTML = `
     <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-      <a href="${data.docx_url}" id="btn-dl-docx" download="${fnDocx}" class="download-format-btn btn-docx" title="Download editable Word document (.docx)">
+      <a href="${getAuthUrl(data.docx_url)}" id="btn-dl-docx" download="${fnDocx}" class="download-format-btn btn-docx" title="Download editable Word document (.docx)">
         📘 Word (.docx)
       </a>
-      <a href="${data.docx_url}" id="btn-dl-gdocs" download="${fnDocx}" onclick="alert('Google Docs format: Upload this clean .docx file to Google Drive and open with Google Docs. Formatting and fonts are 100% preserved!')" class="download-format-btn btn-gdocs" title="Google Docs compatible format">
+      <a href="${getAuthUrl(data.docx_url)}" id="btn-dl-gdocs" download="${fnDocx}" onclick="alert('Google Docs format: Upload this clean .docx file to Google Drive and open with Google Docs. Formatting and fonts are 100% preserved!')" class="download-format-btn btn-gdocs" title="Google Docs compatible format">
         🌐 Google Docs
       </a>
-      <a href="${data.pdf_url}" id="btn-dl-pdf" download="${fnPdf}" class="download-format-btn btn-pdf" title="Download strict 1-page PDF">
+      <a href="${getAuthUrl(data.pdf_url)}" id="btn-dl-pdf" download="${fnPdf}" class="download-format-btn btn-pdf" title="Download strict 1-page PDF">
         📕 PDF
       </a>
-      <a href="${data.txt_url || `/api/resume/download/txt/${data.job_id}`}" id="btn-dl-txt" download="${fnTxt}" class="download-format-btn btn-txt" title="Download plain text resume">
+      <a href="${getAuthUrl(data.txt_url || `/api/resume/download/txt/${data.job_id}`)}" id="btn-dl-txt" download="${fnTxt}" class="download-format-btn btn-txt" title="Download plain text resume">
         📝 Plain Text
       </a>
-      <a href="${data.cl_docx_url || `/api/cover-letter/download/docx/${data.job_id}`}" id="btn-dl-cl-docx" download="${fnClDocx}" class="download-format-btn btn-docx" title="Download Cover Letter Word (.docx)">
+      <a href="${getAuthUrl(data.cl_docx_url || `/api/cover-letter/download/docx/${data.job_id}`)}" id="btn-dl-cl-docx" download="${fnClDocx}" class="download-format-btn btn-docx" title="Download Cover Letter Word (.docx)">
         ✉️ Cover Letter (.docx)
       </a>
-      <a href="${data.cl_pdf_url || `/api/cover-letter/download/pdf/${data.job_id}`}" id="btn-dl-cl-pdf" download="${fnClPdf}" class="download-format-btn btn-pdf" title="Download Cover Letter PDF">
+      <a href="${getAuthUrl(data.cl_pdf_url || `/api/cover-letter/download/pdf/${data.job_id}`)}" id="btn-dl-cl-pdf" download="${fnClPdf}" class="download-format-btn btn-pdf" title="Download Cover Letter PDF">
         ✉️ Cover Letter (PDF)
       </a>
-      <a href="${data.tex_url}" id="btn-dl-tex" download="${fnTex}" class="download-format-btn btn-latex" title="Download Overleaf LaTeX code">
+      <a href="${getAuthUrl(data.tex_url)}" id="btn-dl-tex" download="${fnTex}" class="download-format-btn btn-latex" title="Download Overleaf LaTeX code">
         📄 LaTeX .tex
       </a>
       <button type="button" class="btn btn-outline btn-sm" id="btn-toggle-edit" onclick="toggleResumeEditMode()" style="font-weight: 700;">
@@ -3900,7 +3962,7 @@ function renderTailoredResumeModal(data) {
           </div>
 
           <div style="display: flex; align-items: center; gap: 0.35rem;">
-            <a href="${data.pdf_preview_url || data.pdf_url}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="font-size: 0.725rem; padding: 0.25rem 0.55rem; color: var(--link-color);" title="Open PDF preview in separate tab">
+            <a href="${getAuthUrl(data.pdf_preview_url || data.pdf_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="font-size: 0.725rem; padding: 0.25rem 0.55rem; color: var(--link-color);" title="Open PDF preview in separate tab">
               Open PDF ↗
             </a>
           </div>
@@ -3910,7 +3972,7 @@ function renderTailoredResumeModal(data) {
 
           <!-- Sub-Tab 1: 1-Page PDF Preview -->
           <div id="tailor-pane-pdf" style="display: block; height: 100%;">
-            <iframe id="tailor-pdf-iframe" class="resume-preview-frame" style="height: calc(100% - 30px); min-height: 480px;" src="${data.pdf_preview_url || data.pdf_url}#toolbar=0&navpanes=0"></iframe>
+            <iframe id="tailor-pdf-iframe" class="resume-preview-frame" style="height: calc(100% - 30px); min-height: 480px;" src="about:blank"></iframe>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem; font-size: 0.775rem; color: #666666;">
               <span>Strict 1-Page Jake's Resume LaTeX Format.</span>
               <span>Need Word format? Click <strong>Download Word (.docx)</strong> above.</span>
@@ -4041,10 +4103,10 @@ function renderTailoredResumeModal(data) {
                 <div style="font-size: 0.78rem; color: #94a3b8;">Grounded in your Career Knowledge Base documents</div>
               </div>
               <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                <a href="${data.cl_docx_url || `/api/cover-letter/download/docx/${data.job_id}`}" download="${fnClDocx}" class="btn btn-primary btn-sm btn-docx" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;">
+                <a href="${getAuthUrl(data.cl_docx_url || `/api/cover-letter/download/docx/${data.job_id}`)}" download="${fnClDocx}" class="btn btn-primary btn-sm btn-docx" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;">
                   📘 Word (.docx)
                 </a>
-                <a href="${data.cl_pdf_url || `/api/cover-letter/download/pdf/${data.job_id}`}" download="${fnClPdf}" class="btn btn-outline btn-sm btn-pdf" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;">
+                <a href="${getAuthUrl(data.cl_pdf_url || `/api/cover-letter/download/pdf/${data.job_id}`)}" download="${fnClPdf}" class="btn btn-outline btn-sm btn-pdf" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;">
                   📕 PDF
                 </a>
                 <button type="button" class="btn btn-outline btn-sm" onclick="copyTailoredCoverLetter()" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;">
@@ -4177,6 +4239,9 @@ function renderTailoredResumeModal(data) {
   const clText = (data.cover_letter && data.cover_letter.full_text) ? data.cover_letter.full_text : buildCoverLetterContent(data.job_title, data.company, (data.tailored_resume && data.tailored_resume.summary) || '', matchedKeywords);
   const clTextarea = document.getElementById('tailor-cl-textarea');
   if (clTextarea) clTextarea.value = clText;
+
+  // Load PDF preview in iframe using authenticated blob fetch
+  loadPdfPreviewIframe(data.pdf_preview_url || data.pdf_url);
 }
 
 // --- Keyword Highlighting Helper ---
@@ -4905,7 +4970,7 @@ async function saveAndRecompileResume() {
     if (latexPre) latexPre.innerText = result.latex_code;
 
     const iframe = document.getElementById('tailor-pdf-iframe');
-    if (iframe) iframe.src = result.pdf_preview_url + '#toolbar=0&navpanes=0';
+    if (iframe) loadPdfPreviewIframe(result.pdf_preview_url || result.pdf_url);
 
     const htmlPreview = document.getElementById('ts-resume-html-preview');
     if (htmlPreview) htmlPreview.innerHTML = renderLatexResumePreviewHtml(result.tailored_resume);
@@ -6974,7 +7039,7 @@ async function loadRecommendedJobs() {
           <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 0.75rem; margin-top: 0.5rem;">
             <span style="font-size: 0.75rem; color: #94a3b8;">Via ${escapeHtml(j.source_name)}</span>
             <div style="display: flex; gap: 6px;">
-              <button class="btn btn-outline btn-sm" onclick="openJobDetailModal('${j.id}')">
+              <button class="btn btn-outline btn-sm" onclick="openJobDetails('${j.id}')">
                 👁 Details
               </button>
               <button class="btn btn-primary btn-sm" onclick="startAIEngineTailoring('${j.id}')">
@@ -8831,7 +8896,7 @@ function copyStudioQA(idx) {
 
 function printStudioResume() {
   if (studioTailorResult && studioTailorResult.pdf_preview_url) {
-    window.open(studioTailorResult.pdf_preview_url, '_blank');
+    window.open(getAuthUrl(studioTailorResult.pdf_preview_url), '_blank');
   } else {
     window.print();
   }

@@ -11,6 +11,36 @@ from typing import Dict, List, Any, Tuple
 from resume_tailor.knowledge_base import career_kb
 from resume_tailor.parser import master_resume_parser, NOT_AVAILABLE
 from resume_tailor.analyzer import deep_job_analyzer
+from resume_tailor.validator import validate_against_knowledge_base, KnowledgeBaseValidationError
+
+
+def fix_casing_and_money(text: str) -> str:
+    """Fixes tool casing (SQL, Power BI, Excel, Tableau, Python, Power Query, DAX) and formats money as $389.3M."""
+    if not text:
+        return ""
+    # Tool casing
+    text = re.sub(r"\b(?:sql|Sql)\b", "SQL", text)
+    text = re.sub(r"\b(?:power\s*bi|Power\s*Bi|powerbi|Powerbi|POWER\s*BI)\b", "Power BI", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(?:excel|EXCEL)\b", "Excel", text)
+    text = re.sub(r"\b(?:tableau|TABLEAU)\b", "Tableau", text)
+    text = re.sub(r"\b(?:python|PYTHON)\b", "Python", text)
+    text = re.sub(r"\b(?:power\s*query|Power\s*query|powerquery)\b", "Power Query", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(?:dax|Dax)\b", "DAX", text)
+
+    # Money formatting
+    text = re.sub(r"(?<!\$)\b389\.3\s*(?:million|[mM])\b", "$389.3M", text)
+    text = re.sub(r"\$\s*389\.3\s*(?:million|[mM])\b", "$389.3M", text)
+    text = re.sub(r"\$\s*389\.3\b(?![mM])", "$389.3M", text)
+
+    text = re.sub(r"(?<!\$)\b205\s*(?:million|[mM])\b", "$205M", text)
+    text = re.sub(r"\$\s*205\s*(?:million|[mM])\b", "$205M", text)
+
+    text = re.sub(r"(?<!\$)\b32\.8\s*(?:million|[mM])\b", "$32.8M", text)
+    text = re.sub(r"\$\s*32\.8\s*(?:million|[mM])\b", "$32.8M", text)
+
+    text = re.sub(r"\$\s*(\d+(?:\.\d+)?)\s*million\b", r"$\1M", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?<!\$)\b(\d+(?:\.\d+)?)\s*million\s+dollars\b", r"$\1M", text, flags=re.IGNORECASE)
+    return text
 
 
 class ResumeTailorEngine:
@@ -51,16 +81,7 @@ class ResumeTailorEngine:
 
         combined_text = f"{job_title} {company} {job_description} {' '.join(job_skills or [])} {' '.join(responsibilities or [])} {' '.join(requirements or [])} {' '.join(ats_keywords or [])}".lower()
 
-        # 1. ATS Keyword Overlap & Skill Gap Analysis
-        ats_metrics = self._analyze_ats_compatibility(
-            combined_text,
-            profile,
-            explicit_keywords=ats_keywords,
-            explicit_skills=job_skills,
-            job_title=job_title
-        )
-
-        # 1b. Deep Multi-Dimensional Job Analysis & Grounded Truthfulness Enforcement
+        # 1. ATS Keyword Overlap & Skill Gap Analysis (Weighted Required=3, Preferred=1, Strict Evidence)
         job_dict = {
             "title": job_title,
             "company": company,
@@ -70,25 +91,26 @@ class ResumeTailorEngine:
             "requirements": requirements or [],
             "ats_keywords": ats_keywords or []
         }
-        try:
-            deep_analysis = deep_job_analyzer.analyze_job(job_dict, profile)
-            if deep_analysis:
-                gap_data = deep_analysis.get("gap_analysis", {})
-                verified_matches = [m["name"] for m in gap_data.get("matched_skills", [])]
-                verified_gaps = [g["name"] for g in gap_data.get("missing_skills", [])]
-                if verified_matches:
-                    ats_metrics["matched_keywords"] = verified_matches
-                if verified_gaps:
-                    ats_metrics["missing_keywords"] = verified_gaps
-                ats_metrics["match_score"] = deep_analysis.get("ats_score", ats_metrics.get("match_score", 85))
-                ats_metrics["skill_gap_analysis"] = gap_data
-                ats_metrics["domain_signals"] = deep_analysis.get("domain_signals", {})
-                ats_metrics["soft_skill_alignment"] = gap_data.get("soft_skill_alignment", [])
-                ats_metrics["experience_requirements"] = deep_analysis.get("experience_requirements", {})
-                if deep_analysis.get("recommendations"):
-                    ats_metrics["recommendations"] = deep_analysis.get("recommendations")
-        except Exception:
-            pass
+        deep_analysis = deep_job_analyzer.analyze_job(job_dict, profile)
+        gap_data = deep_analysis.get("gap_analysis", {})
+        matched_keywords = deep_analysis.get("matched_keywords", [])
+        missing_keywords = deep_analysis.get("missing_keywords", [])
+        match_score = deep_analysis.get("match_score", 0)
+
+        ats_metrics = {
+            "match_score": match_score,
+            "matched_keywords": matched_keywords,
+            "missing_keywords": missing_keywords,
+            "matched_count": deep_analysis.get("matched_count", len(matched_keywords)),
+            "total_count": deep_analysis.get("total_count", len(matched_keywords) + len(missing_keywords)),
+            "missing_count": deep_analysis.get("missing_count", len(missing_keywords)),
+            "recommendations": deep_analysis.get("recommendations", []),
+            "skill_gap_analysis": gap_data,
+            "domain_signals": deep_analysis.get("domain_signals", {}),
+            "soft_skill_alignment": gap_data.get("soft_skill_alignment", []),
+            "experience_requirements": deep_analysis.get("experience_requirements", {}),
+            "target_role": job_title
+        }
 
         # 2. Tailor Professional Summary (strictly grounded in candidate's verified skills)
         tailored_summary = self._generate_tailored_summary(
@@ -154,6 +176,14 @@ class ResumeTailorEngine:
         validation_result = self._validate_evidence(tailored_resume, profile)
         tailored_resume = validation_result["validated_resume"]
 
+        # 10. Strict Knowledge Base Validator: Fails generation if unverified numbers, tools, employers, or certs exist
+        validate_against_knowledge_base(
+            tailored_resume,
+            profile,
+            target_company=company,
+            target_job_title=job_title
+        )
+
         return {
             "tailored_resume": tailored_resume,
             "ats_metrics": ats_metrics,
@@ -169,113 +199,31 @@ class ResumeTailorEngine:
         explicit_skills: List[str] = None,
         job_title: str = ""
     ) -> Dict[str, Any]:
-        """Calculates ATS keyword overlap, missing skills, and detailed skill gap analysis."""
-        candidate_skills = set([s.lower() for s in profile.get("technical_tools", [])])
-
-        # Extract skills from structured categories
-        for cat_skills in profile.get("skills", {}).values():
-            if isinstance(cat_skills, list):
-                for sk in cat_skills:
-                    clean_sk = sk.strip().lower()
-                    candidate_skills.add(clean_sk)
-                    # Extract sub-skills from parentheses e.g. "Power BI (DAX, Power Query)"
-                    sub_items = re.findall(r'\((.*?)\)', clean_sk)
-                    for sub in sub_items:
-                        for part in re.split(r'[,/|;]', sub):
-                            p = part.strip()
-                            if p and len(p) > 1 and not p.startswith("currently learning"):
-                                candidate_skills.add(p)
-                    base_sk = re.sub(r'\(.*?\)', '', clean_sk).strip()
-                    if base_sk:
-                        candidate_skills.add(base_sk)
-
-        for exp in profile.get("experience", []):
-            candidate_skills.update([s.lower() for s in exp.get("skills", [])])
-            for b in exp.get("bullets", []):
-                for word in ["excel", "power bi", "sql", "python", "pivot tables", "xlookup", "dax", "kpi", "crm", "apqp", "ppap", "pfmea", "autocad", "scada", "plc", "star schema", "data modeling", "power query", "power pivot"]:
-                    if word in b.lower():
-                        candidate_skills.add(word)
-
-        for proj in profile.get("projects", []):
-            candidate_skills.update([s.lower() for s in proj.get("skills", [])])
-            if proj.get("tools"):
-                candidate_skills.update([t.strip().lower() for t in proj["tools"].split(",") if t.strip()])
-
-        for cert in profile.get("certifications", []):
-            c_name = (cert.get("name") if isinstance(cert, dict) else str(cert)).lower()
-            if "pl-300" in c_name:
-                candidate_skills.add("pl-300")
-            if "dp-600" in c_name:
-                candidate_skills.add("dp-600")
-
-        target_pool = [
-            "power bi", "sql", "python", "excel", "dax", "power query", "data modeling",
-            "dashboard", "kpi", "business intelligence", "visualization", "pivot tables",
-            "reporting", "data cleaning", "etl", "statistics", "analytics", "data analysis",
-            "machine learning", "snowflake", "tableau", "bigquery", "azure", "fabric",
-            "git", "aws", "star schema", "data validation", "xlookup", "power pivot",
-            "crm", "sales mis", "mis", "sales operations", "data preparation", "report generation",
-            "eda", "data transformation", "descriptive statistics", "correlation", "hypothesis testing",
-            "a/b testing", "outlier detection", "medallion architecture", "lakehouse", "data warehouse",
-            "prompt engineering", "chatgpt", "claude", "github copilot", "vs code", "postgresql", "ms sql server"
-        ]
-
-        if explicit_keywords:
-            for ek in explicit_keywords:
-                if ek.lower() not in target_pool:
-                    target_pool.append(ek.lower())
-        if explicit_skills:
-            for es in explicit_skills:
-                if es.lower() not in target_pool:
-                    target_pool.append(es.lower())
-
-        job_keywords = []
-        for kw in target_pool:
-            if re.search(r"\b" + re.escape(kw) + r"\b", job_text):
-                job_keywords.append(kw)
-
-        if not job_keywords:
-            job_keywords = list(candidate_skills)[:6] or ["analytics", "reporting", "documentation"]
-
-        matched_keywords = []
-        missing_keywords = []
-
-        for kw in job_keywords:
-            clean_kw = kw.title()
-            if kw in candidate_skills or any(kw in s or s in kw for s in candidate_skills):
-                if clean_kw not in matched_keywords:
-                    matched_keywords.append(clean_kw)
-            else:
-                if clean_kw not in missing_keywords:
-                    missing_keywords.append(clean_kw)
-
-        total = len(job_keywords)
-        matched_count = len(matched_keywords)
-        match_score = min(98, max(50, int((matched_count / max(1, total)) * 100)))
-
-        recommendations = [
-            f"Optimized resume highlights to feature verified competencies: {', '.join(matched_keywords[:3]) if matched_keywords else 'verified skills'}.",
-            "Enforced strict 100% evidence-based truthfulness (zero invented skills or experiences).",
-            "Reordered projects, skills, and certifications matching target job duties."
-        ]
-        if missing_keywords:
-            recommendations.append(
-                f"Missing keywords from job posting ({', '.join(missing_keywords[:3])}) were NOT added to preserve candidate credibility and prevent ATS rejection."
-            )
-
-        skill_gap_analysis = {
-            "matched_count": len(matched_keywords),
-            "missing_count": len(missing_keywords),
-            "critical_matches": matched_keywords[:5],
-            "gap_suggestions": [f"Candidate lacks documented experience in {m}; discuss during interview if transferable." for m in missing_keywords[:3]]
+        """
+        Calculates ATS keyword overlap, missing skills, and detailed skill gap analysis
+        using weighted scoring (required=3, preferred=1) and strict KB evidence verification.
+        """
+        job_dict = {
+            "title": job_title,
+            "description": job_text,
+            "skills": explicit_skills or [],
+            "ats_keywords": explicit_keywords or []
         }
+        deep_analysis = deep_job_analyzer.analyze_job(job_dict, profile)
+        gap_data = deep_analysis.get("gap_analysis", {})
+        matched_keywords = deep_analysis.get("matched_keywords", [])
+        missing_keywords = deep_analysis.get("missing_keywords", [])
+        match_score = deep_analysis.get("match_score", 0)
 
         return {
             "match_score": match_score,
             "matched_keywords": matched_keywords,
             "missing_keywords": missing_keywords,
-            "recommendations": recommendations,
-            "skill_gap_analysis": skill_gap_analysis,
+            "matched_count": deep_analysis.get("matched_count", len(matched_keywords)),
+            "total_count": deep_analysis.get("total_count", len(matched_keywords) + len(missing_keywords)),
+            "missing_count": deep_analysis.get("missing_count", len(missing_keywords)),
+            "recommendations": deep_analysis.get("recommendations", []),
+            "skill_gap_analysis": gap_data,
             "target_role": job_title
         }
 
@@ -290,51 +238,49 @@ class ResumeTailorEngine:
         projects: List[Any] = None
     ) -> str:
         """
-        Synthesizes a fluent, professional summary deeply aligned with target job requirements,
-        strictly grounded in candidate's verified skills, projects, and certifications.
+        Synthesizes a professional summary using the strictly required form:
+        "Data analyst with <real strengths>, targeting <job title> roles".
+        Never states a job title the candidate hasn't held.
+        Uses only titles/facts from the knowledge base.
         Zero hallucinations.
         """
-        clean_title = job_title.split("-")[0].split("(")[0].strip() or "Data Analyst"
+        clean_title = (job_title or "Data Analyst").strip()
 
         is_power_bi = any(k in job_text for k in ["power bi", "dax", "power query", "dashboard", "visualization", "bi developer", "business intelligence"])
         is_sql_db = any(k in job_text for k in ["sql", "database", "postgres", "cte", "joins", "data warehouse", "lakehouse", "etl", "data modeling", "star schema"])
-        is_excel = any(k in job_text for k in ["excel", "pivot tables", "xlookup", "power pivot", "reporting", "mis", "sales operations", "spreadsheets"])
-        is_python = any(k in job_text for k in ["python", "pandas", "numpy", "statistics", "statistical", "eda", "exploratory", "predictive"])
+        is_excel = any(k in job_text for k in ["excel", "pivot tables", "xlookup", "power pivot", "reporting", "mis", "sales operations", "spreadsheets", "supply chain"])
+        is_python = any(k in job_text for k in ["python", "pandas", "numpy", "statistics", "statistical", "eda", "exploratory", "predictive", "survey", "tabulations"])
         is_fabric = any(k in job_text for k in ["fabric", "microsoft fabric", "synapse", "azure", "medallion", "dataflows"])
 
-        # Determine opening sentence with matched verified tools & certifications
-        if is_power_bi and not is_sql_db:
-            opening = f"{clean_title} with hands-on experience in business intelligence, interactive Power BI dashboard design (DAX, Power Query), and automated KPI reporting, backed by Microsoft Certified: Power BI Data Analyst Associate (PL-300)."
+        # Determine real strengths strictly from verified candidate competencies
+        if is_excel and not is_power_bi and not is_sql_db:
+            strengths = "hands-on proficiency in Advanced Excel (PivotTables, XLOOKUP), KPI tracking, and operational business reporting"
+        elif is_power_bi and not is_sql_db:
+            strengths = "hands-on expertise in interactive Power BI dashboard design (DAX, Power Query), data modeling, and automated KPI reporting"
         elif is_sql_db and not is_power_bi:
-            opening = f"{clean_title} with hands-on expertise in SQL data modeling (joins, CTEs, window functions), relational databases (PostgreSQL), and ETL pipeline workflows, backed by Microsoft certifications (DP-600, PL-300)."
-        elif is_excel and not is_power_bi and not is_sql_db:
-            opening = f"{clean_title} with demonstrated proficiency in Advanced Excel (Pivot Tables, Power Pivot, XLOOKUP), KPI tracking, and operational business reporting, backed by practical engineering and sales operations experience."
+            strengths = "hands-on expertise in SQL data modeling (joins, CTEs, window functions), relational databases (PostgreSQL), and ETL workflows"
         elif is_python:
-            opening = f"{clean_title} with hands-on experience in exploratory data analysis (EDA), statistical evaluation, and data manipulation using Python (Pandas, NumPy) and SQL, backed by Microsoft certifications (PL-300, DP-600)."
+            strengths = "hands-on expertise in exploratory data analysis, statistical evaluation in Python (Pandas, NumPy), and SQL"
         elif is_fabric:
-            opening = f"{clean_title} with hands-on competencies in Microsoft Fabric analytics (Lakehouse, Dataflows Gen2, ETL), SQL modeling, and Power BI reporting, backed by Microsoft credentials (DP-600, PL-300)."
+            strengths = "hands-on competencies in Microsoft Fabric analytics (Lakehouse, Dataflows Gen2, ETL), SQL modeling, and Power BI reporting"
         else:
-            opening = f"{clean_title} with hands-on experience in SQL, Power BI, Advanced Excel, and Python, backed by Microsoft certifications (PL-300, DP-600)."
+            strengths = "hands-on proficiency in SQL, Power BI, Advanced Excel, and Python"
 
-        # Determine middle sentence focusing on modeling and dashboarding capabilities
+        opening = f"Data analyst with {strengths}, targeting {clean_title} roles."
+
+        # Middle sentence focusing on modeling and dashboarding capabilities
         if is_sql_db or is_power_bi:
-            middle = "Proficient in star-schema data modeling, data cleaning, and engineering interactive dashboards that transform complex, multi-source transactional datasets into clear, actionable business insights."
+            middle = "Proficient in star-schema data modeling, dataset cleansing, and engineering interactive dashboards that transform complex transactional datasets into clear, actionable business insights."
         elif is_excel:
-            middle = "Skilled in dataset cleansing, maintaining operational trackers, and synthesizing complex numbers into clear, executive-ready insights that uncover profitability drivers and operational efficiencies."
+            middle = "Skilled in dataset cleansing, operational tracking, and synthesizing complex datasets into clear, executive-ready insights that uncover key operational trends and performance drivers."
         else:
-            middle = "Skilled in data cleaning, modeling, and building interactive dashboards that turn raw data into clear, actionable business insights."
+            middle = "Skilled in data cleaning, star-schema modeling, and building interactive dashboards that turn raw data into clear, actionable business insights."
 
-        # Determine closing sentence focusing on domain track record and impact
-        if any(k in job_text for k in ["pricing", "airbnb", "benchmark", "market", "revenue", "hospitality"]):
-            closing = "Engineering background with demonstrated project track record in marketplace pricing benchmarks, borough-level revenue analysis, and executive KPI reporting."
-        elif any(k in job_text for k in ["retail", "store", "profit", "waste", "inventory", "margin"]):
-            closing = "Engineering background with proven project success in retail store profitability, discount optimization, and operational waste analysis."
-        elif any(k in job_text for k in ["ecommerce", "e-commerce", "amazon", "category", "sales performance"]):
-            closing = "Engineering background with proven project success in multi-category e-commerce sales performance and regional distribution analytics."
-        else:
-            closing = "Engineering background with project work across pricing, sales, and profitability analysis, ready to add immediate value in any industry."
+        # Closing sentence focusing on verified credentials and domain track record
+        closing = "Holds Microsoft credentials (PL-300, DP-600) with engineering experience in data validation and operational reporting."
 
-        return f"{opening} {middle} {closing}"
+        raw_summary = f"{opening} {middle} {closing}"
+        return fix_casing_and_money(raw_summary)
 
     def _prioritize_skills(
         self,
@@ -454,8 +400,9 @@ class ResumeTailorEngine:
                 )
                 p_copy["tools"] = ", ".join(sorted_tools)
             bullets = p.get("bullets", [])
-            # Preserve all bullets (up to 3-4 bullets per project)
-            p_copy["bullets"] = bullets[:4] if len(bullets) > 4 else bullets
+            # Preserve all bullets (up to 3-4 bullets per project) with normalized casing & money
+            clean_bullets = [fix_casing_and_money(b) for b in (bullets[:4] if len(bullets) > 4 else bullets)]
+            p_copy["bullets"] = clean_bullets
             selected_projs.append(p_copy)
 
         return selected_projs

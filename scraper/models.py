@@ -89,6 +89,12 @@ class Job(BaseModel):
                 data["is_active"] = is_job_active(data.get("published_at"), data.get("expires_at"))
                 if not data["is_active"]:
                     data["status"] = "inactive"
+            if not data.get("relevance_score"):
+                try:
+                    from scraper.relevance import score_job
+                    data["relevance_score"] = score_job(data)
+                except Exception:
+                    pass
         return data
 
 class Platform(BaseModel):

@@ -96,6 +96,17 @@ class TestSecurityHeaders:
         assert "referrer-policy" in headers, "Missing Referrer-Policy header"
         assert "content-security-policy" in headers, "Missing Content-Security-Policy header"
 
+    def test_preview_routes_allow_sameorigin_framing(self):
+        """Preview and document embed routes must allow same-origin framing for in-app PDF preview."""
+        res = client.get(
+            "/api/resume/preview/pdf/test_mock_job_id",
+            headers={"X-API-Key": "test-system-secret-key-12345"}
+        )
+        headers = res.headers
+        assert headers.get("x-frame-options") == "SAMEORIGIN", "Preview routes must use X-Frame-Options: SAMEORIGIN"
+        assert "frame-ancestors 'self'" in headers.get("content-security-policy", ""), "CSP must permit same-origin frame ancestors"
+        assert "frame-src 'self' blob:" in headers.get("content-security-policy", ""), "CSP must permit blob and self frame sources"
+
 
 class TestRateLimiting:
     def test_strict_route_rate_limiting(self):

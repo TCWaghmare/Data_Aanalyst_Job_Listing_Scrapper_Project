@@ -64,6 +64,16 @@ class DummySuccessAdapter(BaseAdapter):
 class TestScraperIsolationAndCli(unittest.TestCase):
     def setUp(self):
         self.db = Database()
+        self._cleanup()
+
+    def tearDown(self):
+        self._cleanup()
+
+    def _cleanup(self):
+        conn = self.db.get_connection()
+        conn.execute("DELETE FROM jobs WHERE id LIKE 'test_job_%'")
+        conn.commit()
+        conn.close()
 
     def test_per_adapter_timeout_isolation(self):
         """Tests that a timed-out adapter does not block other adapters and is logged to run_logs."""

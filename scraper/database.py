@@ -1110,6 +1110,11 @@ class Database:
                 cutoff = (now - timedelta(days=35)).strftime("%Y-%m-%d")
                 conditions.append("(COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ? OR published_at IS NULL)")
                 params.append(cutoff)
+            elif date_filter.endswith("d") and date_filter[:-1].isdigit():
+                d_num = int(date_filter[:-1])
+                cutoff = (now - timedelta(days=d_num)).strftime("%Y-%m-%d")
+                conditions.append("COALESCE(published_at, scraped_at, first_scraped_at, discovered_at) >= ?")
+                params.append(cutoff)
 
         where_clause = " WHERE " + " AND ".join(conditions)
 
